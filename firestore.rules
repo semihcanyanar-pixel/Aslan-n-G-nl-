@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// Bebek Günlüğü — Firestore güvenlik kuralları.
+// Uygulamada herkese açık bir "kayıt ol" ekranı yok; hesapları siz Firebase
+// Console > Authentication üzerinden elle oluşturuyorsunuz. Bu yüzden
+// "sadece giriş yapmış kullanıcı" kuralı, pratikte "sadece sizin
+// oluşturduğunuz hesaplar" anlamına gelir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /days/{dayId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
