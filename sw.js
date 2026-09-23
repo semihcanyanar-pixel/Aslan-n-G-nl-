@@ -2,7 +2,7 @@
 // Only caches our own static files, so the app opens instantly even on a
 // weak connection. It never touches Firebase requests — those always go
 // straight to the network so your data stays live and accurate.
-const CACHE_NAME = "bebek-gunlugu-shell-v1";
+const CACHE_NAME = "bebek-gunlugu-shell-v2";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -35,8 +35,24 @@ self.addEventListener("fetch", (event) => {
   // Never cache Firebase / Google APIs or anything cross-origin — network only.
   if (url.origin !== self.location.origin) return;
 
-  // App shell: cache-first, so the shell loads instantly, with a network
-  // fallback that refreshes the cache for next time.
+  // The page itself: network-first, so a new deploy shows up on the very
+  // next load instead of being stuck on whatever was cached before. Falls
+  // back to the cached shell only when there's no connection at all.
+  if (event.request.mode === "navigate" || event.request.destination === "document") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((c) => c || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  // Icons, manifest, etc.: cache-first, since these rarely change and this
+  // keeps the app opening instantly.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -45,6 +61,6 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
       });
-    }).catch(() => caches.match("./index.html"))
+    })
   );
 });
