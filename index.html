@@ -99,8 +99,6 @@
     display:inline-block; font-size:11px; color:var(--blue-deep); background:var(--blue-soft);
     padding:2px 9px; border-radius:999px; margin-top:3px;
   }
-  #datePicker{ position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
-
   .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 16px 20px; margin-bottom:16px; }
   .card h2{ display:flex; align-items:center; gap:10px; font-size:17px; margin:0 0 6px; font-weight:600; }
   .badge{ width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
@@ -149,6 +147,26 @@
   .milestone-count{ margin-left:auto; font-size:12px; font-weight:400; color:var(--ink-soft); }
 
   .sync-status{ text-align:center; font-size:12px; color:var(--ink-soft); padding:10px 0 4px; min-height:18px; }
+
+  .calendar-overlay{ position:fixed; inset:0; background:rgba(70,57,46,.38); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .calendar-popup{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px; width:100%; max-width:320px; }
+  .calendar-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .calendar-head button{ width:32px; height:32px; border-radius:50%; border:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:16px; cursor:pointer; }
+  .calendar-month-label{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; }
+  .calendar-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
+  .calendar-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .calendar-grid button{ aspect-ratio:1; border:none; background:none; border-radius:50%; font-size:14px; color:var(--ink); cursor:pointer; }
+  .calendar-grid button.today{ font-weight:700; color:var(--blue-deep); }
+  .calendar-grid button.selected{ background:var(--blue-deep); color:#fff; }
+  .calendar-close{ width:100%; margin-top:12px; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--line); background:transparent; color:var(--ink-soft); font-size:14px; cursor:pointer; }
+
+  .settings-list{ display:flex; flex-direction:column; gap:8px; }
+  .settings-item{ display:flex; gap:8px; align-items:center; }
+  .settings-item-label{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
+  .settings-item-delete{ border:none; background:none; color:var(--danger); font-size:13px; padding:6px 2px; flex-shrink:0; cursor:pointer; }
+  .settings-add-row{ display:flex; gap:8px; margin-top:12px; }
+  .settings-add-row input{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
+  .settings-add-row button{ border:none; border-radius:9px; background:var(--blue-deep); color:#fff; padding:9px 16px; font-weight:600; font-size:14px; flex-shrink:0; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -179,9 +197,8 @@
         </div>
         <button id="nextDayBtn" type="button" aria-label="Sonraki gün">›</button>
       </div>
-      <div style="width:40px" aria-hidden="true"></div>
+      <button class="icon-btn" id="openSettingsBtn" type="button" aria-label="Ayarlar" title="Ayarlar">⚙</button>
     </header>
-    <input type="date" id="datePicker" aria-hidden="true">
 
     <main>
       <section class="card" data-accent="blue">
@@ -239,6 +256,53 @@
     <div class="sync-status" id="syncStatus"></div>
   </div>
 
+  <div id="calendarOverlay" class="calendar-overlay" hidden>
+    <div class="calendar-popup">
+      <div class="calendar-head">
+        <button id="calPrevMonth" type="button" aria-label="Önceki ay">‹</button>
+        <div class="calendar-month-label" id="calMonthLabel">—</div>
+        <button id="calNextMonth" type="button" aria-label="Sonraki ay">›</button>
+      </div>
+      <div class="calendar-weekdays"><span>Pt</span><span>Sa</span><span>Ça</span><span>Pe</span><span>Cu</span><span>Ct</span><span>Pa</span></div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+      <button class="calendar-close" id="calendarClose" type="button">Kapat</button>
+    </div>
+  </div>
+
+  <div id="settingsScreen" class="app-screen" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="closeSettingsBtn" type="button" aria-label="Kapat">‹</button>
+      <div class="date-center"><div class="date-label">Ayarlar</div></div>
+      <div style="width:40px" aria-hidden="true"></div>
+    </header>
+    <main>
+      <section class="card" data-accent="sage">
+        <h2><span class="badge">🌱</span> Bebeğin günü seçenekleri</h2>
+        <div class="settings-list" id="settingsBabyList"></div>
+        <div class="settings-add-row">
+          <input type="text" id="newBabyItemInput" placeholder="Yeni seçenek…">
+          <button type="button" id="addBabyItemBtn">Ekle</button>
+        </div>
+      </section>
+      <section class="card" data-accent="pink">
+        <h2><span class="badge">🌸</span> Annenin günü seçenekleri</h2>
+        <div class="settings-list" id="settingsMomList"></div>
+        <div class="settings-add-row">
+          <input type="text" id="newMomItemInput" placeholder="Yeni seçenek…">
+          <button type="button" id="addMomItemBtn">Ekle</button>
+        </div>
+      </section>
+      <section class="card" data-accent="blue">
+        <h2><span class="badge">🌟</span> Gelişim aşamaları seçenekleri</h2>
+        <div class="settings-list" id="settingsMilestoneList"></div>
+        <div class="settings-add-row">
+          <input type="text" id="newMilestoneItemInput" placeholder="Yeni aşama…">
+          <button type="button" id="addMilestoneItemBtn">Ekle</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 import {
@@ -270,7 +334,7 @@ const db = getFirestore(app);
 /* ========================================================================
    2) Notebook'taki sabit rutin listeleri
    ===================================================================== */
-const BABY_ROUTINE = [
+const DEFAULT_BABY_ROUTINE = [
   { key:"yuzYikama", label:"Yüz yıkama" },
   { key:"vitaminD", label:"D vitamini" },
   { key:"probiyotik", label:"Probiyotik" },
@@ -280,13 +344,13 @@ const BABY_ROUTINE = [
   { key:"disariCikarma", label:"Dışarı çıkarma" },
   { key:"banyo", label:"Banyo" }
 ];
-const MOM_ROUTINE = [
+const DEFAULT_MOM_ROUTINE = [
   { key:"su", label:"2,5–3,5 litre su" },
   { key:"vitamin", label:"Vitamin" },
   { key:"banyo", label:"Banyo" },
   { key:"gogusBakimi", label:"Göğüs ucu bakımı" }
 ];
-const MILESTONES = [
+const DEFAULT_MILESTONES = [
   { key:"ilkGulumseme", label:"İlk gülümseme" },
   { key:"basiniTutuyor", label:"Başını tutuyor" },
   { key:"guluyor", label:"Gülüyor" },
@@ -330,13 +394,13 @@ let dayData = emptyDay();
 let unsubscribeDay = null;
 let unsubscribeWeekly = null;
 let unsubscribeMilestones = null;
+let unsubscribeConfig = null;
 let milestoneState = {};
+let checklistConfig = null;
 let saveTimer = null;
 
 function emptyDay(){
-  const baby = {}; BABY_ROUTINE.forEach(i => baby[i.key] = false);
-  const mom = {}; MOM_ROUTINE.forEach(i => mom[i.key] = false);
-  return { feedings:[], sleeps:[], babyRoutine:baby, momRoutine:mom, notes:"" };
+  return { feedings:[], sleeps:[], babyRoutine:{}, momRoutine:{}, notes:"" };
 }
 
 /* ========================================================================
@@ -375,12 +439,14 @@ onAuthStateChanged(auth, (user) => {
     loadDate(currentDate);
     startWeeklyStats();
     startMilestones();
+    startChecklistConfig();
   } else {
     authScreen.hidden = false;
     appScreen.hidden = true;
     if (unsubscribeDay){ unsubscribeDay(); unsubscribeDay = null; }
     if (unsubscribeWeekly){ unsubscribeWeekly(); unsubscribeWeekly = null; }
     if (unsubscribeMilestones){ unsubscribeMilestones(); unsubscribeMilestones = null; }
+    if (unsubscribeConfig){ unsubscribeConfig(); unsubscribeConfig = null; }
   }
 });
 
@@ -389,15 +455,10 @@ onAuthStateChanged(auth, (user) => {
    ===================================================================== */
 const dateLabelEl = document.getElementById("dateLabel");
 const dayBadgeEl = document.getElementById("dayBadge");
-const datePicker = document.getElementById("datePicker");
 
 document.getElementById("prevDayBtn").addEventListener("click", () => loadDate(shiftDate(currentDate,-1)));
 document.getElementById("nextDayBtn").addEventListener("click", () => loadDate(shiftDate(currentDate,1)));
-document.getElementById("dateCenter").addEventListener("click", () => {
-  datePicker.value = currentDate;
-  if (datePicker.showPicker) datePicker.showPicker(); else datePicker.focus();
-});
-datePicker.addEventListener("change", (e) => { if (e.target.value) loadDate(e.target.value); });
+document.getElementById("dateCenter").addEventListener("click", openCalendar);
 
 function loadDate(dateStr){
   currentDate = dateStr;
@@ -496,10 +557,11 @@ function startMilestones(){
 }
 
 function renderMilestones(){
+  if (!checklistConfig) return;
   const ul = document.getElementById("milestoneList");
   ul.innerHTML = "";
   let doneCount = 0;
-  MILESTONES.forEach(m => {
+  checklistConfig.milestones.forEach(m => {
     const achieved = !!milestoneState[m.key];
     if (achieved) doneCount++;
     const li = document.createElement("li");
@@ -513,8 +575,149 @@ function renderMilestones(){
     li.addEventListener("click", (e) => { if (e.target !== cb){ cb.checked = !cb.checked; toggle(); } });
     ul.appendChild(li);
   });
-  document.getElementById("milestoneCount").textContent = doneCount + "/" + MILESTONES.length;
+  document.getElementById("milestoneCount").textContent = doneCount + "/" + checklistConfig.milestones.length;
 }
+
+/* ========================================================================
+   6d) Takvim — ay görünümü, bir tarihe dokununca o günü açar
+   ===================================================================== */
+let calViewYear, calViewMonth;
+const calendarOverlay = document.getElementById("calendarOverlay");
+
+function openCalendar(){
+  const [y,m] = currentDate.split("-").map(Number);
+  calViewYear = y; calViewMonth = m-1;
+  renderCalendar();
+  calendarOverlay.hidden = false;
+}
+function closeCalendar(){ calendarOverlay.hidden = true; }
+
+function renderCalendar(){
+  document.getElementById("calMonthLabel").textContent = MONTHS[calViewMonth] + " " + calViewYear;
+  const grid = document.getElementById("calendarGrid");
+  grid.innerHTML = "";
+
+  const firstOfMonth = new Date(calViewYear, calViewMonth, 1);
+  const leadingBlanks = (firstOfMonth.getDay() + 6) % 7; // Pazartesi=0 olacak şekilde kaydır
+  const daysInMonth = new Date(calViewYear, calViewMonth+1, 0).getDate();
+
+  const today = todayStr();
+  for (let i=0;i<leadingBlanks;i++){
+    const span = document.createElement("span");
+    grid.appendChild(span);
+  }
+  for (let d=1; d<=daysInMonth; d++){
+    const dateStr = calViewYear + "-" + String(calViewMonth+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = d;
+    if (dateStr === today) btn.classList.add("today");
+    if (dateStr === currentDate) btn.classList.add("selected");
+    btn.addEventListener("click", () => { loadDate(dateStr); closeCalendar(); });
+    grid.appendChild(btn);
+  }
+}
+
+document.getElementById("calPrevMonth").addEventListener("click", () => {
+  calViewMonth--; if (calViewMonth<0){ calViewMonth=11; calViewYear--; }
+  renderCalendar();
+});
+document.getElementById("calNextMonth").addEventListener("click", () => {
+  calViewMonth++; if (calViewMonth>11){ calViewMonth=0; calViewYear++; }
+  renderCalendar();
+});
+document.getElementById("calendarClose").addEventListener("click", closeCalendar);
+calendarOverlay.addEventListener("click", (e) => { if (e.target === calendarOverlay) closeCalendar(); });
+
+/* ========================================================================
+   6e) Ayarlanabilir liste tanımları (Bebeğin günü / Annenin günü / Gelişim
+   aşamaları seçenekleri) — meta/checklistConfig belgesinde saklanır
+   ===================================================================== */
+function startChecklistConfig(){
+  if (unsubscribeConfig) unsubscribeConfig();
+  unsubscribeConfig = onSnapshot(doc(db,"meta","checklistConfig"), (snap) => {
+    if (snap.exists()){
+      checklistConfig = snap.data();
+    } else {
+      checklistConfig = { babyRoutine:DEFAULT_BABY_ROUTINE, momRoutine:DEFAULT_MOM_ROUTINE, milestones:DEFAULT_MILESTONES };
+      setDoc(doc(db,"meta","checklistConfig"), checklistConfig).catch(()=>{});
+    }
+    renderRoutineList("babyRoutineList", checklistConfig.babyRoutine, dayData.babyRoutine, "babyRoutine");
+    renderRoutineList("momRoutineList", checklistConfig.momRoutine, dayData.momRoutine, "momRoutine");
+    renderMilestones();
+    renderSettingsLists();
+  }, () => {});
+}
+
+function saveChecklistConfig(){
+  setDoc(doc(db,"meta","checklistConfig"), checklistConfig).catch(()=>{});
+}
+
+function escapeHtml(s){
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+function slugify(text){
+  const base = text.toLowerCase()
+    .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
+    .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
+    .replace(/[^a-z0-9]+/g,"");
+  return "custom_" + (base||"secenek") + "_" + Date.now().toString(36);
+}
+
+function renderSettingsLists(){
+  if (!checklistConfig) return;
+  renderSettingsList("settingsBabyList", "babyRoutine");
+  renderSettingsList("settingsMomList", "momRoutine");
+  renderSettingsList("settingsMilestoneList", "milestones");
+}
+
+function renderSettingsList(elId, configKey){
+  const wrap = document.getElementById(elId);
+  wrap.innerHTML = "";
+  checklistConfig[configKey].forEach((item, idx) => {
+    const row = document.createElement("div");
+    row.className = "settings-item";
+    row.innerHTML = `<input type="text" class="settings-item-label" value="${escapeHtml(item.label)}"><button type="button" class="settings-item-delete">Sil</button>`;
+    row.querySelector(".settings-item-label").addEventListener("change", (e) => {
+      checklistConfig[configKey][idx].label = e.target.value.trim() || item.label;
+      saveChecklistConfig();
+    });
+    row.querySelector(".settings-item-delete").addEventListener("click", () => {
+      checklistConfig[configKey].splice(idx,1);
+      saveChecklistConfig();
+      renderSettingsLists();
+      if (configKey==="milestones") renderMilestones(); else render();
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function wireAddButton(inputId, btnId, configKey){
+  document.getElementById(btnId).addEventListener("click", () => {
+    const input = document.getElementById(inputId);
+    const label = input.value.trim();
+    if (!label || !checklistConfig) return;
+    checklistConfig[configKey].push({ key:slugify(label), label });
+    input.value = "";
+    saveChecklistConfig();
+    renderSettingsLists();
+    if (configKey==="milestones") renderMilestones(); else render();
+  });
+}
+wireAddButton("newBabyItemInput","addBabyItemBtn","babyRoutine");
+wireAddButton("newMomItemInput","addMomItemBtn","momRoutine");
+wireAddButton("newMilestoneItemInput","addMilestoneItemBtn","milestones");
+
+document.getElementById("openSettingsBtn").addEventListener("click", () => {
+  appScreen.hidden = true;
+  document.getElementById("settingsScreen").hidden = false;
+});
+document.getElementById("closeSettingsBtn").addEventListener("click", () => {
+  document.getElementById("settingsScreen").hidden = true;
+  appScreen.hidden = false;
+});
 
 /* ========================================================================
    7) Kayıt (debounce'lı otomatik kaydetme)
@@ -544,8 +747,10 @@ function setSyncStatus(text, isError){
 function render(){
   renderFeedList();
   renderSleepList();
-  renderRoutineList("babyRoutineList", BABY_ROUTINE, dayData.babyRoutine, "babyRoutine");
-  renderRoutineList("momRoutineList", MOM_ROUTINE, dayData.momRoutine, "momRoutine");
+  if (checklistConfig){
+    renderRoutineList("babyRoutineList", checklistConfig.babyRoutine, dayData.babyRoutine, "babyRoutine");
+    renderRoutineList("momRoutineList", checklistConfig.momRoutine, dayData.momRoutine, "momRoutine");
+  }
   const notesInput = document.getElementById("notesInput");
   if (document.activeElement !== notesInput) notesInput.value = dayData.notes;
 }
