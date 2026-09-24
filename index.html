@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Bebek Günlüğü">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#F5EEE0">
+<meta name="theme-color" content="#F5E6C8">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="favicon-32.png" sizes="32x32">
@@ -20,11 +20,11 @@
 
 <style>
   :root{
-    --paper:#F5EEE0; --card:#FFFBF3; --ink:#46392E; --ink-soft:#7C6B57; --line:#E4D8C3;
-    --blue:#6F9CBD; --blue-deep:#4D7690; --blue-soft:#E4EEF3;
-    --gold:#E3A85C; --gold-soft:#FBF0DF;
-    --sage:#8FA888; --sage-soft:#E9EFE6;
-    --pink:#D98CA0; --pink-soft:#F8E9ED;
+    --paper:#F5E6C8; --card:#FFFAEF; --ink:#4A3520; --ink-soft:#8A6D48; --line:#E8D3A0;
+    --blue:#C17F2E; --blue-deep:#8F5A19; --blue-soft:#F5E3C0;
+    --gold:#D97D5C; --gold-soft:#F7E0D3;
+    --sage:#8A9B5E; --sage-soft:#E9EDD9;
+    --pink:#C9673F; --pink-soft:#F3DDCE;
     --brass:#B8935A; --danger:#B2554A;
     --radius:22px; --radius-sm:12px;
   }
@@ -48,13 +48,14 @@
   }
   @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
 
-  /* spiral-bound notebook edge */
+  /* paw-print trail down the bound edge */
   .spine{
     position:fixed; left:0; top:0; bottom:0; width:28px;
-    background-color:#EFE4CE;
-    background-image:radial-gradient(circle 8px at 14px 23px, transparent 0 5px, var(--brass) 5px 8px, transparent 8px);
+    background-color:#EFE1BE;
+    background-image:url('paw-tile.png');
     background-size:28px 44px; background-repeat:repeat-y;
-    z-index:5; pointer-events:none;
+    background-position:top center;
+    z-index:5; pointer-events:none; opacity:.85;
   }
   .spine::after{
     content:""; position:absolute; top:0; right:-7px; bottom:0; width:7px;
@@ -62,12 +63,11 @@
   }
 
   .loading-screen,.auth-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
-  .loading-screen .moon-mark{ font-size:40px; opacity:.45; }
+  .loading-screen .brand-mark img{ width:56px; height:56px; opacity:.7; display:block; }
   .auth-card{
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:34px 24px; width:100%; max-width:360px; text-align:center;
+    padding:28px 24px 34px; width:100%; max-width:360px; text-align:center;
   }
-  .auth-card .moon-mark{ font-size:38px; margin-bottom:6px; }
   .auth-card h1{ font-size:21px; margin:0 0 4px; }
   .auth-card p.sub{ color:var(--ink-soft); font-size:14px; margin:0 0 22px; }
   .auth-card input{
@@ -80,6 +80,8 @@
   }
   .btn-primary:active{ transform:scale(.98); }
   .auth-error{ color:var(--danger); font-size:13px; margin-top:12px; min-height:16px; }
+  .auth-scene{ margin:-6px -8px 14px; }
+  .auth-scene img{ width:100%; max-width:260px; height:auto; display:block; margin:0 auto; }
 
   .app-screen{ max-width:560px; margin:0 auto; padding:18px 16px 56px; }
   .topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:18px; }
@@ -172,11 +174,11 @@
 <body>
   <div class="spine" aria-hidden="true"></div>
 
-  <div id="loadingScreen" class="loading-screen"><div class="moon-mark">🌙</div></div>
+  <div id="loadingScreen" class="loading-screen"><div class="brand-mark"><img src="lion-mascot.png" alt=""></div></div>
 
   <div id="authScreen" class="auth-screen" hidden>
     <div class="auth-card">
-      <div class="moon-mark">🌙</div>
+      <div class="auth-scene"><img src="auth-scene.png" alt="Aslan yavrusu çimenlerde oturuyor"></div>
       <h1>Bebek Günlüğü</h1>
       <p class="sub">Devam etmek için giriş yapın</p>
       <input type="email" id="emailInput" placeholder="E-posta" autocomplete="email" inputmode="email">
