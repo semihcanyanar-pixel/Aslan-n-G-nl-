@@ -169,6 +169,22 @@
   .settings-add-row{ display:flex; gap:8px; margin-top:12px; }
   .settings-add-row input{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
   .settings-add-row button{ border:none; border-radius:9px; background:var(--blue-deep); color:#fff; padding:9px 16px; font-weight:600; font-size:14px; flex-shrink:0; cursor:pointer; }
+
+  .growth-tabs{ display:flex; gap:6px; margin-bottom:12px; }
+  .growth-tab{ flex:1; padding:8px 4px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-size:12.5px; font-weight:600; cursor:pointer; }
+  .growth-tab.active{ background:var(--blue-deep); border-color:var(--blue-deep); color:#fff; }
+  .growth-chart{ width:100%; height:auto; display:block; }
+  .chart-axis-label{ font-size:8px; fill:var(--ink-soft); }
+  .chart-empty{ text-align:center; color:var(--ink-soft); font-size:13px; padding:22px 0; }
+  .growth-latest{ text-align:center; font-size:13px; color:var(--ink-soft); margin:8px 0 4px; }
+  .growth-list-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .growth-list-row:last-child{ border-bottom:none; }
+  .growth-list-row .row-delete-inline{ border:none; background:none; color:var(--ink-soft); font-size:12px; cursor:pointer; flex-shrink:0; }
+  .growth-add-form{ background:var(--paper); border-radius:var(--radius-sm); padding:12px; margin-top:10px; }
+  .growth-add-form input[type="date"]{ border:1px solid var(--line); border-radius:9px; padding:8px 9px; background:#fff; color:var(--ink); }
+  .growth-inputs{ display:flex; flex-wrap:wrap; gap:12px; margin:10px 0 4px; }
+  .growth-inputs input[type="number"]{ width:88px; border:1px solid var(--line); border-radius:9px; padding:8px 9px; background:#fff; color:var(--ink); }
+  #saveGrowthBtn{ margin-top:8px; }
 </style>
 </head>
 <body>
@@ -225,6 +241,28 @@
       <section class="card" data-accent="sage">
         <h2><span class="badge">🌟</span> Gelişim aşamaları <span class="milestone-count" id="milestoneCount"></span></h2>
         <ul class="routine-list" id="milestoneList"></ul>
+      </section>
+
+      <section class="card" data-accent="blue">
+        <h2><span class="badge">📈</span> Büyüme takibi</h2>
+        <div class="growth-tabs" id="growthTabs">
+          <button type="button" class="growth-tab active" data-metric="weightKg">Kilo</button>
+          <button type="button" class="growth-tab" data-metric="heightCm">Boy</button>
+          <button type="button" class="growth-tab" data-metric="headCm">Baş çevresi</button>
+        </div>
+        <div id="growthChartWrap"></div>
+        <div class="growth-latest" id="growthLatest"></div>
+        <div id="growthEntryList"></div>
+        <div class="growth-add-form" id="growthAddForm" hidden>
+          <div class="field-group"><label>Tarih</label><div><input type="date" id="growthDateInput"></div></div>
+          <div class="growth-inputs">
+            <div class="mini-group"><label>Kilo (kg)</label><input type="number" step="0.01" min="0" id="growthWeightInput"></div>
+            <div class="mini-group"><label>Boy (cm)</label><input type="number" step="0.1" min="0" id="growthHeightInput"></div>
+            <div class="mini-group"><label>Baş çevresi (cm)</label><input type="number" step="0.1" min="0" id="growthHeadInput"></div>
+          </div>
+          <button type="button" class="btn-primary" id="saveGrowthBtn">Kaydet</button>
+        </div>
+        <button class="add-btn" id="addGrowthBtn" type="button">+ Ölçüm ekle</button>
       </section>
 
       <section class="card" data-accent="blue">
@@ -311,7 +349,7 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
-  getFirestore, doc, onSnapshot, setDoc, getDoc, collection, query, where, documentId
+  getFirestore, doc, onSnapshot, setDoc, getDoc, deleteDoc, collection, query, where, documentId
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 /* ========================================================================
@@ -399,6 +437,9 @@ let unsubscribeMilestones = null;
 let unsubscribeConfig = null;
 let milestoneState = {};
 let checklistConfig = null;
+let growthEntries = [];
+let unsubscribeGrowth = null;
+let growthMetric = "weightKg";
 let saveTimer = null;
 
 function emptyDay(){
@@ -442,6 +483,7 @@ onAuthStateChanged(auth, (user) => {
     startWeeklyStats();
     startMilestones();
     startChecklistConfig();
+    startGrowth();
   } else {
     authScreen.hidden = false;
     appScreen.hidden = true;
@@ -449,6 +491,7 @@ onAuthStateChanged(auth, (user) => {
     if (unsubscribeWeekly){ unsubscribeWeekly(); unsubscribeWeekly = null; }
     if (unsubscribeMilestones){ unsubscribeMilestones(); unsubscribeMilestones = null; }
     if (unsubscribeConfig){ unsubscribeConfig(); unsubscribeConfig = null; }
+    if (unsubscribeGrowth){ unsubscribeGrowth(); unsubscribeGrowth = null; }
   }
 });
 
@@ -719,6 +762,116 @@ document.getElementById("openSettingsBtn").addEventListener("click", () => {
 document.getElementById("closeSettingsBtn").addEventListener("click", () => {
   document.getElementById("settingsScreen").hidden = true;
   appScreen.hidden = false;
+});
+
+/* ========================================================================
+   6f) Büyüme takibi — kilo/boy/baş çevresi, tarihe bağlı değil, kendi
+   koleksiyonunda; basit bir SVG çizgi grafikle gösteriliyor
+   ===================================================================== */
+function startGrowth(){
+  if (unsubscribeGrowth) unsubscribeGrowth();
+  unsubscribeGrowth = onSnapshot(collection(db,"growth"), (snap) => {
+    growthEntries = [];
+    snap.forEach(d => growthEntries.push({ id:d.id, ...d.data() }));
+    growthEntries.sort((a,b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    renderGrowth();
+  }, () => {});
+}
+
+function shortDateLabel(dateStr){
+  const [,m,d] = dateStr.split("-").map(Number);
+  return d + "." + m;
+}
+
+function buildLineChartSVG(points){
+  if (points.length === 0) return '<div class="chart-empty">Henüz ölçüm yok</div>';
+  const w=300, h=130, padL=30, padR=10, padT=12, padB=20;
+  const values = points.map(p=>p.value);
+  const minV = Math.min(...values), maxV = Math.max(...values);
+  const range = (maxV - minV) || 1;
+  const stepX = points.length>1 ? (w-padL-padR)/(points.length-1) : 0;
+  const coords = points.map((p,i) => {
+    const x = padL + i*stepX;
+    const y = padT + (h-padT-padB) * (1 - (p.value-minV)/range);
+    return [x,y];
+  });
+  const pathD = coords.map(([x,y],i) => (i===0?"M":"L")+x.toFixed(1)+","+y.toFixed(1)).join(" ");
+  const dots = coords.map(([x,y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--blue-deep)"/>`).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" class="growth-chart">
+    <path d="${pathD}" fill="none" stroke="var(--blue-deep)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+    <text x="${padL}" y="${h-4}" class="chart-axis-label">${points[0].xLabel}</text>
+    <text x="${w-padR}" y="${h-4}" text-anchor="end" class="chart-axis-label">${points[points.length-1].xLabel}</text>
+    <text x="2" y="${padT+7}" class="chart-axis-label">${maxV}</text>
+    <text x="2" y="${h-padB}" class="chart-axis-label">${minV}</text>
+  </svg>`;
+}
+
+function renderGrowth(){
+  const withMetric = growthEntries.filter(e => e[growthMetric] != null && e[growthMetric] !== "");
+  const points = withMetric.map(e => ({ xLabel:shortDateLabel(e.date), value:Number(e[growthMetric]) }));
+  document.getElementById("growthChartWrap").innerHTML = buildLineChartSVG(points);
+
+  const latestEl = document.getElementById("growthLatest");
+  if (withMetric.length){
+    const last = withMetric[withMetric.length-1];
+    const unit = growthMetric === "weightKg" ? "kg" : "cm";
+    latestEl.textContent = "Son ölçüm: " + last[growthMetric] + " " + unit + " · " + formatDateLabel(last.date);
+  } else {
+    latestEl.textContent = "";
+  }
+  renderGrowthList();
+}
+
+function renderGrowthList(){
+  const wrap = document.getElementById("growthEntryList");
+  wrap.innerHTML = "";
+  [...growthEntries].reverse().forEach(e => {
+    const parts = [];
+    if (e.weightKg!=null && e.weightKg!=="") parts.push(e.weightKg+" kg");
+    if (e.heightCm!=null && e.heightCm!=="") parts.push(e.heightCm+" cm");
+    if (e.headCm!=null && e.headCm!=="") parts.push("baş "+e.headCm+" cm");
+    if (!parts.length) return;
+    const row = document.createElement("div");
+    row.className = "growth-list-row";
+    row.innerHTML = `<span>${formatDateLabel(e.date)} — ${parts.join(", ")}</span><button type="button" class="row-delete-inline">Sil</button>`;
+    row.querySelector("button").addEventListener("click", () => deleteDoc(doc(db,"growth",e.id)));
+    wrap.appendChild(row);
+  });
+}
+
+document.querySelectorAll(".growth-tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".growth-tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    growthMetric = btn.dataset.metric;
+    renderGrowth();
+  });
+});
+
+document.getElementById("addGrowthBtn").addEventListener("click", () => {
+  const form = document.getElementById("growthAddForm");
+  form.hidden = !form.hidden;
+  if (!form.hidden) document.getElementById("growthDateInput").value = todayStr();
+});
+
+document.getElementById("saveGrowthBtn").addEventListener("click", async () => {
+  const date = document.getElementById("growthDateInput").value || todayStr();
+  const w = document.getElementById("growthWeightInput").value;
+  const h = document.getElementById("growthHeightInput").value;
+  const hd = document.getElementById("growthHeadInput").value;
+  if (!w && !h && !hd) return;
+  const ref = doc(collection(db,"growth"));
+  await setDoc(ref, {
+    date,
+    weightKg: w ? Number(w) : null,
+    heightCm: h ? Number(h) : null,
+    headCm: hd ? Number(hd) : null
+  });
+  document.getElementById("growthWeightInput").value = "";
+  document.getElementById("growthHeightInput").value = "";
+  document.getElementById("growthHeadInput").value = "";
+  document.getElementById("growthAddForm").hidden = true;
 });
 
 /* ========================================================================
