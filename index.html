@@ -165,6 +165,8 @@
   .settings-list{ display:flex; flex-direction:column; gap:8px; }
   .settings-item{ display:flex; gap:8px; align-items:center; }
   .settings-item-label{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
+  .settings-item-age{ width:52px; flex-shrink:0; border:1px solid var(--line); border-radius:9px; padding:9px 6px; background:#fff; color:var(--ink); text-align:center; }
+  .settings-age-input{ width:52px; flex-shrink:0; }
   .settings-item-delete{ border:none; background:none; color:var(--danger); font-size:13px; padding:6px 2px; flex-shrink:0; cursor:pointer; }
   .settings-add-row{ display:flex; gap:8px; margin-top:12px; }
   .settings-add-row input{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
@@ -185,6 +187,28 @@
   .growth-inputs{ display:flex; flex-wrap:wrap; gap:12px; margin:10px 0 4px; }
   .growth-inputs input[type="number"]{ width:88px; border:1px solid var(--line); border-radius:9px; padding:8px 9px; background:#fff; color:var(--ink); }
   #saveGrowthBtn{ margin-top:8px; }
+
+  #birthDateInput{ border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); width:100%; }
+  .settings-hint{ font-size:12px; color:var(--ink-soft); margin:8px 0 0; }
+
+  .vaccine-disclaimer{ font-size:11.5px; color:var(--ink-soft); margin:-2px 0 12px; line-height:1.4; }
+  .vaccine-summary{ display:flex; justify-content:space-around; text-align:center; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+  .vaccine-summary div{ display:flex; flex-direction:column; gap:2px; }
+  .vaccine-summary b{ font-size:19px; font-family:'Fredoka',sans-serif; font-weight:600; }
+  .vaccine-summary span{ font-size:10px; color:var(--ink-soft); }
+  .vaccine-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .vaccine-row:last-child{ border-bottom:none; }
+  .vaccine-row input[type="checkbox"]{ width:21px; height:21px; border-radius:50%; accent-color:var(--sage); flex-shrink:0; }
+  .vaccine-row-text{ flex:1; min-width:0; }
+  .vaccine-row-label{ font-size:13.5px; font-weight:600; }
+  .vaccine-row-dose{ font-weight:400; color:var(--ink-soft); font-size:11.5px; }
+  .vaccine-row-due{ font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
+  .vaccine-row-badge{ font-size:10.5px; padding:3px 9px; border-radius:999px; flex-shrink:0; white-space:nowrap; }
+  .vaccine-row.overdue .vaccine-row-badge{ background:var(--pink-soft); color:var(--danger); }
+  .vaccine-row.upcoming .vaccine-row-badge{ background:var(--gold-soft); color:#9c6a1f; }
+  .vaccine-row.done{ opacity:.6; }
+  .vaccine-row.done .vaccine-row-label{ text-decoration:line-through; }
+  .vaccine-row.done .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
 </style>
 </head>
 <body>
@@ -265,6 +289,16 @@
         <button class="add-btn" id="addGrowthBtn" type="button">+ Ölçüm ekle</button>
       </section>
 
+      <section class="card" data-accent="sage">
+        <h2><span class="badge">💉</span> Aşı takvimi</h2>
+        <p class="vaccine-disclaimer">Bilgilendirme amaçlıdır — kesin program için çocuk doktorunuza ve e-Nabız kaydına bakın.</p>
+        <div class="chart-empty" id="vaccineNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
+        <div id="vaccineBody" hidden>
+          <div class="vaccine-summary" id="vaccineSummary"></div>
+          <div id="vaccineList"></div>
+        </div>
+      </section>
+
       <section class="card" data-accent="blue">
         <h2><span class="badge">🍼</span> Emzirme</h2>
         <div id="feedList"></div>
@@ -316,6 +350,12 @@
       <div style="width:40px" aria-hidden="true"></div>
     </header>
     <main>
+      <section class="card" data-accent="blue">
+        <h2><span class="badge">👶</span> Doğum tarihi</h2>
+        <input type="date" id="birthDateInput">
+        <p class="settings-hint">Aşı takviminin doğru hesaplanması için gerekli.</p>
+      </section>
+
       <section class="card" data-accent="sage">
         <h2><span class="badge">🌱</span> Bebeğin günü seçenekleri</h2>
         <div class="settings-list" id="settingsBabyList"></div>
@@ -338,6 +378,17 @@
         <div class="settings-add-row">
           <input type="text" id="newMilestoneItemInput" placeholder="Yeni aşama…">
           <button type="button" id="addMilestoneItemBtn">Ekle</button>
+        </div>
+      </section>
+
+      <section class="card" data-accent="sage">
+        <h2><span class="badge">💉</span> Aşı takvimi seçenekleri</h2>
+        <p class="settings-hint">Soldaki sayı, doğumdan kaç ay sonra hatırlatılacağı.</p>
+        <div class="settings-list" id="settingsVaccineList"></div>
+        <div class="settings-add-row">
+          <input type="number" min="0" id="newVaccineAgeInput" placeholder="Ay" class="settings-age-input">
+          <input type="text" id="newVaccineItemInput" placeholder="Yeni doz…">
+          <button type="button" id="addVaccineItemBtn">Ekle</button>
         </div>
       </section>
     </main>
@@ -421,6 +472,37 @@ function nowTimeStr(){
   return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
 }
 const MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+function addMonths(dateStr, months){
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m-1+months, d);
+  return toDateStr(dt);
+}
+
+// T.C. Sağlık Bakanlığı Ulusal Çocukluk Dönemi Aşılama Takvimi (2026).
+// Bilgilendirme amaçlıdır — kesin program için çocuk doktorunuza / e-Nabız
+// kaydınıza bakın; kart içinde de bu notu gösteriyoruz.
+const DEFAULT_VACCINES = [
+  { key:"hepB1", ageMonths:0, label:"Hepatit B — 1. doz" },
+  { key:"bcg", ageMonths:2, label:"BCG (Verem) — tek doz" },
+  { key:"kpa1", ageMonths:2, label:"KPA (Pnömokok) — 1. doz" },
+  { key:"besli1", ageMonths:2, label:"DaBT-İPA-Hib-HepB (5'li karma) — 1. doz" },
+  { key:"kpa2", ageMonths:4, label:"KPA (Pnömokok) — 2. doz" },
+  { key:"besli2", ageMonths:4, label:"DaBT-İPA-Hib-HepB (5'li karma) — 2. doz" },
+  { key:"besli3", ageMonths:6, label:"DaBT-İPA-Hib-HepB (5'li karma) — 3. doz" },
+  { key:"opa1", ageMonths:6, label:"OPA (Çocuk felci) — 1. doz" },
+  { key:"kkkEk", ageMonths:9, label:"KKK (Kızamık-Kızamıkçık-Kabakulak) — ek doz" },
+  { key:"kpaRapel", ageMonths:12, label:"KPA (Pnömokok) — rapel" },
+  { key:"sucicegi1", ageMonths:12, label:"Su çiçeği — 1. doz" },
+  { key:"kkk1", ageMonths:12, label:"KKK (Kızamık-Kızamıkçık-Kabakulak) — 1. doz" },
+  { key:"besliRapel", ageMonths:18, label:"DaBT-İPA-Hib-HepB (5'li karma) — rapel" },
+  { key:"opa2", ageMonths:18, label:"OPA (Çocuk felci) — 2. doz" },
+  { key:"hepA1", ageMonths:18, label:"Hepatit A — 1. doz" },
+  { key:"hepA2", ageMonths:24, label:"Hepatit A — 2. doz" },
+  { key:"kkk2", ageMonths:48, label:"KKK (Kızamık-Kızamıkçık-Kabakulak) — 2. doz" },
+  { key:"dortluRapel", ageMonths:48, label:"DaBT-İPA (4'lü karma) — rapel" },
+  { key:"sucicegiRapel", ageMonths:48, label:"Su çiçeği — rapel" },
+  { key:"td", ageMonths:156, label:"Td (Tetanoz-Difteri) — rapel, 13 yaş" }
+];
 function formatDateLabel(dateStr){
   const [y,m,d] = dateStr.split("-").map(Number);
   return `${d} ${MONTHS[m-1]} ${y}`;
@@ -440,6 +522,10 @@ let checklistConfig = null;
 let growthEntries = [];
 let unsubscribeGrowth = null;
 let growthMetric = "weightKg";
+let babyProfile = { birthDate:null };
+let unsubscribeProfile = null;
+let vaccineState = {};
+let unsubscribeVaccines = null;
 let saveTimer = null;
 
 function emptyDay(){
@@ -484,6 +570,8 @@ onAuthStateChanged(auth, (user) => {
     startMilestones();
     startChecklistConfig();
     startGrowth();
+    startProfile();
+    startVaccines();
   } else {
     authScreen.hidden = false;
     appScreen.hidden = true;
@@ -492,6 +580,8 @@ onAuthStateChanged(auth, (user) => {
     if (unsubscribeMilestones){ unsubscribeMilestones(); unsubscribeMilestones = null; }
     if (unsubscribeConfig){ unsubscribeConfig(); unsubscribeConfig = null; }
     if (unsubscribeGrowth){ unsubscribeGrowth(); unsubscribeGrowth = null; }
+    if (unsubscribeProfile){ unsubscribeProfile(); unsubscribeProfile = null; }
+    if (unsubscribeVaccines){ unsubscribeVaccines(); unsubscribeVaccines = null; }
   }
 });
 
@@ -681,15 +771,20 @@ calendarOverlay.addEventListener("click", (e) => { if (e.target === calendarOver
 function startChecklistConfig(){
   if (unsubscribeConfig) unsubscribeConfig();
   unsubscribeConfig = onSnapshot(doc(db,"meta","checklistConfig"), (snap) => {
-    if (snap.exists()){
-      checklistConfig = snap.data();
-    } else {
-      checklistConfig = { babyRoutine:DEFAULT_BABY_ROUTINE, momRoutine:DEFAULT_MOM_ROUTINE, milestones:DEFAULT_MILESTONES };
-      setDoc(doc(db,"meta","checklistConfig"), checklistConfig).catch(()=>{});
-    }
+    checklistConfig = snap.exists() ? snap.data() : {};
+    // eksik liste türlerini varsayılanla doldur (ilk kurulum ya da sonradan
+    // eklenen bir liste — ör. aşı takvimi artık burada, eski kayıtlarda yok)
+    let needsSave = false;
+    if (!checklistConfig.babyRoutine){ checklistConfig.babyRoutine = DEFAULT_BABY_ROUTINE; needsSave = true; }
+    if (!checklistConfig.momRoutine){ checklistConfig.momRoutine = DEFAULT_MOM_ROUTINE; needsSave = true; }
+    if (!checklistConfig.milestones){ checklistConfig.milestones = DEFAULT_MILESTONES; needsSave = true; }
+    if (!checklistConfig.vaccines){ checklistConfig.vaccines = DEFAULT_VACCINES; needsSave = true; }
+    if (needsSave) setDoc(doc(db,"meta","checklistConfig"), checklistConfig).catch(()=>{});
+
     renderRoutineList("babyRoutineList", checklistConfig.babyRoutine, dayData.babyRoutine, "babyRoutine");
     renderRoutineList("momRoutineList", checklistConfig.momRoutine, dayData.momRoutine, "momRoutine");
     renderMilestones();
+    renderVaccines();
     renderSettingsLists();
   }, () => {});
 }
@@ -711,49 +806,73 @@ function slugify(text){
   return "custom_" + (base||"secenek") + "_" + Date.now().toString(36);
 }
 
+function refreshForKey(configKey){
+  if (configKey === "milestones") renderMilestones();
+  else if (configKey === "vaccines") renderVaccines();
+  else render();
+}
+
 function renderSettingsLists(){
   if (!checklistConfig) return;
   renderSettingsList("settingsBabyList", "babyRoutine");
   renderSettingsList("settingsMomList", "momRoutine");
   renderSettingsList("settingsMilestoneList", "milestones");
+  renderSettingsList("settingsVaccineList", "vaccines");
 }
 
 function renderSettingsList(elId, configKey){
   const wrap = document.getElementById(elId);
   wrap.innerHTML = "";
+  const hasAge = configKey === "vaccines";
   checklistConfig[configKey].forEach((item, idx) => {
     const row = document.createElement("div");
     row.className = "settings-item";
-    row.innerHTML = `<input type="text" class="settings-item-label" value="${escapeHtml(item.label)}"><button type="button" class="settings-item-delete">Sil</button>`;
+    row.innerHTML =
+      (hasAge ? `<input type="number" min="0" class="settings-item-age" value="${item.ageMonths ?? 0}" title="Kaçıncı ay">` : "") +
+      `<input type="text" class="settings-item-label" value="${escapeHtml(item.label)}"><button type="button" class="settings-item-delete">Sil</button>`;
     row.querySelector(".settings-item-label").addEventListener("change", (e) => {
       checklistConfig[configKey][idx].label = e.target.value.trim() || item.label;
       saveChecklistConfig();
     });
+    if (hasAge){
+      row.querySelector(".settings-item-age").addEventListener("change", (e) => {
+        checklistConfig[configKey][idx].ageMonths = Math.max(0, Number(e.target.value) || 0);
+        saveChecklistConfig();
+        refreshForKey(configKey);
+      });
+    }
     row.querySelector(".settings-item-delete").addEventListener("click", () => {
       checklistConfig[configKey].splice(idx,1);
       saveChecklistConfig();
       renderSettingsLists();
-      if (configKey==="milestones") renderMilestones(); else render();
+      refreshForKey(configKey);
     });
     wrap.appendChild(row);
   });
 }
 
-function wireAddButton(inputId, btnId, configKey){
+function wireAddButton(inputId, btnId, configKey, ageInputId){
   document.getElementById(btnId).addEventListener("click", () => {
     const input = document.getElementById(inputId);
     const label = input.value.trim();
     if (!label || !checklistConfig) return;
-    checklistConfig[configKey].push({ key:slugify(label), label });
+    const item = { key:slugify(label), label };
+    if (ageInputId){
+      const ageInput = document.getElementById(ageInputId);
+      item.ageMonths = Math.max(0, Number(ageInput.value) || 0);
+      ageInput.value = "";
+    }
+    checklistConfig[configKey].push(item);
     input.value = "";
     saveChecklistConfig();
     renderSettingsLists();
-    if (configKey==="milestones") renderMilestones(); else render();
+    refreshForKey(configKey);
   });
 }
 wireAddButton("newBabyItemInput","addBabyItemBtn","babyRoutine");
 wireAddButton("newMomItemInput","addMomItemBtn","momRoutine");
 wireAddButton("newMilestoneItemInput","addMilestoneItemBtn","milestones");
+wireAddButton("newVaccineItemInput","addVaccineItemBtn","vaccines","newVaccineAgeInput");
 
 document.getElementById("openSettingsBtn").addEventListener("click", () => {
   appScreen.hidden = true;
@@ -873,6 +992,75 @@ document.getElementById("saveGrowthBtn").addEventListener("click", async () => {
   document.getElementById("growthHeadInput").value = "";
   document.getElementById("growthAddForm").hidden = true;
 });
+
+/* ========================================================================
+   6g) Aşı takvimi — doğum tarihine göre hesaplanır, meta/profile ve
+   meta/vaccines belgelerinde saklanır
+   ===================================================================== */
+function startProfile(){
+  if (unsubscribeProfile) unsubscribeProfile();
+  unsubscribeProfile = onSnapshot(doc(db,"meta","profile"), (snap) => {
+    babyProfile = snap.exists() ? snap.data() : { birthDate:null };
+    document.getElementById("birthDateInput").value = babyProfile.birthDate || "";
+    renderVaccines();
+  }, () => {});
+}
+document.getElementById("birthDateInput").addEventListener("change", (e) => {
+  setDoc(doc(db,"meta","profile"), { birthDate: e.target.value || null }, { merge:true });
+});
+
+function startVaccines(){
+  if (unsubscribeVaccines) unsubscribeVaccines();
+  unsubscribeVaccines = onSnapshot(doc(db,"meta","vaccines"), (snap) => {
+    vaccineState = snap.exists() ? snap.data() : {};
+    renderVaccines();
+  }, () => {});
+}
+
+function renderVaccines(){
+  const noBd = document.getElementById("vaccineNoBirthdate");
+  const body = document.getElementById("vaccineBody");
+  if (!checklistConfig || !babyProfile.birthDate){
+    noBd.hidden = false; body.hidden = true;
+    return;
+  }
+  noBd.hidden = true; body.hidden = false;
+
+  let done = 0, overdue = 0;
+  const list = checklistConfig.vaccines;
+  const listEl = document.getElementById("vaccineList");
+  listEl.innerHTML = "";
+  list.forEach(v => {
+    const dueDate = addMonths(babyProfile.birthDate, v.ageMonths);
+    const given = vaccineState[v.key];
+    const status = given ? "done" : (dueDate <= todayStr() ? "overdue" : "upcoming");
+    if (given) done++; else if (status === "overdue") overdue++;
+
+    const row = document.createElement("div");
+    row.className = "vaccine-row " + status;
+    const badgeText = status === "done" ? "Tamam" : status === "overdue" ? "Gecikti" : "Yaklaşan";
+    const ageLabel = v.ageMonths === 0 ? "Doğumda" : v.ageMonths + " aylık";
+    row.innerHTML = `
+      <input type="checkbox" ${given ? "checked" : ""}>
+      <div class="vaccine-row-text">
+        <div class="vaccine-row-label">${v.label}</div>
+        <div class="vaccine-row-due">${ageLabel} · ${formatDateLabel(dueDate)}</div>
+      </div>
+      <div class="vaccine-row-badge">${badgeText}</div>
+    `;
+    row.querySelector("input").addEventListener("change", (e) => {
+      setDoc(doc(db,"meta","vaccines"), { [v.key]: e.target.checked ? todayStr() : null }, { merge:true });
+    });
+    listEl.appendChild(row);
+  });
+
+  document.getElementById("vaccineSummary").innerHTML = `
+    <div><b>${list.length}</b><span>Toplam</span></div>
+    <div><b>${done}</b><span>Tamam</span></div>
+    <div><b>${list.length - done}</b><span>Kalan</span></div>
+    <div><b>${overdue}</b><span>Geciken</span></div>
+  `;
+}
 
 /* ========================================================================
    7) Kayıt (debounce'lı otomatik kaydetme)
