@@ -209,6 +209,16 @@
   .vaccine-row.done{ opacity:.6; }
   .vaccine-row.done .vaccine-row-label{ text-decoration:line-through; }
   .vaccine-row.done .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
+
+  .leaps-next{ font-size:13px; font-weight:600; color:var(--ink); background:var(--gold-soft); border-radius:var(--radius-sm); padding:9px 12px; margin-bottom:12px; }
+  .leap-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .leap-row:last-child{ border-bottom:none; }
+  .leap-row-week{ width:38px; text-align:center; font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; color:var(--gold); flex-shrink:0; }
+  .leap-row-week span{ display:block; font-size:8px; font-weight:400; color:var(--ink-soft); }
+  .leap-row.past{ opacity:.5; }
+  .leap-row.current .vaccine-row-badge{ background:var(--gold-soft); color:#9c6a1f; font-weight:600; }
+  .leap-row.upcoming .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
+  .leap-row.past .vaccine-row-badge{ background:transparent; color:var(--ink-soft); }
 </style>
 </head>
 <body>
@@ -296,6 +306,16 @@
         <div id="vaccineBody" hidden>
           <div class="vaccine-summary" id="vaccineSummary"></div>
           <div id="vaccineList"></div>
+        </div>
+      </section>
+
+      <section class="card" data-accent="gold">
+        <h2><span class="badge">🌊</span> Gelişim dönemleri</h2>
+        <p class="vaccine-disclaimer">Genel gelişim araştırmalarına dayanan yaklaşık dönemlerdir, kesin bir takvim değildir — her bebek farklı gelişir.</p>
+        <div class="chart-empty" id="leapsNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
+        <div id="leapsBody" hidden>
+          <div class="leaps-next" id="leapsNext"></div>
+          <div id="leapsList"></div>
         </div>
       </section>
 
@@ -389,6 +409,17 @@
           <input type="number" min="0" id="newVaccineAgeInput" placeholder="Ay" class="settings-age-input">
           <input type="text" id="newVaccineItemInput" placeholder="Yeni doz…">
           <button type="button" id="addVaccineItemBtn">Ekle</button>
+        </div>
+      </section>
+
+      <section class="card" data-accent="gold">
+        <h2><span class="badge">🌊</span> Gelişim dönemleri seçenekleri</h2>
+        <p class="settings-hint">Soldaki sayı, doğumdan kaç hafta sonra gösterileceği.</p>
+        <div class="settings-list" id="settingsLeapList"></div>
+        <div class="settings-add-row">
+          <input type="number" min="0" id="newLeapAgeInput" placeholder="Hafta" class="settings-age-input">
+          <input type="text" id="newLeapItemInput" placeholder="Yeni dönem…">
+          <button type="button" id="addLeapItemBtn">Ekle</button>
         </div>
       </section>
     </main>
@@ -502,6 +533,23 @@ const DEFAULT_VACCINES = [
   { key:"dortluRapel", ageMonths:48, label:"DaBT-İPA (4'lü karma) — rapel" },
   { key:"sucicegiRapel", ageMonths:48, label:"Su çiçeği — rapel" },
   { key:"td", ageMonths:156, label:"Td (Tetanoz-Difteri) — rapel, 13 yaş" }
+];
+
+// Genel bebek gelişimi araştırmalarında sık bahsedilen, yaklaşık dönemler
+// (hızlı bilişsel gelişim + huysuzluk artışı görülebilen haftalar).
+// Yaklaşık tahminlerdir, her bebek farklı gelişir; belirli bir ürünün
+// takvimi/isimlendirmesi değil, kendi genel özetimizdir.
+const DEFAULT_LEAPS = [
+  { key:"leap1", ageWeeks:5,  label:"Duyusal artış — dünya birden daha yoğun hissettiriyor" },
+  { key:"leap2", ageWeeks:8,  label:"Örüntü fark etme — tekrarları takip etmeye başlıyor" },
+  { key:"leap3", ageWeeks:12, label:"Geçişleri anlama — hareketlerin akışını kavrıyor" },
+  { key:"leap4", ageWeeks:19, label:"Olayları bütün görme — parçaları birleştirmeyi öğreniyor" },
+  { key:"leap5", ageWeeks:26, label:"İlişkileri kavrama — nesne ve insanlar arası bağı fark ediyor" },
+  { key:"leap6", ageWeeks:37, label:"Kategorilere ayırma — benzer ile farklıyı gruplandırıyor" },
+  { key:"leap7", ageWeeks:46, label:"Sıralama — önce/sonra düzenini kavramaya başlıyor" },
+  { key:"leap8", ageWeeks:55, label:"Planlı hareket — eylemlerini bir amaca yönelik birleştiriyor" },
+  { key:"leap9", ageWeeks:64, label:"İlkeleri fark etme — kuralların ve sebep-sonucun farkına varıyor" },
+  { key:"leap10", ageWeeks:75, label:"Büyük resmi görme — sistemleri ve bağlamı kavramaya başlıyor" }
 ];
 function formatDateLabel(dateStr){
   const [y,m,d] = dateStr.split("-").map(Number);
@@ -779,12 +827,14 @@ function startChecklistConfig(){
     if (!checklistConfig.momRoutine){ checklistConfig.momRoutine = DEFAULT_MOM_ROUTINE; needsSave = true; }
     if (!checklistConfig.milestones){ checklistConfig.milestones = DEFAULT_MILESTONES; needsSave = true; }
     if (!checklistConfig.vaccines){ checklistConfig.vaccines = DEFAULT_VACCINES; needsSave = true; }
+    if (!checklistConfig.leaps){ checklistConfig.leaps = DEFAULT_LEAPS; needsSave = true; }
     if (needsSave) setDoc(doc(db,"meta","checklistConfig"), checklistConfig).catch(()=>{});
 
     renderRoutineList("babyRoutineList", checklistConfig.babyRoutine, dayData.babyRoutine, "babyRoutine");
     renderRoutineList("momRoutineList", checklistConfig.momRoutine, dayData.momRoutine, "momRoutine");
     renderMilestones();
     renderVaccines();
+    renderLeaps();
     renderSettingsLists();
   }, () => {});
 }
@@ -806,9 +856,13 @@ function slugify(text){
   return "custom_" + (base||"secenek") + "_" + Date.now().toString(36);
 }
 
+const AGE_FIELD_BY_KEY = { vaccines:"ageMonths", leaps:"ageWeeks" };
+const AGE_TITLE_BY_KEY = { vaccines:"Kaçıncı ay", leaps:"Kaçıncı hafta" };
+
 function refreshForKey(configKey){
   if (configKey === "milestones") renderMilestones();
   else if (configKey === "vaccines") renderVaccines();
+  else if (configKey === "leaps") renderLeaps();
   else render();
 }
 
@@ -818,25 +872,26 @@ function renderSettingsLists(){
   renderSettingsList("settingsMomList", "momRoutine");
   renderSettingsList("settingsMilestoneList", "milestones");
   renderSettingsList("settingsVaccineList", "vaccines");
+  renderSettingsList("settingsLeapList", "leaps");
 }
 
 function renderSettingsList(elId, configKey){
   const wrap = document.getElementById(elId);
   wrap.innerHTML = "";
-  const hasAge = configKey === "vaccines";
+  const ageField = AGE_FIELD_BY_KEY[configKey];
   checklistConfig[configKey].forEach((item, idx) => {
     const row = document.createElement("div");
     row.className = "settings-item";
     row.innerHTML =
-      (hasAge ? `<input type="number" min="0" class="settings-item-age" value="${item.ageMonths ?? 0}" title="Kaçıncı ay">` : "") +
+      (ageField ? `<input type="number" min="0" class="settings-item-age" value="${item[ageField] ?? 0}" title="${AGE_TITLE_BY_KEY[configKey]}">` : "") +
       `<input type="text" class="settings-item-label" value="${escapeHtml(item.label)}"><button type="button" class="settings-item-delete">Sil</button>`;
     row.querySelector(".settings-item-label").addEventListener("change", (e) => {
       checklistConfig[configKey][idx].label = e.target.value.trim() || item.label;
       saveChecklistConfig();
     });
-    if (hasAge){
+    if (ageField){
       row.querySelector(".settings-item-age").addEventListener("change", (e) => {
-        checklistConfig[configKey][idx].ageMonths = Math.max(0, Number(e.target.value) || 0);
+        checklistConfig[configKey][idx][ageField] = Math.max(0, Number(e.target.value) || 0);
         saveChecklistConfig();
         refreshForKey(configKey);
       });
@@ -857,9 +912,10 @@ function wireAddButton(inputId, btnId, configKey, ageInputId){
     const label = input.value.trim();
     if (!label || !checklistConfig) return;
     const item = { key:slugify(label), label };
-    if (ageInputId){
+    const ageField = AGE_FIELD_BY_KEY[configKey];
+    if (ageField && ageInputId){
       const ageInput = document.getElementById(ageInputId);
-      item.ageMonths = Math.max(0, Number(ageInput.value) || 0);
+      item[ageField] = Math.max(0, Number(ageInput.value) || 0);
       ageInput.value = "";
     }
     checklistConfig[configKey].push(item);
@@ -873,6 +929,7 @@ wireAddButton("newBabyItemInput","addBabyItemBtn","babyRoutine");
 wireAddButton("newMomItemInput","addMomItemBtn","momRoutine");
 wireAddButton("newMilestoneItemInput","addMilestoneItemBtn","milestones");
 wireAddButton("newVaccineItemInput","addVaccineItemBtn","vaccines","newVaccineAgeInput");
+wireAddButton("newLeapItemInput","addLeapItemBtn","leaps","newLeapAgeInput");
 
 document.getElementById("openSettingsBtn").addEventListener("click", () => {
   appScreen.hidden = true;
@@ -1003,6 +1060,7 @@ function startProfile(){
     babyProfile = snap.exists() ? snap.data() : { birthDate:null };
     document.getElementById("birthDateInput").value = babyProfile.birthDate || "";
     renderVaccines();
+    renderLeaps();
   }, () => {});
 }
 document.getElementById("birthDateInput").addEventListener("change", (e) => {
@@ -1060,6 +1118,45 @@ function renderVaccines(){
     <div><b>${list.length - done}</b><span>Kalan</span></div>
     <div><b>${overdue}</b><span>Geciken</span></div>
   `;
+}
+
+function renderLeaps(){
+  const noBd = document.getElementById("leapsNoBirthdate");
+  const body = document.getElementById("leapsBody");
+  if (!checklistConfig || !babyProfile.birthDate){
+    noBd.hidden = false; body.hidden = true;
+    return;
+  }
+  noBd.hidden = true; body.hidden = false;
+
+  // "YYYY-MM-DD" dizeleri JS'te UTC gece yarısı olarak ayrıştırılır; iki
+  // taraf da aynı şekilde ayrıştırıldığı için gün farkı yine de doğru çıkar.
+  const ageInWeeksToday = Math.floor((new Date(todayStr()) - new Date(babyProfile.birthDate)) / (7*24*60*60*1000));
+  const sorted = [...checklistConfig.leaps].sort((a,b) => a.ageWeeks - b.ageWeeks);
+
+  const nextLeap = sorted.find(l => (l.ageWeeks - ageInWeeksToday) > 1) || null;
+  document.getElementById("leapsNext").textContent = nextLeap
+    ? "Sıradaki: " + nextLeap.label.split(" — ")[0] + " · " + (nextLeap.ageWeeks - ageInWeeksToday) + " hafta sonra"
+    : "";
+
+  const listEl = document.getElementById("leapsList");
+  listEl.innerHTML = "";
+  sorted.forEach(l => {
+    const diffWeeks = l.ageWeeks - ageInWeeksToday;
+    let status, statusText;
+    if (diffWeeks < -2){ status="past"; statusText="Geçti"; }
+    else if (diffWeeks <= 1){ status="current"; statusText="Şu sıralar"; }
+    else { status="upcoming"; statusText = diffWeeks + " hafta sonra"; }
+
+    const row = document.createElement("div");
+    row.className = "leap-row " + status;
+    row.innerHTML = `
+      <div class="leap-row-week">${l.ageWeeks}<span>hafta</span></div>
+      <div class="vaccine-row-text"><div class="vaccine-row-label">${l.label}</div></div>
+      <div class="vaccine-row-badge">${statusText}</div>
+    `;
+    listEl.appendChild(row);
+  });
 }
 
 /* ========================================================================
