@@ -1242,12 +1242,14 @@ async function maybeGenerateDailyTip(){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode:"dailyTip", ageMonths })
     });
-    const data = await res.json();
-    if (data.text){
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.text){
       await setDoc(doc(db,"meta","aiCache"), { tipDate:todayStr(), tipText:data.text }, { merge:true });
+    } else {
+      document.getElementById("aiTipText").textContent = "Bilgi kartı alınamadı" + (data && data.error ? " (" + data.error + (data.status?" "+data.status:"") + ")" : "") + ". Worker adresini ve GEMINI_API_KEY'i kontrol et.";
     }
   }catch(e){
-    document.getElementById("aiTipText").textContent = "Bilgi kartı şu an alınamadı, daha sonra tekrar dener.";
+    document.getElementById("aiTipText").textContent = "Bilgi kartı şu an alınamadı — Worker'a ulaşılamıyor. Worker adresini kontrol et.";
   }finally{
     tipRequestInFlight = false;
   }
@@ -1299,9 +1301,11 @@ document.getElementById("generateAssessmentBtn").addEventListener("click", async
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode:"assessment", summary })
     });
-    const data = await res.json();
-    if (data.text){
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.text){
       await setDoc(doc(db,"meta","aiCache"), { assessmentDate:todayStr(), assessmentText:data.text }, { merge:true });
+    } else {
+      document.getElementById("aiAssessmentText").textContent = "Değerlendirme oluşturulamadı" + (data && data.error ? " (" + data.error + (data.status?" "+data.status:"") + ")" : "") + ".";
     }
   }catch(e){
     document.getElementById("aiAssessmentText").textContent = "Değerlendirme oluşturulamadı, tekrar dene.";
