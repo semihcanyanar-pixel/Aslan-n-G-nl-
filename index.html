@@ -220,6 +220,29 @@
   .leap-row.current .vaccine-row-badge{ background:var(--gold-soft); color:#9c6a1f; font-weight:600; }
   .leap-row.upcoming .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
   .leap-row.past .vaccine-row-badge{ background:transparent; color:var(--ink-soft); }
+
+  /* --- 3 sayfalı ana ekran: Sol / Orta / Sağ, yana kaydırılır --- */
+  @supports (height:100dvh){ html,body{ height:100dvh; } body{ min-height:100dvh; } }
+  #appScreen{ display:flex; flex-direction:column; height:100%; padding-bottom:6px; }
+  #appScreen .topbar{ flex:none; }
+  .pager{
+    flex:1; min-height:0; display:flex;
+    overflow-x:auto; overflow-y:hidden;
+    scroll-snap-type:x mandatory; overscroll-behavior-x:contain;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  }
+  .pager::-webkit-scrollbar{ display:none; }
+  .page{
+    flex:0 0 100%; min-width:0;
+    scroll-snap-align:start; scroll-snap-stop:always;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding-bottom:24px;
+  }
+  .page-dots{ flex:none; display:flex; justify-content:center; gap:2px; padding-top:6px; }
+  .page-dots button{ width:28px; height:22px; border:none; background:none; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .page-dots button::before{ content:""; width:8px; height:8px; border-radius:50%; background:var(--line); transition:background .2s, transform .2s; }
+  .page-dots button.active::before{ background:var(--blue-deep); transform:scale(1.3); }
+  .diaper-checks{ align-self:end; }
 </style>
 </head>
 <body>
@@ -253,114 +276,132 @@
       <button class="icon-btn" id="openSettingsBtn" type="button" aria-label="Ayarlar" title="Ayarlar">⚙</button>
     </header>
 
-    <main>
-      <section class="card" data-accent="gold">
-        <h2><span class="badge">✨</span> Günün bilgisi</h2>
-        <p class="ai-tip-text" id="aiTipText">—</p>
-      </section>
+    <main class="pager" id="pager">
+      <div class="page" id="pageLeft" aria-label="Özet ve bilgi">
+        <section class="card" data-accent="gold">
+          <h2><span class="badge">✨</span> Günün bilgisi</h2>
+          <p class="ai-tip-text" id="aiTipText">—</p>
+        </section>
 
-      <section class="card" data-accent="blue">
-        <h2><span class="badge">📋</span> Haftalık değerlendirme</h2>
-        <p class="ai-tip-text" id="aiAssessmentText">Henüz değerlendirme oluşturulmadı.</p>
-        <p class="settings-hint" id="aiAssessmentMeta"></p>
-        <button class="add-btn" type="button" id="generateAssessmentBtn">Değerlendirme oluştur</button>
-      </section>
-
-      <section class="card" data-accent="blue">
-        <h2><span class="badge">📊</span> Haftalık bakış</h2>
-        <div class="weekly-row">
-          <div class="weekly-label">🍼 Ort. beslenme</div>
-          <div class="weekly-bars" id="feedBars"></div>
-          <div class="weekly-value" id="feedVal">–</div>
-        </div>
-        <div class="weekly-row">
-          <div class="weekly-label">🌙 Ort. uyku</div>
-          <div class="weekly-bars" id="sleepBars"></div>
-          <div class="weekly-value" id="sleepVal">–</div>
-        </div>
-        <div class="weekly-row">
-          <div class="weekly-label">🧷 Ort. bez</div>
-          <div class="weekly-bars" id="diaperBars"></div>
-          <div class="weekly-value" id="diaperVal">–</div>
-        </div>
-      </section>
-
-      <section class="card" data-accent="sage">
-        <h2><span class="badge">🌟</span> Gelişim aşamaları <span class="milestone-count" id="milestoneCount"></span></h2>
-        <ul class="routine-list" id="milestoneList"></ul>
-      </section>
-
-      <section class="card" data-accent="blue">
-        <h2><span class="badge">📈</span> Büyüme takibi</h2>
-        <div class="growth-tabs" id="growthTabs">
-          <button type="button" class="growth-tab active" data-metric="weightKg">Kilo</button>
-          <button type="button" class="growth-tab" data-metric="heightCm">Boy</button>
-          <button type="button" class="growth-tab" data-metric="headCm">Baş çevresi</button>
-        </div>
-        <div id="growthChartWrap"></div>
-        <div class="growth-latest" id="growthLatest"></div>
-        <div id="growthEntryList"></div>
-        <div class="growth-add-form" id="growthAddForm" hidden>
-          <div class="field-group"><label>Tarih</label><div><input type="date" id="growthDateInput"></div></div>
-          <div class="growth-inputs">
-            <div class="mini-group"><label>Kilo (kg)</label><input type="number" step="0.01" min="0" id="growthWeightInput"></div>
-            <div class="mini-group"><label>Boy (cm)</label><input type="number" step="0.1" min="0" id="growthHeightInput"></div>
-            <div class="mini-group"><label>Baş çevresi (cm)</label><input type="number" step="0.1" min="0" id="growthHeadInput"></div>
+        <section class="card" data-accent="blue">
+          <h2><span class="badge">📊</span> Haftalık bakış</h2>
+          <div class="weekly-row">
+            <div class="weekly-label">🍼 Ort. beslenme</div>
+            <div class="weekly-bars" id="feedBars"></div>
+            <div class="weekly-value" id="feedVal">–</div>
           </div>
-          <button type="button" class="btn-primary" id="saveGrowthBtn">Kaydet</button>
-        </div>
-        <button class="add-btn" id="addGrowthBtn" type="button">+ Ölçüm ekle</button>
-      </section>
+          <div class="weekly-row">
+            <div class="weekly-label">🌙 Ort. uyku</div>
+            <div class="weekly-bars" id="sleepBars"></div>
+            <div class="weekly-value" id="sleepVal">–</div>
+          </div>
+          <div class="weekly-row">
+            <div class="weekly-label">🧷 Ort. bez</div>
+            <div class="weekly-bars" id="diaperBars"></div>
+            <div class="weekly-value" id="diaperVal">–</div>
+          </div>
+        </section>
 
-      <section class="card" data-accent="sage">
-        <h2><span class="badge">💉</span> Aşı takvimi</h2>
-        <p class="vaccine-disclaimer">Bilgilendirme amaçlıdır — kesin program için çocuk doktorunuza ve e-Nabız kaydına bakın.</p>
-        <div class="chart-empty" id="vaccineNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
-        <div id="vaccineBody" hidden>
-          <div class="vaccine-summary" id="vaccineSummary"></div>
-          <div id="vaccineList"></div>
-        </div>
-      </section>
+        <section class="card" data-accent="blue">
+          <h2><span class="badge">📋</span> Haftalık değerlendirme</h2>
+          <p class="ai-tip-text" id="aiAssessmentText">Henüz değerlendirme oluşturulmadı.</p>
+          <p class="settings-hint" id="aiAssessmentMeta"></p>
+          <button class="add-btn" type="button" id="generateAssessmentBtn">Değerlendirme oluştur</button>
+        </section>
 
-      <section class="card" data-accent="gold">
-        <h2><span class="badge">🌊</span> Gelişim dönemleri</h2>
-        <p class="vaccine-disclaimer">Genel gelişim araştırmalarına dayanan yaklaşık dönemlerdir, kesin bir takvim değildir — her bebek farklı gelişir.</p>
-        <div class="chart-empty" id="leapsNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
-        <div id="leapsBody" hidden>
-          <div class="leaps-next" id="leapsNext"></div>
-          <div id="leapsList"></div>
-        </div>
-      </section>
+        <section class="card" data-accent="gold">
+          <h2><span class="badge">🌊</span> Gelişim dönemleri</h2>
+          <p class="vaccine-disclaimer">Genel gelişim araştırmalarına dayanan yaklaşık dönemlerdir, kesin bir takvim değildir — her bebek farklı gelişir.</p>
+          <div class="chart-empty" id="leapsNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
+          <div id="leapsBody" hidden>
+            <div class="leaps-next" id="leapsNext"></div>
+            <div id="leapsList"></div>
+          </div>
+        </section>
+      </div>
 
-      <section class="card" data-accent="blue">
-        <h2><span class="badge">🍼</span> Emzirme</h2>
-        <div id="feedList"></div>
-        <button class="add-btn" id="addFeedBtn" type="button">+ Emzirme ekle</button>
-      </section>
+      <div class="page" id="pageCenter" aria-label="Günlük kayıtlar">
+        <section class="card" data-accent="blue">
+          <h2><span class="badge">🍼</span> Emzirme takibi</h2>
+          <div id="feedList"></div>
+          <button class="add-btn" id="addFeedBtn" type="button">+ Emzirme ekle</button>
+        </section>
 
-      <section class="card" data-accent="gold">
-        <h2><span class="badge">🌙</span> Uyku</h2>
-        <div id="sleepList"></div>
-        <button class="add-btn" id="addSleepBtn" type="button">+ Uyku ekle</button>
-      </section>
+        <section class="card" data-accent="sage">
+          <h2><span class="badge">🧷</span> Tuvalet takibi</h2>
+          <div id="diaperList"></div>
+          <button class="add-btn" id="addDiaperBtn" type="button">+ Tuvalet ekle</button>
+        </section>
 
-      <section class="card" data-accent="sage">
-        <h2><span class="badge">🌱</span> Bebeğin günü</h2>
-        <ul class="routine-list" id="babyRoutineList"></ul>
-      </section>
+        <section class="card" data-accent="gold">
+          <h2><span class="badge">🌙</span> Uyku takibi</h2>
+          <div id="sleepList"></div>
+          <button class="add-btn" id="addSleepBtn" type="button">+ Uyku ekle</button>
+        </section>
 
-      <section class="card" data-accent="pink">
-        <h2><span class="badge">🌸</span> Annenin günü</h2>
-        <ul class="routine-list" id="momRoutineList"></ul>
-      </section>
+        <section class="card" data-accent="sage">
+          <h2><span class="badge">🌱</span> Bebeğin günü</h2>
+          <ul class="routine-list" id="babyRoutineList"></ul>
+        </section>
 
-      <section class="card notes-card" data-accent="ink">
-        <h2><span class="badge">✎</span> Notlar</h2>
-        <textarea id="notesInput" placeholder="Bugün nasıl geçti?"></textarea>
-      </section>
+        <section class="card" data-accent="pink">
+          <h2><span class="badge">🌸</span> Annenin günü</h2>
+          <ul class="routine-list" id="momRoutineList"></ul>
+        </section>
+
+        <section class="card notes-card" data-accent="ink">
+          <h2><span class="badge">✎</span> Notlar</h2>
+          <textarea id="notesInput" placeholder="Bugün nasıl geçti?"></textarea>
+        </section>
+
+        <div class="sync-status" id="syncStatus"></div>
+      </div>
+
+      <div class="page" id="pageRight" aria-label="Takip ve kayıtlar">
+        <section class="card" data-accent="blue">
+          <h2><span class="badge">📈</span> Büyüme takibi</h2>
+          <div class="growth-tabs" id="growthTabs">
+            <button type="button" class="growth-tab active" data-metric="weightKg">Kilo</button>
+            <button type="button" class="growth-tab" data-metric="heightCm">Boy</button>
+            <button type="button" class="growth-tab" data-metric="headCm">Baş çevresi</button>
+          </div>
+          <div id="growthChartWrap"></div>
+          <div class="growth-latest" id="growthLatest"></div>
+          <div id="growthEntryList"></div>
+          <div class="growth-add-form" id="growthAddForm" hidden>
+            <div class="field-group"><label>Tarih</label><div><input type="date" id="growthDateInput"></div></div>
+            <div class="growth-inputs">
+              <div class="mini-group"><label>Kilo (kg)</label><input type="number" step="0.01" min="0" id="growthWeightInput"></div>
+              <div class="mini-group"><label>Boy (cm)</label><input type="number" step="0.1" min="0" id="growthHeightInput"></div>
+              <div class="mini-group"><label>Baş çevresi (cm)</label><input type="number" step="0.1" min="0" id="growthHeadInput"></div>
+            </div>
+            <button type="button" class="btn-primary" id="saveGrowthBtn">Kaydet</button>
+          </div>
+          <button class="add-btn" id="addGrowthBtn" type="button">+ Ölçüm ekle</button>
+        </section>
+
+        <section class="card" data-accent="sage">
+          <h2><span class="badge">💉</span> Aşı takvimi</h2>
+          <p class="vaccine-disclaimer">Bilgilendirme amaçlıdır — kesin program için çocuk doktorunuza ve e-Nabız kaydına bakın.</p>
+          <div class="chart-empty" id="vaccineNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
+          <div id="vaccineBody" hidden>
+            <div class="vaccine-summary" id="vaccineSummary"></div>
+            <div id="vaccineList"></div>
+          </div>
+        </section>
+
+        <section class="card" data-accent="sage">
+          <h2><span class="badge">🌟</span> Gelişim aşamaları <span class="milestone-count" id="milestoneCount"></span></h2>
+          <ul class="routine-list" id="milestoneList"></ul>
+        </section>
+      </div>
     </main>
 
-    <div class="sync-status" id="syncStatus"></div>
+    <div class="page-dots" id="pageDots">
+      <button type="button" aria-label="Sol sayfa: özet ve bilgi"></button>
+      <button type="button" class="active" aria-label="Orta sayfa: günlük kayıtlar"></button>
+      <button type="button" aria-label="Sağ sayfa: takip ve kayıtlar"></button>
+    </div>
   </div>
 
   <div id="calendarOverlay" class="calendar-overlay" hidden>
@@ -596,9 +637,12 @@ let aiCache = {};
 let unsubscribeAiCache = null;
 let tipRequestInFlight = false;
 let saveTimer = null;
+const pager = document.getElementById("pager");
+const pageDots = document.querySelectorAll("#pageDots button");
+let currentPageIndex = 1; // 0 = Sol, 1 = Orta, 2 = Sağ
 
 function emptyDay(){
-  return { feedings:[], sleeps:[], babyRoutine:{}, momRoutine:{}, notes:"" };
+  return { feedings:[], diapers:[], sleeps:[], babyRoutine:{}, momRoutine:{}, notes:"" };
 }
 
 /* ========================================================================
@@ -634,6 +678,7 @@ onAuthStateChanged(auth, (user) => {
   if (user){
     authScreen.hidden = true;
     appScreen.hidden = false;
+    restorePage(); // açılışta Orta sayfa (currentPageIndex başlangıçta 1)
     loadDate(currentDate);
     startWeeklyStats();
     startMilestones();
@@ -662,8 +707,8 @@ onAuthStateChanged(auth, (user) => {
 const dateLabelEl = document.getElementById("dateLabel");
 const dayBadgeEl = document.getElementById("dayBadge");
 
-document.getElementById("prevDayBtn").addEventListener("click", () => loadDate(shiftDate(currentDate,-1)));
-document.getElementById("nextDayBtn").addEventListener("click", () => loadDate(shiftDate(currentDate,1)));
+document.getElementById("prevDayBtn").addEventListener("click", () => { loadDate(shiftDate(currentDate,-1)); goToPage(1, true); });
+document.getElementById("nextDayBtn").addEventListener("click", () => { loadDate(shiftDate(currentDate,1)); goToPage(1, true); });
 document.getElementById("dateCenter").addEventListener("click", openCalendar);
 
 function loadDate(dateStr){
@@ -682,8 +727,15 @@ function loadDate(dateStr){
   unsubscribeDay = onSnapshot(ref, (snap) => {
     if (snap.exists()){
       const d = snap.data();
+      const feedings = d.feedings || [];
+      // Eski kayıtlarda çiş/kaka emzirme satırlarının içindeydi; yeni "Tuvalet
+      // takibi" listesi henüz yoksa onlardan türetip göster.
+      const diapers = Array.isArray(d.diapers)
+        ? d.diapers
+        : feedings.filter(f => f.pee || f.poop).map(f => ({ time: f.rightStart || f.leftStart || "", pee: !!f.pee, poop: !!f.poop }));
       dayData = {
-        feedings: d.feedings || [],
+        feedings,
+        diapers,
         sleeps: d.sleeps || [],
         babyRoutine: { ...emptyDay().babyRoutine, ...(d.babyRoutine||{}) },
         momRoutine: { ...emptyDay().momRoutine, ...(d.momRoutine||{}) },
@@ -716,6 +768,14 @@ function startWeeklyStats(){
 
 function avg(arr){ return arr.reduce((a,b)=>a+b,0) / (arr.length || 1); }
 
+// Bir günün bez sayısı: yeni "Tuvalet takibi" listesi varsa onu, yoksa eski
+// kayıtlardaki (emzirme satırına işlenmiş) çiş/kaka işaretlerini sayar.
+function diaperCountForDay(d){
+  if (!d) return 0;
+  if (Array.isArray(d.diapers)) return d.diapers.length;
+  return (d.feedings||[]).filter(f => f.pee || f.poop).length;
+}
+
 function renderWeeklyStats(byDate, endDateStr){
   const dates = [];
   for (let i=6;i>=0;i--) dates.push(shiftDate(endDateStr,-i));
@@ -725,7 +785,7 @@ function renderWeeklyStats(byDate, endDateStr){
     const d = byDate[dt];
     const feedings = d?.feedings || [];
     feedCounts.push(feedings.length);
-    diaperCounts.push(feedings.filter(f => f.pee || f.poop).length);
+    diaperCounts.push(diaperCountForDay(d));
     let hrs = 0;
     (d?.sleeps||[]).forEach(s => {
       if (s.sleepTime && s.wakeTime){
@@ -819,7 +879,7 @@ function renderCalendar(){
     btn.textContent = d;
     if (dateStr === today) btn.classList.add("today");
     if (dateStr === currentDate) btn.classList.add("selected");
-    btn.addEventListener("click", () => { loadDate(dateStr); closeCalendar(); });
+    btn.addEventListener("click", () => { loadDate(dateStr); closeCalendar(); goToPage(1, true); });
     grid.appendChild(btn);
   }
 }
@@ -961,6 +1021,7 @@ document.getElementById("openSettingsBtn").addEventListener("click", () => {
 document.getElementById("closeSettingsBtn").addEventListener("click", () => {
   document.getElementById("settingsScreen").hidden = true;
   appScreen.hidden = false;
+  restorePage();
 });
 
 /* ========================================================================
@@ -1257,7 +1318,7 @@ async function maybeGenerateDailyTip(){
 
 function summarizeWeek(days){
   const feedCounts = days.map(d => (d.feedings||[]).length);
-  const diaperCounts = days.map(d => (d.feedings||[]).filter(f => f.pee || f.poop).length);
+  const diaperCounts = days.map(d => diaperCountForDay(d));
   const sleepHours = days.map(d => {
     let hrs = 0;
     (d.sleeps||[]).forEach(s => {
@@ -1316,6 +1377,40 @@ document.getElementById("generateAssessmentBtn").addEventListener("click", async
 });
 
 /* ========================================================================
+   6i) Sayfalar — Sol / Orta / Sağ. Açılışta ortadaki sayfa gelir; yana
+   kaydırınca (ya da alttaki noktalara dokununca) diğerlerine geçilir.
+   ===================================================================== */
+function paintDots(idx){
+  pageDots.forEach((b,i) => b.classList.toggle("active", i === idx));
+}
+
+// Noktalar, kaydırma konumunu takip eder (tek doğru kaynak: scroll)
+pager.addEventListener("scroll", () => {
+  if (!pager.clientWidth) return;
+  currentPageIndex = Math.round(pager.scrollLeft / pager.clientWidth);
+  paintDots(currentPageIndex);
+}, { passive:true });
+
+function goToPage(idx, smooth){
+  if (pager.clientWidth){
+    pager.scrollTo({ left: idx * pager.clientWidth, behavior: smooth ? "smooth" : "auto" });
+  } else {
+    currentPageIndex = idx; // ekran gizliyken sadece hedefi hatırla
+    paintDots(idx);
+  }
+}
+
+// Ana ekran yeniden görününce (giriş, Ayarlar'dan dönüş, ekran döndürme) kaldığı sayfaya dön
+function restorePage(){
+  if (!pager.clientWidth) return;
+  pager.scrollLeft = currentPageIndex * pager.clientWidth;
+  paintDots(currentPageIndex);
+}
+
+pageDots.forEach((b,i) => b.addEventListener("click", () => goToPage(i, true)));
+window.addEventListener("resize", () => { if (!appScreen.hidden) restorePage(); });
+
+/* ========================================================================
    7) Kayıt (debounce'lı otomatik kaydetme)
    ===================================================================== */
 function scheduleSave(){
@@ -1342,6 +1437,7 @@ function setSyncStatus(text, isError){
    ===================================================================== */
 function render(){
   renderFeedList();
+  renderDiaperList();
   renderSleepList();
   if (checklistConfig){
     renderRoutineList("babyRoutineList", checklistConfig.babyRoutine, dayData.babyRoutine, "babyRoutine");
@@ -1376,13 +1472,6 @@ function renderFeedList(){
           </div>
         </div>
         <div class="mini-group">
-          <label>&nbsp;</label>
-          <div class="check-pair">
-            <label class="check-pill ${f.pee?"on":""}"><input type="checkbox" data-field="pee" ${f.pee?"checked":""}> Çiş</label>
-            <label class="check-pill ${f.poop?"on":""}"><input type="checkbox" data-field="poop" ${f.poop?"checked":""}> Kaka</label>
-          </div>
-        </div>
-        <div class="mini-group">
           <label>Sağılan</label>
           <div class="stepper" data-field="pumpedCc">
             <button type="button" class="dec" aria-label="Azalt">–</button>
@@ -1395,13 +1484,6 @@ function renderFeedList(){
     `;
     row.querySelectorAll('input[type="time"]').forEach(inp => {
       inp.addEventListener("change", () => { dayData.feedings[idx][inp.dataset.field] = inp.value; scheduleSave(); });
-    });
-    row.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      cb.addEventListener("change", () => {
-        dayData.feedings[idx][cb.dataset.field] = cb.checked;
-        cb.closest(".check-pill").classList.toggle("on", cb.checked);
-        scheduleSave();
-      });
     });
     row.querySelectorAll(".stepper").forEach(st => {
       const field = st.dataset.field;
@@ -1426,8 +1508,51 @@ function renderFeedList(){
 }
 
 document.getElementById("addFeedBtn").addEventListener("click", () => {
-  dayData.feedings.push({ rightStart:nowTimeStr(), rightEnd:"", leftStart:"", leftEnd:"", extraCc:0, pee:false, poop:false, pumpedCc:0 });
+  dayData.feedings.push({ rightStart:nowTimeStr(), rightEnd:"", leftStart:"", leftEnd:"", extraCc:0, pumpedCc:0 });
   renderFeedList();
+  scheduleSave();
+});
+
+function renderDiaperList(){
+  const wrap = document.getElementById("diaperList");
+  wrap.innerHTML = "";
+  dayData.diapers.forEach((dp, idx) => {
+    const row = document.createElement("div");
+    row.className = "entry-row";
+    row.innerHTML = `
+      <div class="field-group"><label>Saat</label><div><input type="time" data-field="time" value="${dp.time||""}"></div></div>
+      <div class="mini-group diaper-checks">
+        <label>&nbsp;</label>
+        <div class="check-pair">
+          <label class="check-pill ${dp.pee?"on":""}"><input type="checkbox" data-field="pee" ${dp.pee?"checked":""}> Çiş</label>
+          <label class="check-pill ${dp.poop?"on":""}"><input type="checkbox" data-field="poop" ${dp.poop?"checked":""}> Kaka</label>
+        </div>
+      </div>
+      <button type="button" class="row-delete">Bu kaydı sil</button>
+    `;
+    row.querySelector('input[type="time"]').addEventListener("change", (e) => {
+      dayData.diapers[idx].time = e.target.value;
+      scheduleSave();
+    });
+    row.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener("change", () => {
+        dayData.diapers[idx][cb.dataset.field] = cb.checked;
+        cb.closest(".check-pill").classList.toggle("on", cb.checked);
+        scheduleSave();
+      });
+    });
+    row.querySelector(".row-delete").addEventListener("click", () => {
+      dayData.diapers.splice(idx,1);
+      renderDiaperList();
+      scheduleSave();
+    });
+    wrap.appendChild(row);
+  });
+}
+
+document.getElementById("addDiaperBtn").addEventListener("click", () => {
+  dayData.diapers.push({ time:nowTimeStr(), pee:false, poop:false });
+  renderDiaperList();
   scheduleSave();
 });
 
