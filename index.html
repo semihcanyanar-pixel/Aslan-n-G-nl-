@@ -246,6 +246,12 @@
   .page-dots button::before{ content:""; width:8px; height:8px; border-radius:50%; background:var(--line); transition:background .2s, transform .2s; }
   .page-dots button.active::before{ background:var(--blue-deep); transform:scale(1.3); }
   .diaper-checks{ align-self:end; }
+  .account-email{ margin:0 0 12px; word-break:break-all; }
+  .logout-btn{ width:100%; padding:12px; border-radius:var(--radius-sm); border:1px solid var(--line); background:transparent; color:var(--danger); font-size:14px; font-weight:600; cursor:pointer; }
+  .logout-btn:active{ transform:scale(.99); }
+  .icon-btn.spinning{ animation:spin .8s linear infinite; }
+  .icon-btn:disabled{ cursor:default; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
   #pageCenter .card{ transition:opacity .15s; }
   #pageCenter.day-loading .card{ pointer-events:none; opacity:.6; transition:opacity .2s .15s; }
 </style>
@@ -269,7 +275,7 @@
 
   <div id="appScreen" class="app-screen" hidden>
     <header class="topbar">
-      <button class="icon-btn" id="logoutBtn" type="button" aria-label="Çıkış yap" title="Çıkış yap">⏻</button>
+      <button class="icon-btn" id="refreshBtn" type="button" aria-label="Yenile" title="Yenile">↻</button>
       <div class="date-nav">
         <button id="prevDayBtn" type="button" aria-label="Önceki gün">‹</button>
         <div class="date-center" id="dateCenter">
@@ -488,6 +494,12 @@
         <button class="add-btn" type="button" id="downloadBackupBtn">Yedek indir (.json)</button>
         <p class="settings-hint" id="backupStatus"></p>
       </section>
+
+      <section class="card" data-accent="pink">
+        <h2><span class="badge">👤</span> Hesap</h2>
+        <p class="settings-hint account-email" id="accountEmail"></p>
+        <button class="logout-btn" type="button" id="logoutBtn">Çıkış yap</button>
+      </section>
     </main>
   </div>
 
@@ -497,7 +509,7 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
-  getFirestore, doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, collection, query, where, documentId
+  getFirestore, doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, collection, query, where, documentId, waitForPendingWrites
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 /* ========================================================================
@@ -652,6 +664,7 @@ let saveTimer = null;
 let baseDay = emptyDay();          // ekrandaki günün dayandığı, Firebase'den gelen son hâl
 let pendingDaySnapshot = null;     // saat seçici açıkken gelen, sonra uygulanacak yeni veri
 let dayLoading = false;            // gün verisi henüz yüklenmedi mi
+let lastSeenToday = todayStr();    // uygulamanın en son "bugün" saydığı tarih
 const pager = document.getElementById("pager");
 const pageDots = document.querySelectorAll("#pageDots button");
 let currentPageIndex = 1; // 0 = Sol, 1 = Orta, 2 = Sağ
@@ -686,7 +699,23 @@ async function doLogin(){
     authError.textContent = "Giriş başarısız. E-posta/şifreyi kontrol edin.";
   }
 }
-document.getElementById("logoutBtn").addEventListener("click", () => signOut(auth));
+// Bekleyen (gönderilmemiş) kayıtları gönder ve sunucu onayını bekle.
+// Bağlantı yoksa belirli süre sonra vazgeçer ve false döner.
+async function flushPendingWrites(timeoutMs = 5000){
+  if (saveTimer) saveNow();
+  let timer;
+  const timeout = new Promise(resolve => { timer = setTimeout(() => resolve(false), timeoutMs); });
+  const done = waitForPendingWrites(db).then(() => true, () => true);
+  const ok = await Promise.race([done, timeout]);
+  clearTimeout(timer);
+  return ok;
+}
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  if (!confirm("Çıkış yapılsın mı?")) return;
+  await flushPendingWrites();
+  signOut(auth);
+});
 
 onAuthStateChanged(auth, (user) => {
   loadingScreen.hidden = true;
@@ -694,6 +723,9 @@ onAuthStateChanged(auth, (user) => {
     authScreen.hidden = true;
     appScreen.hidden = false;
     restorePage(); // açılışta Orta sayfa (currentPageIndex başlangıçta 1)
+    document.getElementById("accountEmail").textContent = "Giriş yapılan hesap: " + (user.email || "");
+    currentDate = todayStr(); // giriş her zaman bugünle açılır
+    lastSeenToday = currentDate;
     loadDate(currentDate);
     startWeeklyStats();
     startMilestones();
@@ -705,6 +737,7 @@ onAuthStateChanged(auth, (user) => {
   } else {
     authScreen.hidden = false;
     appScreen.hidden = true;
+    document.getElementById("settingsScreen").hidden = true;
     if (unsubscribeDay){ unsubscribeDay(); unsubscribeDay = null; }
     if (unsubscribeWeekly){ unsubscribeWeekly(); unsubscribeWeekly = null; }
     if (unsubscribeMilestones){ unsubscribeMilestones(); unsubscribeMilestones = null; }
@@ -782,6 +815,12 @@ document.getElementById("pageCenter").addEventListener("focusout", () => {
   setTimeout(applyPendingDaySnapshot, 300);
 });
 
+function updateDayBadge(dateStr){
+  if (dateStr === todayStr()){ dayBadgeEl.textContent = "Bugün"; dayBadgeEl.style.display = "inline-block"; }
+  else if (dateStr === shiftDate(todayStr(),-1)){ dayBadgeEl.textContent = "Dün"; dayBadgeEl.style.display = "inline-block"; }
+  else { dayBadgeEl.style.display = "none"; }
+}
+
 function loadDate(dateStr){
   // Gönderilmeyi bekleyen bir değişiklik varsa, gün değişmeden ÖNCE eski güne yaz
   // (eskiden 0,6 sn'lik bekleme bitince yeni açılan güne yazılabiliyordu)
@@ -789,9 +828,7 @@ function loadDate(dateStr){
 
   currentDate = dateStr;
   dateLabelEl.textContent = formatDateLabel(dateStr);
-  if (dateStr === todayStr()){ dayBadgeEl.textContent = "Bugün"; dayBadgeEl.style.display = "inline-block"; }
-  else if (dateStr === shiftDate(todayStr(),-1)){ dayBadgeEl.textContent = "Dün"; dayBadgeEl.style.display = "inline-block"; }
-  else { dayBadgeEl.style.display = "none"; }
+  updateDayBadge(dateStr);
 
   if (unsubscribeDay) unsubscribeDay();
   dayData = emptyDay();
@@ -936,6 +973,8 @@ let calViewYear, calViewMonth;
 const calendarOverlay = document.getElementById("calendarOverlay");
 
 function openCalendar(){
+  // Az önce girilen kayıt henüz gönderilmediyse önce gönder ki noktası hemen görünsün
+  if (saveTimer) saveNow();
   const [y,m] = currentDate.split("-").map(Number);
   calViewYear = y; calViewMonth = m-1;
   renderCalendar();
@@ -1603,6 +1642,50 @@ document.getElementById("downloadBackupBtn").addEventListener("click", async () 
     btn.textContent = "Yedek indir (.json)";
   }
 });
+
+/* ========================================================================
+   6k) Yenile butonu + gün değişimi
+   Ana ekran uygulamasında Safari'nin yenile tuşu yok. Veriler Firebase'den
+   zaten canlı geliyor; yenile asıl olarak GitHub'a yüklenen yeni sürümü
+   görmek için. Gönderilmemiş kayıt varken asla sayfayı yenilemez.
+   ===================================================================== */
+document.getElementById("refreshBtn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.classList.add("spinning");
+  const ok = await flushPendingWrites();
+  if (ok){ location.reload(); return; }
+  btn.disabled = false;
+  btn.classList.remove("spinning");
+  setSyncStatus("Bekleyen kayıtlar henüz gönderilemedi — bağlantıyı kontrol edip tekrar dene", true);
+});
+
+// Uygulama gece açık kalıp sabah kullanıldığında "bugün" hâlâ dünü göstermesin:
+// gün değiştiyse bugünkü sayfaya geç ve tarihe bağlı her şeyi tazele.
+function refreshForNewDay(){
+  const today = todayStr();
+  if (today === lastSeenToday) return;
+  const wasViewingToday = currentDate === lastSeenToday;
+  lastSeenToday = today;
+  if (!auth.currentUser) return;
+
+  const el = document.activeElement;
+  const busy = !!saveTimer || !!(el && el.matches && el.matches("#pageCenter input, #pageCenter textarea"));
+  if (wasViewingToday && !busy) loadDate(today);   // kayıt girilirken sayfayı elinden çekme
+  else updateDayBadge(currentDate);                  // sadece Bugün/Dün rozetini düzelt
+
+  startWeeklyStats();      // son 7 günlük aralığı bugüne kaydır
+  renderVaccines();        // gecikti/yaklaşan durumları
+  renderLeaps();           // gelişim dönemi durumları
+  renderAiCard();
+  maybeGenerateDailyTip(); // yeni günün bilgi kartı
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshForNewDay();
+});
+setInterval(() => {
+  if (document.visibilityState === "visible") refreshForNewDay();
+}, 60000);
 
 /* ========================================================================
    7) Kayıt (debounce'lı otomatik kaydetme)
