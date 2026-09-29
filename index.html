@@ -157,9 +157,12 @@
   .calendar-month-label{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; }
   .calendar-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
   .calendar-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-  .calendar-grid button{ aspect-ratio:1; border:none; background:none; border-radius:50%; font-size:14px; color:var(--ink); cursor:pointer; }
-  .calendar-grid button.today{ font-weight:700; color:var(--blue-deep); }
-  .calendar-grid button.selected{ background:var(--blue-deep); color:#fff; }
+  .calendar-grid button{ aspect-ratio:1; border:none; background:none; border-radius:50%; font-size:14px; color:var(--ink); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:0; }
+  .calendar-grid button.today{ font-weight:700; box-shadow:inset 0 0 0 2px var(--gold); }
+  .calendar-grid button.selected{ background:var(--blue-deep); color:#fff; box-shadow:none; }
+  .cal-dot{ width:4px; height:4px; border-radius:50%; background:var(--sage); }
+  .cal-dot.cal-dot-empty{ background:transparent; }
+  .calendar-grid button.selected .cal-dot{ background:#fff; }
   .calendar-close{ width:100%; margin-top:12px; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--line); background:transparent; color:var(--ink-soft); font-size:14px; cursor:pointer; }
 
   .settings-list{ display:flex; flex-direction:column; gap:8px; }
@@ -243,6 +246,8 @@
   .page-dots button::before{ content:""; width:8px; height:8px; border-radius:50%; background:var(--line); transition:background .2s, transform .2s; }
   .page-dots button.active::before{ background:var(--blue-deep); transform:scale(1.3); }
   .diaper-checks{ align-self:end; }
+  #pageCenter .card{ transition:opacity .15s; }
+  #pageCenter.day-loading .card{ pointer-events:none; opacity:.6; transition:opacity .2s .15s; }
 </style>
 </head>
 <body>
@@ -476,6 +481,13 @@
           <button type="button" id="addLeapItemBtn">Ekle</button>
         </div>
       </section>
+
+      <section class="card" data-accent="blue">
+        <h2><span class="badge">📦</span> Veri yedeği</h2>
+        <p class="settings-hint">Tüm kayıtlarını (günlükler, büyüme, aşı, gelişim aşamaları) tek bir dosyada indir. Ayda bir falan almanı öneririm.</p>
+        <button class="add-btn" type="button" id="downloadBackupBtn">Yedek indir (.json)</button>
+        <p class="settings-hint" id="backupStatus"></p>
+      </section>
     </main>
   </div>
 
@@ -637,6 +649,9 @@ let aiCache = {};
 let unsubscribeAiCache = null;
 let tipRequestInFlight = false;
 let saveTimer = null;
+let baseDay = emptyDay();          // ekrandaki günün dayandığı, Firebase'den gelen son hâl
+let pendingDaySnapshot = null;     // saat seçici açıkken gelen, sonra uygulanacak yeni veri
+let dayLoading = false;            // gün verisi henüz yüklenmedi mi
 const pager = document.getElementById("pager");
 const pageDots = document.querySelectorAll("#pageDots button");
 let currentPageIndex = 1; // 0 = Sol, 1 = Orta, 2 = Sağ
@@ -711,7 +726,67 @@ document.getElementById("prevDayBtn").addEventListener("click", () => { loadDate
 document.getElementById("nextDayBtn").addEventListener("click", () => { loadDate(shiftDate(currentDate,1)); goToPage(1, true); });
 document.getElementById("dateCenter").addEventListener("click", openCalendar);
 
+/* Gün verisi yardımcıları ------------------------------------------------ */
+const DAY_FIELDS = ["feedings","diapers","sleeps","babyRoutine","momRoutine","notes"];
+
+// Firestore'dan gelen gün belgesini ekranın kullandığı şekle çevirir
+function normalizeDay(d){
+  const feedings = d.feedings || [];
+  // Eski kayıtlarda çiş/kaka emzirme satırlarının içindeydi; yeni "Tuvalet
+  // takibi" listesi henüz yoksa onlardan türetip göster.
+  const diapers = Array.isArray(d.diapers)
+    ? d.diapers
+    : feedings.filter(f => f.pee || f.poop).map(f => ({ time: f.rightStart || f.leftStart || "", pee: !!f.pee, poop: !!f.poop }));
+  return {
+    feedings,
+    diapers,
+    sleeps: d.sleeps || [],
+    babyRoutine: { ...(d.babyRoutine||{}) },
+    momRoutine: { ...(d.momRoutine||{}) },
+    notes: d.notes || ""
+  };
+}
+
+// Anahtar sırasından bağımsız karşılaştırma için sabit sıralı JSON
+function stableStringify(v){
+  if (Array.isArray(v)) return "[" + v.map(stableStringify).join(",") + "]";
+  if (v && typeof v === "object"){
+    return "{" + Object.keys(v).filter(k => v[k] !== undefined).sort()
+      .map(k => JSON.stringify(k) + ":" + stableStringify(v[k])).join(",") + "}";
+  }
+  return JSON.stringify(v === undefined ? null : v);
+}
+function deepClone(v){ return JSON.parse(JSON.stringify(v)); }
+
+// Orta sayfada bir saat alanı şu an açık mı? iOS'ta saat seçicisi açıkken alan
+// odakta kalır; listeyi o sırada yeniden çizmek alanı silip seçiciyi kapatır.
+function isEditingTimeField(){
+  const el = document.activeElement;
+  return !!(el && el.matches && el.matches('#pageCenter input[type="time"]'));
+}
+
+// Firebase'den gelen veriyi ekrana uygula (baseDay = düzenlemelerin dayandığı hâl)
+function acceptDaySnapshot(incoming){
+  baseDay = incoming;
+  dayData = deepClone(incoming);
+  pendingDaySnapshot = null;
+  render();
+}
+
+// Saat seçici kapanınca, o sırada beklettiğimiz yeni veriyi uygula
+function applyPendingDaySnapshot(){
+  if (!pendingDaySnapshot || isEditingTimeField() || saveTimer) return;
+  acceptDaySnapshot(pendingDaySnapshot);
+}
+document.getElementById("pageCenter").addEventListener("focusout", () => {
+  setTimeout(applyPendingDaySnapshot, 300);
+});
+
 function loadDate(dateStr){
+  // Gönderilmeyi bekleyen bir değişiklik varsa, gün değişmeden ÖNCE eski güne yaz
+  // (eskiden 0,6 sn'lik bekleme bitince yeni açılan güne yazılabiliyordu)
+  if (saveTimer) saveNow();
+
   currentDate = dateStr;
   dateLabelEl.textContent = formatDateLabel(dateStr);
   if (dateStr === todayStr()){ dayBadgeEl.textContent = "Bugün"; dayBadgeEl.style.display = "inline-block"; }
@@ -720,33 +795,43 @@ function loadDate(dateStr){
 
   if (unsubscribeDay) unsubscribeDay();
   dayData = emptyDay();
+  baseDay = emptyDay();
+  pendingDaySnapshot = null;
+  dayLoading = true;
+  // Veri gelene kadar giriş alanlarını kilitle: boş görünen sayfaya girilen bir
+  // kayıt, birazdan yüklenecek gerçek kayıtların yerine yazılmasın
+  document.getElementById("pageCenter").classList.add("day-loading");
   render();
   setSyncStatus("Yükleniyor…", false);
 
   const ref = doc(db, "days", dateStr);
   unsubscribeDay = onSnapshot(ref, (snap) => {
-    if (snap.exists()){
-      const d = snap.data();
-      const feedings = d.feedings || [];
-      // Eski kayıtlarda çiş/kaka emzirme satırlarının içindeydi; yeni "Tuvalet
-      // takibi" listesi henüz yoksa onlardan türetip göster.
-      const diapers = Array.isArray(d.diapers)
-        ? d.diapers
-        : feedings.filter(f => f.pee || f.poop).map(f => ({ time: f.rightStart || f.leftStart || "", pee: !!f.pee, poop: !!f.poop }));
-      dayData = {
-        feedings,
-        diapers,
-        sleeps: d.sleeps || [],
-        babyRoutine: { ...emptyDay().babyRoutine, ...(d.babyRoutine||{}) },
-        momRoutine: { ...emptyDay().momRoutine, ...(d.momRoutine||{}) },
-        notes: d.notes || ""
-      };
-    } else {
-      dayData = emptyDay();
+    const incoming = snap.exists() ? normalizeDay(snap.data()) : emptyDay();
+
+    if (dayLoading){
+      dayLoading = false;
+      document.getElementById("pageCenter").classList.remove("day-loading");
+      setSyncStatus("", false);
+      acceptDaySnapshot(incoming);
+      return;
     }
-    render();
-    setSyncStatus("", false);
+    // Ekrandakiyle aynı (ör. kendi kaydımızın Firebase'den geri dönen yankısı):
+    // hiçbir şeyi yeniden çizme — açık saat seçicisinin kapanma sebebi buydu
+    if (stableStringify(incoming) === stableStringify(dayData)){
+      baseDay = incoming;
+      pendingDaySnapshot = null;
+      return;
+    }
+    // Gerçekten yeni veri (ör. diğer telefondan) geldi ama şu an saat seçiliyor
+    // ya da gönderilmeyi bekleyen bir değişiklik var: sonra uygula
+    if (isEditingTimeField() || saveTimer){
+      pendingDaySnapshot = incoming;
+      return;
+    }
+    acceptDaySnapshot(incoming);
   }, () => {
+    dayLoading = false;
+    document.getElementById("pageCenter").classList.remove("day-loading");
     setSyncStatus("Bağlantı sorunu — internet bağlantınızı kontrol edin", true);
   });
 }
@@ -858,7 +943,29 @@ function openCalendar(){
 }
 function closeCalendar(){ calendarOverlay.hidden = true; }
 
-function renderCalendar(){
+function dayHasContent(d){
+  if (!d) return false;
+  if ((d.feedings&&d.feedings.length) || (d.diapers&&d.diapers.length) || (d.sleeps&&d.sleeps.length)) return true;
+  if (d.notes && d.notes.trim()) return true;
+  if (Object.values(d.babyRoutine||{}).some(Boolean)) return true;
+  if (Object.values(d.momRoutine||{}).some(Boolean)) return true;
+  return false;
+}
+
+async function loadCalMonthData(year, month){
+  const first = year + "-" + String(month+1).padStart(2,"0") + "-01";
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const last = year + "-" + String(month+1).padStart(2,"0") + "-" + String(daysInMonth).padStart(2,"0");
+  const withData = new Set();
+  try{
+    const q = query(collection(db,"days"), where(documentId(), ">=", first), where(documentId(), "<=", last));
+    const snap = await getDocs(q);
+    snap.forEach(d => { if (dayHasContent(d.data())) withData.add(d.id); });
+  }catch(e){ /* nokta göstermeden devam, kritik değil */ }
+  return withData;
+}
+
+async function renderCalendar(){
   document.getElementById("calMonthLabel").textContent = MONTHS[calViewMonth] + " " + calViewYear;
   const grid = document.getElementById("calendarGrid");
   grid.innerHTML = "";
@@ -866,22 +973,32 @@ function renderCalendar(){
   const firstOfMonth = new Date(calViewYear, calViewMonth, 1);
   const leadingBlanks = (firstOfMonth.getDay() + 6) % 7; // Pazartesi=0 olacak şekilde kaydır
   const daysInMonth = new Date(calViewYear, calViewMonth+1, 0).getDate();
+  const thisYear = calViewYear, thisMonth = calViewMonth; // eskimiş bir isteğin sonucu yanlış aya yazmasın
 
   const today = todayStr();
   for (let i=0;i<leadingBlanks;i++){
     const span = document.createElement("span");
     grid.appendChild(span);
   }
+  const buttons = {};
   for (let d=1; d<=daysInMonth; d++){
     const dateStr = calViewYear + "-" + String(calViewMonth+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.textContent = d;
+    btn.innerHTML = `<span>${d}</span><span class="cal-dot cal-dot-empty"></span>`;
     if (dateStr === today) btn.classList.add("today");
     if (dateStr === currentDate) btn.classList.add("selected");
     btn.addEventListener("click", () => { loadDate(dateStr); closeCalendar(); goToPage(1, true); });
     grid.appendChild(btn);
+    buttons[dateStr] = btn;
   }
+
+  const withData = await loadCalMonthData(calViewYear, calViewMonth);
+  if (thisYear !== calViewYear || thisMonth !== calViewMonth) return; // bu sırada başka bir aya geçilmiş
+  withData.forEach(dateStr => {
+    const btn = buttons[dateStr];
+    if (btn) btn.querySelector(".cal-dot").classList.remove("cal-dot-empty");
+  });
 }
 
 document.getElementById("calPrevMonth").addEventListener("click", () => {
@@ -1291,6 +1408,24 @@ function renderAiCard(){
   }
 }
 
+async function callWorker(payload){
+  const res = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => null);
+  return { ok: res.ok, data };
+}
+
+function explainAiError(data){
+  const status = data && data.status;
+  if (status && status >= 500) return "Yapay zeka servisi şu an geçici olarak yoğun/erişilemez görünüyor — biraz sonra tekrar dene.";
+  if (status === 401 || status === 403) return "GEMINI_API_KEY yanlış ya da eksik olabilir, Worker'ın Settings kısmını kontrol et.";
+  if (status === 404) return "AI modeli bulunamadı — worker.js içindeki MODEL adı hatalı/güncel olmayabilir.";
+  return "Worker adresini ve GEMINI_API_KEY'i kontrol et.";
+}
+
 async function maybeGenerateDailyTip(){
   if (!WORKER_CONFIGURED || !babyProfile.birthDate) return;
   if (aiCache.tipDate === todayStr()) return;
@@ -1298,16 +1433,15 @@ async function maybeGenerateDailyTip(){
   tipRequestInFlight = true;
   try{
     const ageMonths = monthsBetween(babyProfile.birthDate, todayStr());
-    const res = await fetch(WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode:"dailyTip", ageMonths })
-    });
-    const data = await res.json().catch(() => null);
-    if (res.ok && data && data.text){
+    let { ok, data } = await callWorker({ mode:"dailyTip", ageMonths });
+    if (!ok && data && data.status >= 500){
+      await new Promise(r => setTimeout(r, 2000));
+      ({ ok, data } = await callWorker({ mode:"dailyTip", ageMonths }));
+    }
+    if (ok && data && data.text){
       await setDoc(doc(db,"meta","aiCache"), { tipDate:todayStr(), tipText:data.text }, { merge:true });
     } else {
-      document.getElementById("aiTipText").textContent = "Bilgi kartı alınamadı" + (data && data.error ? " (" + data.error + (data.status?" "+data.status:"") + ")" : "") + ". Worker adresini ve GEMINI_API_KEY'i kontrol et.";
+      document.getElementById("aiTipText").textContent = "Bilgi kartı alınamadı" + (data && data.error ? " (" + data.error + (data.status?" "+data.status:"") + ")" : "") + ". " + explainAiError(data);
     }
   }catch(e){
     document.getElementById("aiTipText").textContent = "Bilgi kartı şu an alınamadı — Worker'a ulaşılamıyor. Worker adresini kontrol et.";
@@ -1357,16 +1491,15 @@ document.getElementById("generateAssessmentBtn").addEventListener("click", async
     snap.forEach(d => days.push(d.data()));
     const summary = summarizeWeek(days);
 
-    const res = await fetch(WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode:"assessment", summary })
-    });
-    const data = await res.json().catch(() => null);
-    if (res.ok && data && data.text){
+    let { ok, data } = await callWorker({ mode:"assessment", summary });
+    if (!ok && data && data.status >= 500){
+      await new Promise(r => setTimeout(r, 2000));
+      ({ ok, data } = await callWorker({ mode:"assessment", summary }));
+    }
+    if (ok && data && data.text){
       await setDoc(doc(db,"meta","aiCache"), { assessmentDate:todayStr(), assessmentText:data.text }, { merge:true });
     } else {
-      document.getElementById("aiAssessmentText").textContent = "Değerlendirme oluşturulamadı" + (data && data.error ? " (" + data.error + (data.status?" "+data.status:"") + ")" : "") + ".";
+      document.getElementById("aiAssessmentText").textContent = "Değerlendirme oluşturulamadı" + (data && data.error ? " (" + data.error + (data.status?" "+data.status:"") + ")" : "") + ". " + explainAiError(data);
     }
   }catch(e){
     document.getElementById("aiAssessmentText").textContent = "Değerlendirme oluşturulamadı, tekrar dene.";
@@ -1411,6 +1544,67 @@ pageDots.forEach((b,i) => b.addEventListener("click", () => goToPage(i, true)));
 window.addEventListener("resize", () => { if (!appScreen.hidden) restorePage(); });
 
 /* ========================================================================
+   6j) Veri yedeği — tüm koleksiyonları tek bir JSON dosyasında indirir.
+   iOS'ta ana ekrandan açılan (standalone) PWA'larda düz <a download> bazen
+   takılıp kalıyor; bunun yerine önce boş bir sekme açıp, veri hazır
+   olunca indirme linkini o sekmeye yazan daha güvenilir yöntemi kullanıyoruz.
+   ===================================================================== */
+document.getElementById("downloadBackupBtn").addEventListener("click", async () => {
+  const popup = window.open("");
+  if (popup){
+    try{ popup.document.title = "Yedek hazırlanıyor"; popup.document.body.textContent = "Yedek hazırlanıyor…"; }catch(e){}
+  }
+  const btn = document.getElementById("downloadBackupBtn");
+  const statusEl = document.getElementById("backupStatus");
+  btn.disabled = true;
+  btn.textContent = "Hazırlanıyor…";
+  statusEl.textContent = "";
+  try{
+    const backup = { exportedAt: new Date().toISOString(), days:{}, growth:[], meta:{} };
+
+    const daysSnap = await getDocs(collection(db,"days"));
+    daysSnap.forEach(d => { backup.days[d.id] = d.data(); });
+
+    const growthSnap = await getDocs(collection(db,"growth"));
+    growthSnap.forEach(d => { backup.growth.push({ id:d.id, ...d.data() }); });
+
+    const metaSnap = await getDocs(collection(db,"meta"));
+    metaSnap.forEach(d => { backup.meta[d.id] = d.data(); });
+
+    const filename = "bebek-gunlugu-yedek-" + todayStr() + ".json";
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type:"application/json" });
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (popup && !popup.closed){
+        popup.document.body.innerHTML = "";
+        const link = popup.document.createElement("a");
+        link.href = reader.result;
+        link.download = filename;
+        link.textContent = "İndirmek için dokun: " + filename;
+        link.style.font = "16px sans-serif";
+        popup.document.body.appendChild(link);
+        link.click();
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      statusEl.textContent = "Hazır — indirmediyse yeni açılan sekmedeki linke dokun.";
+    };
+    reader.readAsDataURL(blob);
+  }catch(e){
+    if (popup) popup.close();
+    statusEl.textContent = "Yedek oluşturulamadı, tekrar dene.";
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Yedek indir (.json)";
+  }
+});
+
+/* ========================================================================
    7) Kayıt (debounce'lı otomatik kaydetme)
    ===================================================================== */
 function scheduleSave(){
@@ -1419,13 +1613,32 @@ function scheduleSave(){
   saveTimer = setTimeout(saveNow, 600);
 }
 async function saveNow(){
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  // Sadece bu cihazda gerçekten değişen bölümleri yaz (merge): diğer telefondan
+  // aynı anda başka bir bölüme girilen kayıt böylece ezilmez
+  const changes = {};
+  DAY_FIELDS.forEach(k => {
+    if (stableStringify(dayData[k]) !== stableStringify(baseDay[k])) changes[k] = deepClone(dayData[k]);
+  });
+  if (!Object.keys(changes).length){
+    setSyncStatus("Kaydedildi ✓", false);
+    applyPendingDaySnapshot();
+    return;
+  }
+  changes.updatedAt = new Date().toISOString();
   try{
-    await setDoc(doc(db,"days",currentDate), { ...dayData, updatedAt:new Date().toISOString() });
+    await setDoc(doc(db,"days",currentDate), changes, { merge:true });
     setSyncStatus("Kaydedildi ✓", false);
   }catch(e){
     setSyncStatus("Kaydedilemedi — tekrar denenecek", true);
   }
 }
+
+// Uygulama arka plana alınırken (ör. telefon kilitlenince) bekleyen kaydı hemen gönder
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && saveTimer) saveNow();
+});
 function setSyncStatus(text, isError){
   const el = document.getElementById("syncStatus");
   el.textContent = text;
