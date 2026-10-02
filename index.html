@@ -170,6 +170,12 @@
   .settings-item-label{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
   .settings-item-age{ width:52px; flex-shrink:0; border:1px solid var(--line); border-radius:9px; padding:9px 6px; background:#fff; color:var(--ink); text-align:center; }
   .settings-age-input{ width:52px; flex-shrink:0; }
+  /* "Ay"/"Hafta" kutusu ekleme satırında isim kutusu kadar genişliyordu */
+  .settings-add-row .settings-age-input{ flex:0 0 58px; width:58px; padding:9px 6px; text-align:center; }
+  .settings-move{ display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+  .settings-move button{ width:32px; height:19px; padding:0; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink-soft); font-size:9px; line-height:1; cursor:pointer; }
+  .settings-move button:active{ background:var(--blue-soft); }
+  .settings-move button:disabled{ opacity:.3; cursor:default; }
   .settings-item-delete{ border:none; background:none; color:var(--danger); font-size:13px; padding:6px 2px; flex-shrink:0; cursor:pointer; }
   .settings-add-row{ display:flex; gap:8px; margin-top:12px; }
   .settings-add-row input{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
@@ -1058,16 +1064,25 @@ calendarOverlay.addEventListener("click", (e) => { if (e.target === calendarOver
 function startChecklistConfig(){
   if (unsubscribeConfig) unsubscribeConfig();
   unsubscribeConfig = onSnapshot(doc(db,"meta","checklistConfig"), (snap) => {
+    const previous = checklistConfig;
     checklistConfig = snap.exists() ? snap.data() : {};
     // eksik liste türlerini varsayılanla doldur (ilk kurulum ya da sonradan
     // eklenen bir liste — ör. aşı takvimi artık burada, eski kayıtlarda yok)
     let needsSave = false;
-    if (!checklistConfig.babyRoutine){ checklistConfig.babyRoutine = DEFAULT_BABY_ROUTINE; needsSave = true; }
-    if (!checklistConfig.momRoutine){ checklistConfig.momRoutine = DEFAULT_MOM_ROUTINE; needsSave = true; }
-    if (!checklistConfig.milestones){ checklistConfig.milestones = DEFAULT_MILESTONES; needsSave = true; }
-    if (!checklistConfig.vaccines){ checklistConfig.vaccines = DEFAULT_VACCINES; needsSave = true; }
-    if (!checklistConfig.leaps){ checklistConfig.leaps = DEFAULT_LEAPS; needsSave = true; }
+    if (!checklistConfig.babyRoutine){ checklistConfig.babyRoutine = deepClone(DEFAULT_BABY_ROUTINE); needsSave = true; }
+    if (!checklistConfig.momRoutine){ checklistConfig.momRoutine = deepClone(DEFAULT_MOM_ROUTINE); needsSave = true; }
+    if (!checklistConfig.milestones){ checklistConfig.milestones = deepClone(DEFAULT_MILESTONES); needsSave = true; }
+    if (!checklistConfig.vaccines){ checklistConfig.vaccines = deepClone(DEFAULT_VACCINES); needsSave = true; }
+    if (!checklistConfig.leaps){ checklistConfig.leaps = deepClone(DEFAULT_LEAPS); needsSave = true; }
+    // Aşı takvimi ve gelişim dönemleri her zaman kronolojik dursun — önceden
+    // eklenip listenin sonuna düşmüş kayıtlar da burada yerine oturur
+    if (sortConfigListByAge("vaccines")) needsSave = true;
+    if (sortConfigListByAge("leaps")) needsSave = true;
     if (needsSave) setDoc(doc(db,"meta","checklistConfig"), checklistConfig).catch(()=>{});
+
+    // Kendi değişikliğimizin Firebase'den geri dönen yankısıysa yeniden çizme:
+    // ekran zaten güncel, ayrıca o sırada yazılan bir alanı silmesin
+    if (previous && stableStringify(previous) === stableStringify(checklistConfig)) return;
 
     renderRoutineList("babyRoutineList", checklistConfig.babyRoutine, dayData.babyRoutine, "babyRoutine");
     renderRoutineList("momRoutineList", checklistConfig.momRoutine, dayData.momRoutine, "momRoutine");
@@ -1105,6 +1120,31 @@ function refreshForKey(configKey){
   else render();
 }
 
+// Yaşı (ay/hafta) olan listeler — Aşı takvimi ve Gelişim dönemleri — her zaman
+// kronolojik sırada tutulur. Sıralama kararlıdır: aynı yaştakiler mevcut
+// sıralarını korur, yeni eklenen de aynı yaştakilerin sonuna gelir.
+// Sıra değiştiyse true döner.
+function sortConfigListByAge(configKey){
+  const f = AGE_FIELD_BY_KEY[configKey];
+  if (!f || !checklistConfig || !Array.isArray(checklistConfig[configKey])) return false;
+  const list = checklistConfig[configKey];
+  const before = list.slice();
+  list.sort((a,b) => (Number(a[f])||0) - (Number(b[f])||0));
+  return list.some((it,i) => it !== before[i]);
+}
+
+// Yaşı olmayan listelerde (Bebeğin günü, Annenin günü, Gelişim aşamaları)
+// sıra ▲▼ ile elle ayarlanır; ana ekrandaki listeler de bu sırayı izler.
+function moveConfigItem(configKey, from, to){
+  const list = checklistConfig[configKey];
+  if (to < 0 || to >= list.length) return;
+  const [item] = list.splice(from, 1);
+  list.splice(to, 0, item);
+  saveChecklistConfig();
+  renderSettingsLists();
+  refreshForKey(configKey);
+}
+
 function renderSettingsLists(){
   if (!checklistConfig) return;
   renderSettingsList("settingsBabyList", "babyRoutine");
@@ -1118,22 +1158,34 @@ function renderSettingsList(elId, configKey){
   const wrap = document.getElementById(elId);
   wrap.innerHTML = "";
   const ageField = AGE_FIELD_BY_KEY[configKey];
-  checklistConfig[configKey].forEach((item, idx) => {
+  const list = checklistConfig[configKey];
+  list.forEach((item, idx) => {
     const row = document.createElement("div");
     row.className = "settings-item";
     row.innerHTML =
-      (ageField ? `<input type="number" min="0" class="settings-item-age" value="${item[ageField] ?? 0}" title="${AGE_TITLE_BY_KEY[configKey]}">` : "") +
+      (ageField
+        ? `<input type="number" min="0" class="settings-item-age" value="${item[ageField] ?? 0}" title="${AGE_TITLE_BY_KEY[configKey]}">`
+        : `<div class="settings-move">
+             <button type="button" class="move-up" aria-label="Yukarı taşı" ${idx === 0 ? "disabled" : ""}>▲</button>
+             <button type="button" class="move-down" aria-label="Aşağı taşı" ${idx === list.length-1 ? "disabled" : ""}>▼</button>
+           </div>`) +
       `<input type="text" class="settings-item-label" value="${escapeHtml(item.label)}"><button type="button" class="settings-item-delete">Sil</button>`;
     row.querySelector(".settings-item-label").addEventListener("change", (e) => {
       checklistConfig[configKey][idx].label = e.target.value.trim() || item.label;
       saveChecklistConfig();
+      refreshForKey(configKey);
     });
     if (ageField){
       row.querySelector(".settings-item-age").addEventListener("change", (e) => {
         checklistConfig[configKey][idx][ageField] = Math.max(0, Number(e.target.value) || 0);
+        sortConfigListByAge(configKey);   // yaşı değişen satır kronolojik yerine geçer
         saveChecklistConfig();
+        renderSettingsLists();
         refreshForKey(configKey);
       });
+    } else {
+      row.querySelector(".move-up").addEventListener("click", () => moveConfigItem(configKey, idx, idx - 1));
+      row.querySelector(".move-down").addEventListener("click", () => moveConfigItem(configKey, idx, idx + 1));
     }
     row.querySelector(".settings-item-delete").addEventListener("click", () => {
       checklistConfig[configKey].splice(idx,1);
@@ -1158,6 +1210,7 @@ function wireAddButton(inputId, btnId, configKey, ageInputId){
       ageInput.value = "";
     }
     checklistConfig[configKey].push(item);
+    sortConfigListByAge(configKey);   // aşı/gelişim dönemi ise doğru yerine yerleşir
     input.value = "";
     saveChecklistConfig();
     renderSettingsLists();
