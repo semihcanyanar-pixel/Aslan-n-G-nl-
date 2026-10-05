@@ -359,7 +359,7 @@
             <div class="weekly-bars weekly-day-labels" id="weekDayLabels"></div>
             <div class="weekly-value"></div>
           </div>
-          <p class="settings-hint weekly-note">Ortalamalar sadece kayıt girilmiş, tamamlanmış günlerden hesaplanır; bugünün soluk çubuğu ortalamaya dahil değil. Emzirme süreleri öğün başına ortalamadır.</p>
+          <p class="settings-hint weekly-note">Ortalamalar sadece kayıt girilmiş, tamamlanmış günlerden hesaplanır; bugünün soluk çubuğu ortalamaya dahil değil. Emzirme süreleri o taraftaki günlük toplam süredir.</p>
         </section>
 
         <section class="card" data-accent="blue">
@@ -980,7 +980,8 @@ function meanOf(arr){ return arr.length ? arr.reduce((a,b) => a+b, 0) / arr.leng
 // Haftalık bakış ve yapay zeka değerlendirmesinin ORTAK hesabı (ikisi hep aynı
 // sayıları görsün). Son 7 gün; her satırın ortalaması sadece o türden kayıt
 // girilmiş TAMAMLANMIŞ günlerden alınır — kayıtsız günler ve henüz bitmemiş
-// bugün ortalamayı düşürmesin. Emzirme süreleri öğün başına, taraf taraf.
+// bugün ortalamayı düşürmesin. Emzirme süreleri: her taraf için GÜNLÜK TOPLAM
+// dakika; ortalama, emzirme süresi girilmiş tamamlanmış günler üzerinden.
 function computeWeekStats(byDate, endDateStr){
   const perDay = [];
   for (let i=6; i>=0; i--){
@@ -1000,7 +1001,9 @@ function computeWeekStats(byDate, endDateStr){
       date, isToday: date === endDateStr,
       feedCount: feedings.length, feedHas: feedings.length > 0,
       formulaCc: feedings.reduce((s,f) => s + (Number(f.formulaCc)||0), 0),
-      rightMins, leftMins,
+      rightTotal: rightMins.reduce((a,b) => a+b, 0),
+      leftTotal: leftMins.reduce((a,b) => a+b, 0),
+      breastHas: rightMins.length + leftMins.length > 0,
       pee: dp.pee, poop: dp.poop, diaperHas: dp.hasData,
       sleepHrs, sleepHas
     });
@@ -1013,8 +1016,10 @@ function computeWeekStats(byDate, endDateStr){
     dayCount: done.filter(p => p.feedHas || p.diaperHas || p.sleepHas).length,
     avg: {
       feed: meanOf(feedDays.map(p => p.feedCount)),
-      right: meanOf(done.flatMap(p => p.rightMins)),
-      left: meanOf(done.flatMap(p => p.leftMins)),
+      // Sadece sol taraftan emzirilen bir günün sağ toplamı gerçek bir 0'dır;
+      // hiç emzirme süresi girilmemiş günler ise ortalamaya girmez
+      right: meanOf(done.filter(p => p.breastHas).map(p => p.rightTotal)),
+      left: meanOf(done.filter(p => p.breastHas).map(p => p.leftTotal)),
       pee: meanOf(diaperDays.map(p => p.pee)),
       poop: meanOf(diaperDays.map(p => p.poop)),
       sleep: meanOf(done.filter(p => p.sleepHas).map(p => p.sleepHrs)),
@@ -1029,8 +1034,8 @@ function renderWeeklyStats(byDate, endDateStr){
   const st = computeWeekStats(byDate, endDateStr);
   const P = st.perDay;
   paintWeeklyRow("feed",  P.map(p => p.feedHas ? p.feedCount : null), st.avg.feed, v => v.toFixed(1));
-  paintWeeklyRow("right", P.map(p => p.rightMins.length ? meanOf(p.rightMins) : null), st.avg.right, v => Math.round(v) + " dk");
-  paintWeeklyRow("left",  P.map(p => p.leftMins.length ? meanOf(p.leftMins) : null), st.avg.left, v => Math.round(v) + " dk");
+  paintWeeklyRow("right", P.map(p => p.breastHas ? p.rightTotal : null), st.avg.right, v => Math.round(v) + " dk");
+  paintWeeklyRow("left",  P.map(p => p.breastHas ? p.leftTotal : null), st.avg.left, v => Math.round(v) + " dk");
   paintWeeklyRow("pee",   P.map(p => p.diaperHas ? p.pee : null), st.avg.pee, v => v.toFixed(1));
   paintWeeklyRow("poop",  P.map(p => p.diaperHas ? p.poop : null), st.avg.poop, v => v.toFixed(1));
   paintWeeklyRow("sleep", P.map(p => p.sleepHas ? p.sleepHrs : null), st.avg.sleep, v => v.toFixed(1) + " sa");
@@ -1682,8 +1687,8 @@ function summarizeWeek(byDate, endDateStr){
   const summary = {
     tamamlananKayitliGunSayisi: st.dayCount,
     ortalamaBeslenmeSayisiGunde: r1(st.avg.feed),
-    ortalamaSagMemeSuresiDkOgunBasina: r0(st.avg.right),
-    ortalamaSolMemeSuresiDkOgunBasina: r0(st.avg.left),
+    ortalamaGunlukToplamSagMemeSuresiDk: r0(st.avg.right),
+    ortalamaGunlukToplamSolMemeSuresiDk: r0(st.avg.left),
     ortalamaCisSayisiGunde: r1(st.avg.pee),
     ortalamaKakaSayisiGunde: r1(st.avg.poop)
   };
