@@ -161,6 +161,13 @@
   .weekly-bars{ flex:1; display:flex; align-items:flex-end; gap:4px; height:28px; }
   .weekly-bars .bar{ flex:1; background:var(--blue-soft); border-radius:3px; min-height:4px; }
   .weekly-value{ font-size:15px; font-weight:600; width:56px; text-align:right; flex-shrink:0; }
+  .weekly-bars .bar.empty{ opacity:.35; }   /* o gün o türden kayıt yok — ortalamaya girmez */
+  .weekly-bars .bar.today{ opacity:.45; }   /* bugün henüz bitmedi — ortalamaya girmez */
+  .weekly-days{ border-bottom:none; padding:5px 0 0; }
+  .weekly-day-labels{ height:auto; align-items:center; }
+  .weekly-day-labels span{ flex:1; text-align:center; font-size:9.5px; color:var(--ink-soft); }
+  .weekly-day-labels span.today{ color:var(--blue-deep); font-weight:700; }
+  .weekly-note{ margin-top:10px; font-size:11px; line-height:1.4; }
   .milestone-count{ margin-left:auto; font-size:12px; font-weight:400; color:var(--ink-soft); }
 
   .sync-status{ text-align:center; font-size:12px; color:var(--ink-soft); padding:10px 0 4px; min-height:18px; }
@@ -323,15 +330,36 @@
             <div class="weekly-value" id="feedVal">–</div>
           </div>
           <div class="weekly-row">
+            <div class="weekly-label">🤱 Sağ meme</div>
+            <div class="weekly-bars" id="rightBars"></div>
+            <div class="weekly-value" id="rightVal">–</div>
+          </div>
+          <div class="weekly-row">
+            <div class="weekly-label">🤱 Sol meme</div>
+            <div class="weekly-bars" id="leftBars"></div>
+            <div class="weekly-value" id="leftVal">–</div>
+          </div>
+          <div class="weekly-row">
+            <div class="weekly-label">💧 Ort. çiş</div>
+            <div class="weekly-bars" id="peeBars"></div>
+            <div class="weekly-value" id="peeVal">–</div>
+          </div>
+          <div class="weekly-row">
+            <div class="weekly-label">💩 Ort. kaka</div>
+            <div class="weekly-bars" id="poopBars"></div>
+            <div class="weekly-value" id="poopVal">–</div>
+          </div>
+          <div class="weekly-row">
             <div class="weekly-label">🌙 Ort. uyku</div>
             <div class="weekly-bars" id="sleepBars"></div>
             <div class="weekly-value" id="sleepVal">–</div>
           </div>
-          <div class="weekly-row">
-            <div class="weekly-label">🧷 Ort. bez</div>
-            <div class="weekly-bars" id="diaperBars"></div>
-            <div class="weekly-value" id="diaperVal">–</div>
+          <div class="weekly-row weekly-days">
+            <div class="weekly-label"></div>
+            <div class="weekly-bars weekly-day-labels" id="weekDayLabels"></div>
+            <div class="weekly-value"></div>
           </div>
+          <p class="settings-hint weekly-note">Ortalamalar sadece kayıt girilmiş, tamamlanmış günlerden hesaplanır; bugünün soluk çubuğu ortalamaya dahil değil. Emzirme süreleri öğün başına ortalamadır.</p>
         </section>
 
         <section class="card" data-accent="blue">
@@ -926,47 +954,102 @@ function startWeeklyStats(){
 
 function avg(arr){ return arr.reduce((a,b)=>a+b,0) / (arr.length || 1); }
 
-// Bir günün bez sayısı: yeni "Tuvalet takibi" listesi varsa onu, yoksa eski
+// Bir günün çiş/kaka sayıları: yeni "Tuvalet takibi" listesi varsa onu, yoksa eski
 // kayıtlardaki (emzirme satırına işlenmiş) çiş/kaka işaretlerini sayar.
-function diaperCountForDay(d){
-  if (!d) return 0;
-  if (Array.isArray(d.diapers)) return d.diapers.length;
-  return (d.feedings||[]).filter(f => f.pee || f.poop).length;
+function diaperStatsForDay(d){
+  if (!d) return { pee:0, poop:0, hasData:false };
+  const list = Array.isArray(d.diapers) ? d.diapers : (d.feedings||[]).filter(f => f.pee || f.poop);
+  return { pee: list.filter(x => x.pee).length, poop: list.filter(x => x.poop).length, hasData: list.length > 0 };
 }
+
+// "HH:MM" iki saat arası dakika (gece yarısını geçebilir). Eksik ya da
+// mantıksız (0 ya da üst sınırdan uzun — muhtemelen yanlış giriş) ise null.
+function minutesBetween(start, end, maxMinutes){
+  if (!start || !end) return null;
+  const [sh,sm] = start.split(":").map(Number);
+  const [eh,em] = end.split(":").map(Number);
+  if ([sh,sm,eh,em].some(n => Number.isNaN(n))) return null;
+  let mins = (eh*60+em) - (sh*60+sm);
+  if (mins < 0) mins += 24*60;
+  if (mins <= 0 || mins > maxMinutes) return null;
+  return mins;
+}
+
+function meanOf(arr){ return arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : null; }
+
+// Haftalık bakış ve yapay zeka değerlendirmesinin ORTAK hesabı (ikisi hep aynı
+// sayıları görsün). Son 7 gün; her satırın ortalaması sadece o türden kayıt
+// girilmiş TAMAMLANMIŞ günlerden alınır — kayıtsız günler ve henüz bitmemiş
+// bugün ortalamayı düşürmesin. Emzirme süreleri öğün başına, taraf taraf.
+function computeWeekStats(byDate, endDateStr){
+  const perDay = [];
+  for (let i=6; i>=0; i--){
+    const date = shiftDate(endDateStr, -i);
+    const d = byDate[date];
+    const feedings = (d && d.feedings) || [];
+    const breast = feedings.filter(f => f.type !== "formula");
+    const rightMins = breast.map(f => minutesBetween(f.rightStart, f.rightEnd, 180)).filter(m => m != null);
+    const leftMins = breast.map(f => minutesBetween(f.leftStart, f.leftEnd, 180)).filter(m => m != null);
+    const dp = diaperStatsForDay(d);
+    let sleepHrs = 0, sleepHas = false;
+    ((d && d.sleeps) || []).forEach(s => {
+      const m = minutesBetween(s.sleepTime, s.wakeTime, 24*60);
+      if (m != null){ sleepHrs += m/60; sleepHas = true; }
+    });
+    perDay.push({
+      date, isToday: date === endDateStr,
+      feedCount: feedings.length, feedHas: feedings.length > 0,
+      formulaCc: feedings.reduce((s,f) => s + (Number(f.formulaCc)||0), 0),
+      rightMins, leftMins,
+      pee: dp.pee, poop: dp.poop, diaperHas: dp.hasData,
+      sleepHrs, sleepHas
+    });
+  }
+  const done = perDay.filter(p => !p.isToday);
+  const feedDays = done.filter(p => p.feedHas);
+  const diaperDays = done.filter(p => p.diaperHas);
+  return {
+    perDay,
+    dayCount: done.filter(p => p.feedHas || p.diaperHas || p.sleepHas).length,
+    avg: {
+      feed: meanOf(feedDays.map(p => p.feedCount)),
+      right: meanOf(done.flatMap(p => p.rightMins)),
+      left: meanOf(done.flatMap(p => p.leftMins)),
+      pee: meanOf(diaperDays.map(p => p.pee)),
+      poop: meanOf(diaperDays.map(p => p.poop)),
+      sleep: meanOf(done.filter(p => p.sleepHas).map(p => p.sleepHrs)),
+      formula: meanOf(feedDays.map(p => p.formulaCc))
+    }
+  };
+}
+
+const DAY_SHORT = ["Pa","Pt","Sa","Ça","Pe","Cu","Ct"]; // getDay(): 0 = Pazar
 
 function renderWeeklyStats(byDate, endDateStr){
-  const dates = [];
-  for (let i=6;i>=0;i--) dates.push(shiftDate(endDateStr,-i));
-
-  const feedCounts=[], sleepHours=[], diaperCounts=[];
-  dates.forEach(dt => {
-    const d = byDate[dt];
-    const feedings = d?.feedings || [];
-    feedCounts.push(feedings.length);
-    diaperCounts.push(diaperCountForDay(d));
-    let hrs = 0;
-    (d?.sleeps||[]).forEach(s => {
-      if (s.sleepTime && s.wakeTime){
-        const [sh,sm] = s.sleepTime.split(":").map(Number);
-        const [wh,wm] = s.wakeTime.split(":").map(Number);
-        let mins = (wh*60+wm) - (sh*60+sm);
-        if (mins < 0) mins += 24*60;
-        hrs += mins/60;
-      }
-    });
-    sleepHours.push(hrs);
-  });
-
-  paintWeeklyRow("feed", feedCounts, v => v.toFixed(1));
-  paintWeeklyRow("sleep", sleepHours, v => v.toFixed(1)+" sa");
-  paintWeeklyRow("diaper", diaperCounts, v => v.toFixed(1));
+  const st = computeWeekStats(byDate, endDateStr);
+  const P = st.perDay;
+  paintWeeklyRow("feed",  P.map(p => p.feedHas ? p.feedCount : null), st.avg.feed, v => v.toFixed(1));
+  paintWeeklyRow("right", P.map(p => p.rightMins.length ? meanOf(p.rightMins) : null), st.avg.right, v => Math.round(v) + " dk");
+  paintWeeklyRow("left",  P.map(p => p.leftMins.length ? meanOf(p.leftMins) : null), st.avg.left, v => Math.round(v) + " dk");
+  paintWeeklyRow("pee",   P.map(p => p.diaperHas ? p.pee : null), st.avg.pee, v => v.toFixed(1));
+  paintWeeklyRow("poop",  P.map(p => p.diaperHas ? p.poop : null), st.avg.poop, v => v.toFixed(1));
+  paintWeeklyRow("sleep", P.map(p => p.sleepHas ? p.sleepHrs : null), st.avg.sleep, v => v.toFixed(1) + " sa");
+  document.getElementById("weekDayLabels").innerHTML = P.map(p => {
+    const [y,m,d] = p.date.split("-").map(Number);
+    return `<span class="${p.isToday ? "today" : ""}">${DAY_SHORT[new Date(y, m-1, d).getDay()]}</span>`;
+  }).join("");
 }
 
-function paintWeeklyRow(prefix, values, fmt){
-  const maxV = Math.max(1, ...values);
-  const barsEl = document.getElementById(prefix+"Bars");
-  barsEl.innerHTML = values.map(v => `<div class="bar" style="height:${Math.max(6,(v/maxV)*100)}%"></div>`).join("");
-  document.getElementById(prefix+"Val").textContent = fmt(avg(values));
+// values: her gün için sayı ya da null (o gün o türden kayıt yok). Son eleman bugün.
+function paintWeeklyRow(prefix, values, average, fmt){
+  const nums = values.filter(v => v != null);
+  const maxV = Math.max(1, ...nums);
+  document.getElementById(prefix+"Bars").innerHTML = values.map((v, i) => {
+    const cls = "bar" + (v == null ? " empty" : "") + (i === values.length-1 ? " today" : "");
+    const h = v == null ? 6 : Math.max(6, (v/maxV)*100);
+    return `<div class="${cls}" style="height:${h}%"></div>`;
+  }).join("");
+  document.getElementById(prefix+"Val").textContent = average == null ? "–" : fmt(average);
 }
 
 /* ========================================================================
@@ -1591,35 +1674,28 @@ async function maybeGenerateDailyTip(){
   }
 }
 
-function summarizeWeek(days){
-  const feedCounts = days.map(d => (d.feedings||[]).length);
-  const diaperCounts = days.map(d => diaperCountForDay(d));
-  const sleepHours = days.map(d => {
-    let hrs = 0;
-    (d.sleeps||[]).forEach(s => {
-      if (s.sleepTime && s.wakeTime){
-        const [sh,sm] = s.sleepTime.split(":").map(Number);
-        const [wh,wm] = s.wakeTime.split(":").map(Number);
-        let mins = (wh*60+wm) - (sh*60+sm);
-        if (mins < 0) mins += 24*60;
-        hrs += mins/60;
-      }
-    });
-    return Math.round(hrs*10)/10;
-  });
-  const formulaTotals = days.map(d => (d.feedings||[]).reduce((s,f) => s + (Number(f.formulaCc)||0), 0));
+// Yapay zekaya giden haftalık özet — Haftalık bakış ile aynı hesap (computeWeekStats)
+function summarizeWeek(byDate, endDateStr){
+  const st = computeWeekStats(byDate, endDateStr);
+  const r1 = v => v == null ? null : Math.round(v*10)/10;
+  const r0 = v => v == null ? null : Math.round(v);
   const summary = {
-    gunSayisi: days.length,
-    ortalamaBeslenmeSayisiGunde: avg(feedCounts).toFixed(1),
-    ortalamaBezSayisiGunde: avg(diaperCounts).toFixed(1)
+    tamamlananKayitliGunSayisi: st.dayCount,
+    ortalamaBeslenmeSayisiGunde: r1(st.avg.feed),
+    ortalamaSagMemeSuresiDkOgunBasina: r0(st.avg.right),
+    ortalamaSolMemeSuresiDkOgunBasina: r0(st.avg.left),
+    ortalamaCisSayisiGunde: r1(st.avg.pee),
+    ortalamaKakaSayisiGunde: r1(st.avg.poop)
   };
-  if (formulaTotals.some(t => t > 0)) summary.ortalamaMamaMiktariCcGunde = avg(formulaTotals).toFixed(0);
+  if (st.avg.formula) summary.ortalamaMamaMiktariCcGunde = r0(st.avg.formula);
   if (sleepTrackingOn()){
-    summary.ortalamaUykuSaatiGunde = avg(sleepHours).toFixed(1);
+    summary.ortalamaUykuSaatiGunde = r1(st.avg.sleep);
   } else {
     // Uyku verisi hiç gönderilmiyor; ayrıca modele açıkça söyleniyor
     summary.uykuTakibi = "kapalı — uyku hakkında hiçbir yorum, değerlendirme ya da öneri yapma";
   }
+  // Değeri olmayan alanları gönderme (model "veri yok" diye yorum yapmasın)
+  Object.keys(summary).forEach(k => { if (summary[k] == null) delete summary[k]; });
   return summary;
 }
 
@@ -1636,9 +1712,13 @@ document.getElementById("generateAssessmentBtn").addEventListener("click", async
     const start = shiftDate(end, -6);
     const q = query(collection(db,"days"), where(documentId(), ">=", start), where(documentId(), "<=", end));
     const snap = await getDocs(q);
-    const days = [];
-    snap.forEach(d => days.push(d.data()));
-    const summary = summarizeWeek(days);
+    const byDate = {};
+    snap.forEach(d => { byDate[d.id] = d.data(); });
+    const summary = summarizeWeek(byDate, end);
+    if (!summary.tamamlananKayitliGunSayisi){
+      document.getElementById("aiAssessmentText").textContent = "Değerlendirme için en az bir tamamlanmış günün kaydı gerekiyor — yarın tekrar dene.";
+      return;
+    }
 
     let { ok, data } = await callWorker({ mode:"assessment", summary });
     if (!ok && data && data.status >= 500){
@@ -1878,7 +1958,7 @@ function renderFeedList(){
         </div>
         <div class="mini-group formula-amount">
           <label>Mama</label>
-          ${stepperHtml("formulaCc", f.formulaCc, 10)}
+          ${stepperHtml("formulaCc", f.formulaCc, 5)}
         </div>
         <button type="button" class="row-delete">Bu kaydı sil</button>
       `;
@@ -1894,7 +1974,7 @@ function renderFeedList(){
           <div><input type="time" data-field="leftStart" value="${f.leftStart||""}"><input type="time" data-field="leftEnd" value="${f.leftEnd||""}"></div>
         </div>
         <div class="feed-row-extra">
-          <div class="mini-group"><label>Mama</label>${stepperHtml("formulaCc", f.formulaCc, 10)}</div>
+          <div class="mini-group"><label>Mama</label>${stepperHtml("formulaCc", f.formulaCc, 5)}</div>
           <div class="mini-group"><label>Ek süt</label>${stepperHtml("extraCc", f.extraCc, 5)}</div>
           <div class="mini-group"><label>Sağılan</label>${stepperHtml("pumpedCc", f.pumpedCc, 5)}</div>
         </div>
