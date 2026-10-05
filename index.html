@@ -120,7 +120,22 @@
   .mini-group label{ display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
   .stepper{ display:flex; align-items:center; gap:8px; background:var(--blue-soft); border-radius:999px; padding:4px; }
   .stepper button{ width:26px; height:26px; border-radius:50%; border:none; background:#fff; color:var(--blue-deep); font-size:16px; line-height:1; cursor:pointer; }
-  .stepper .val{ min-width:44px; text-align:center; font-size:13px; font-weight:600; }
+  .stepper .val{ min-width:56px; display:flex; align-items:center; justify-content:center; gap:2px; font-size:13px; font-weight:600; }
+  .stepper .val input{ width:38px; padding:0; border:none; background:transparent; color:var(--ink); font-size:16px; font-weight:600; text-align:right; -moz-appearance:textfield; appearance:textfield; }
+  .stepper .val input::-webkit-outer-spin-button, .stepper .val input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .add-btn-row{ display:flex; gap:8px; }
+  .add-btn-row .add-btn{ flex:1; width:auto; }
+  .formula-amount{ align-self:end; }
+  .switch-row{ position:relative; display:flex; align-items:center; gap:14px; cursor:pointer; }
+  .switch-text{ flex:1; min-width:0; }
+  .switch-title{ display:block; font-size:15px; font-weight:600; }
+  .switch-row .settings-hint{ display:block; margin-top:4px; }
+  .switch-input{ position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+  .switch{ position:relative; flex-shrink:0; width:48px; height:28px; border-radius:999px; background:var(--line); transition:background .2s; }
+  .switch::after{ content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:transform .2s; }
+  .switch-input:checked + .switch{ background:var(--sage); }
+  .switch-input:checked + .switch::after{ transform:translateX(20px); }
+  .switch-input:focus-visible + .switch{ outline:2px solid var(--blue-deep); outline-offset:2px; }
   .check-pair{ display:flex; gap:14px; }
   .check-pill{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); cursor:pointer; user-select:none; }
   .check-pill input{ width:17px; height:17px; accent-color:var(--blue-deep); }
@@ -339,9 +354,12 @@
 
       <div class="page" id="pageCenter" aria-label="Günlük kayıtlar">
         <section class="card" data-accent="blue">
-          <h2><span class="badge">🍼</span> Emzirme takibi</h2>
+          <h2><span class="badge">🍼</span> Beslenme takibi</h2>
           <div id="feedList"></div>
-          <button class="add-btn" id="addFeedBtn" type="button">+ Emzirme ekle</button>
+          <div class="add-btn-row">
+            <button class="add-btn" id="addFeedBtn" type="button">+ Emzirme</button>
+            <button class="add-btn" id="addFormulaBtn" type="button">+ Mama</button>
+          </div>
         </section>
 
         <section class="card" data-accent="sage">
@@ -445,6 +463,18 @@
         <h2><span class="badge">👶</span> Doğum tarihi</h2>
         <input type="date" id="birthDateInput">
         <p class="settings-hint">Aşı takviminin doğru hesaplanması için gerekli.</p>
+      </section>
+
+      <section class="card" data-accent="gold">
+        <h2><span class="badge">🎛️</span> Takip seçenekleri</h2>
+        <label class="switch-row" for="sleepTrackingToggle">
+          <span class="switch-text">
+            <span class="switch-title">Uyku takibi</span>
+            <span class="settings-hint">Kapalıyken uyku kayıt bölümü ve haftalık uyku grafiği gizlenir, yapay zeka da uyku hakkında yorum yapmaz. Önceden girilen uyku kayıtları silinmez; tekrar açınca geri gelir.</span>
+          </span>
+          <input type="checkbox" id="sleepTrackingToggle" class="switch-input" checked>
+          <span class="switch" aria-hidden="true"></span>
+        </label>
       </section>
 
       <section class="card" data-accent="sage">
@@ -797,11 +827,11 @@ function stableStringify(v){
 }
 function deepClone(v){ return JSON.parse(JSON.stringify(v)); }
 
-// Orta sayfada bir saat alanı şu an açık mı? iOS'ta saat seçicisi açıkken alan
-// odakta kalır; listeyi o sırada yeniden çizmek alanı silip seçiciyi kapatır.
-function isEditingTimeField(){
+// Orta sayfada bir saat ya da miktar alanı şu an düzenleniyor mu? iOS'ta seçici/
+// klavye açıkken alan odakta kalır; listeyi o sırada yeniden çizmek alanı silip kapatır.
+function isEditingDayField(){
   const el = document.activeElement;
-  return !!(el && el.matches && el.matches('#pageCenter input[type="time"]'));
+  return !!(el && el.matches && el.matches('#pageCenter input[type="time"], #pageCenter input[type="number"]'));
 }
 
 // Firebase'den gelen veriyi ekrana uygula (baseDay = düzenlemelerin dayandığı hâl)
@@ -814,7 +844,7 @@ function acceptDaySnapshot(incoming){
 
 // Saat seçici kapanınca, o sırada beklettiğimiz yeni veriyi uygula
 function applyPendingDaySnapshot(){
-  if (!pendingDaySnapshot || isEditingTimeField() || saveTimer) return;
+  if (!pendingDaySnapshot || isEditingDayField() || saveTimer) return;
   acceptDaySnapshot(pendingDaySnapshot);
 }
 document.getElementById("pageCenter").addEventListener("focusout", () => {
@@ -867,7 +897,7 @@ function loadDate(dateStr){
     }
     // Gerçekten yeni veri (ör. diğer telefondan) geldi ama şu an saat seçiliyor
     // ya da gönderilmeyi bekleyen bir değişiklik var: sonra uygula
-    if (isEditingTimeField() || saveTimer){
+    if (isEditingDayField() || saveTimer){
       pendingDaySnapshot = incoming;
       return;
     }
@@ -1352,12 +1382,31 @@ function startProfile(){
   unsubscribeProfile = onSnapshot(doc(db,"meta","profile"), (snap) => {
     babyProfile = snap.exists() ? snap.data() : { birthDate:null };
     document.getElementById("birthDateInput").value = babyProfile.birthDate || "";
+    applySleepTracking();
     renderVaccines();
     renderLeaps();
     renderAiCard();
     maybeGenerateDailyTip();
   }, () => {});
 }
+
+// Uyku takibi açık mı? (ayar hiç yapılmadıysa açık sayılır). Ayar meta/profile'da
+// durduğu için iki telefonda da aynı anda geçerli olur.
+function sleepTrackingOn(){ return babyProfile.sleepTracking !== false; }
+
+// Kapalıyken: uyku kayıt kartı ve haftalık bakıştaki uyku satırı gizlenir.
+// Veriler silinmez; tekrar açınca olduğu gibi geri gelir.
+function applySleepTracking(){
+  const on = sleepTrackingOn();
+  document.getElementById("sleepList").closest(".card").hidden = !on;
+  document.getElementById("sleepBars").closest(".weekly-row").hidden = !on;
+  document.getElementById("sleepTrackingToggle").checked = on;
+}
+document.getElementById("sleepTrackingToggle").addEventListener("change", (e) => {
+  babyProfile = { ...babyProfile, sleepTracking: e.target.checked };
+  applySleepTracking(); // beklemeden uygula
+  setDoc(doc(db,"meta","profile"), { sleepTracking: e.target.checked }, { merge:true }).catch(()=>{});
+});
 document.getElementById("birthDateInput").addEventListener("change", (e) => {
   setDoc(doc(db,"meta","profile"), { birthDate: e.target.value || null }, { merge:true });
 });
@@ -1558,12 +1607,20 @@ function summarizeWeek(days){
     });
     return Math.round(hrs*10)/10;
   });
-  return {
+  const formulaTotals = days.map(d => (d.feedings||[]).reduce((s,f) => s + (Number(f.formulaCc)||0), 0));
+  const summary = {
     gunSayisi: days.length,
     ortalamaBeslenmeSayisiGunde: avg(feedCounts).toFixed(1),
-    ortalamaUykuSaatiGunde: avg(sleepHours).toFixed(1),
     ortalamaBezSayisiGunde: avg(diaperCounts).toFixed(1)
   };
+  if (formulaTotals.some(t => t > 0)) summary.ortalamaMamaMiktariCcGunde = avg(formulaTotals).toFixed(0);
+  if (sleepTrackingOn()){
+    summary.ortalamaUykuSaatiGunde = avg(sleepHours).toFixed(1);
+  } else {
+    // Uyku verisi hiç gönderilmiyor; ayrıca modele açıkça söyleniyor
+    summary.uykuTakibi = "kapalı — uyku hakkında hiçbir yorum, değerlendirme ya da öneri yapma";
+  }
+  return summary;
 }
 
 document.getElementById("generateAssessmentBtn").addEventListener("click", async () => {
@@ -1796,56 +1853,70 @@ function render(){
   if (document.activeElement !== notesInput) notesInput.value = dayData.notes;
 }
 
+// Miktar kutusu: +/- ile adım adım artar, ya da sayıya dokunup doğrudan yazılır
+function stepperHtml(field, value, step){
+  return `<div class="stepper" data-field="${field}" data-step="${step}">
+            <button type="button" class="dec" aria-label="Azalt">–</button>
+            <span class="val"><input type="number" min="0" step="${step}" value="${value||0}" aria-label="Miktar (cc)">cc</span>
+            <button type="button" class="inc" aria-label="Artır">+</button>
+          </div>`;
+}
+
 function renderFeedList(){
   const wrap = document.getElementById("feedList");
   wrap.innerHTML = "";
   dayData.feedings.forEach((f, idx) => {
     const row = document.createElement("div");
     row.className = "entry-row";
-    row.innerHTML = `
-      <div class="field-group">
-        <label>Sağ meme</label>
-        <div><input type="time" data-field="rightStart" value="${f.rightStart||""}"><input type="time" data-field="rightEnd" value="${f.rightEnd||""}"></div>
-      </div>
-      <div class="field-group">
-        <label>Sol meme</label>
-        <div><input type="time" data-field="leftStart" value="${f.leftStart||""}"><input type="time" data-field="leftEnd" value="${f.leftEnd||""}"></div>
-      </div>
-      <div class="feed-row-extra">
-        <div class="mini-group">
-          <label>Ek süt</label>
-          <div class="stepper" data-field="extraCc">
-            <button type="button" class="dec" aria-label="Azalt">–</button>
-            <span class="val">${f.extraCc||0} cc</span>
-            <button type="button" class="inc" aria-label="Artır">+</button>
-          </div>
+    if (f.type === "formula"){
+      // Sadece mama verilen öğün: saat + miktar
+      row.classList.add("formula-row");
+      row.innerHTML = `
+        <div class="field-group">
+          <label>Mama · saat</label>
+          <div><input type="time" data-field="time" value="${f.time||""}"></div>
         </div>
-        <div class="mini-group">
-          <label>Sağılan</label>
-          <div class="stepper" data-field="pumpedCc">
-            <button type="button" class="dec" aria-label="Azalt">–</button>
-            <span class="val">${f.pumpedCc||0} cc</span>
-            <button type="button" class="inc" aria-label="Artır">+</button>
-          </div>
+        <div class="mini-group formula-amount">
+          <label>Mama</label>
+          ${stepperHtml("formulaCc", f.formulaCc, 10)}
         </div>
-      </div>
-      <button type="button" class="row-delete">Bu kaydı sil</button>
-    `;
+        <button type="button" class="row-delete">Bu kaydı sil</button>
+      `;
+    } else {
+      // Emzirme öğünü (istenirse aynı öğünde mama da işlenir)
+      row.innerHTML = `
+        <div class="field-group">
+          <label>Sağ meme</label>
+          <div><input type="time" data-field="rightStart" value="${f.rightStart||""}"><input type="time" data-field="rightEnd" value="${f.rightEnd||""}"></div>
+        </div>
+        <div class="field-group">
+          <label>Sol meme</label>
+          <div><input type="time" data-field="leftStart" value="${f.leftStart||""}"><input type="time" data-field="leftEnd" value="${f.leftEnd||""}"></div>
+        </div>
+        <div class="feed-row-extra">
+          <div class="mini-group"><label>Mama</label>${stepperHtml("formulaCc", f.formulaCc, 10)}</div>
+          <div class="mini-group"><label>Ek süt</label>${stepperHtml("extraCc", f.extraCc, 5)}</div>
+          <div class="mini-group"><label>Sağılan</label>${stepperHtml("pumpedCc", f.pumpedCc, 5)}</div>
+        </div>
+        <button type="button" class="row-delete">Bu kaydı sil</button>
+      `;
+    }
     row.querySelectorAll('input[type="time"]').forEach(inp => {
       inp.addEventListener("change", () => { dayData.feedings[idx][inp.dataset.field] = inp.value; scheduleSave(); });
     });
     row.querySelectorAll(".stepper").forEach(st => {
       const field = st.dataset.field;
-      st.querySelector(".inc").addEventListener("click", () => {
-        dayData.feedings[idx][field] = (dayData.feedings[idx][field]||0) + 5;
-        st.querySelector(".val").textContent = dayData.feedings[idx][field] + " cc";
+      const step = Number(st.dataset.step) || 5;
+      const inp = st.querySelector("input");
+      const setVal = (v) => {
+        const n = Math.max(0, Math.round(Number(v) || 0));
+        dayData.feedings[idx][field] = n;
+        inp.value = n;
         scheduleSave();
-      });
-      st.querySelector(".dec").addEventListener("click", () => {
-        dayData.feedings[idx][field] = Math.max(0,(dayData.feedings[idx][field]||0) - 5);
-        st.querySelector(".val").textContent = dayData.feedings[idx][field] + " cc";
-        scheduleSave();
-      });
+      };
+      st.querySelector(".inc").addEventListener("click", () => setVal((dayData.feedings[idx][field]||0) + step));
+      st.querySelector(".dec").addEventListener("click", () => setVal((dayData.feedings[idx][field]||0) - step));
+      inp.addEventListener("change", () => setVal(inp.value));
     });
     row.querySelector(".row-delete").addEventListener("click", () => {
       dayData.feedings.splice(idx,1);
@@ -1858,6 +1929,14 @@ function renderFeedList(){
 
 document.getElementById("addFeedBtn").addEventListener("click", () => {
   dayData.feedings.push({ rightStart:nowTimeStr(), rightEnd:"", leftStart:"", leftEnd:"", extraCc:0, pumpedCc:0 });
+  renderFeedList();
+  scheduleSave();
+});
+
+document.getElementById("addFormulaBtn").addEventListener("click", () => {
+  // Yeni mama öğünü, o gün en son verilen mama miktarıyla başlar (çoğu öğün aynı)
+  const last = [...dayData.feedings].reverse().find(f => Number(f.formulaCc) > 0);
+  dayData.feedings.push({ type:"formula", time:nowTimeStr(), formulaCc: last ? Number(last.formulaCc) : 0 });
   renderFeedList();
   scheduleSave();
 });
