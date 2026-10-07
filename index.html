@@ -323,7 +323,12 @@
   .icon-btn:disabled{ cursor:default; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
   #pageCenter .card{ transition:opacity .15s; }
-  #pageCenter.day-loading .card{ pointer-events:none; opacity:.6; transition:opacity .2s .15s; }
+  #pageCenter.day-loading .card:not(.weekly-card){ pointer-events:none; opacity:.6; transition:opacity .2s .15s; }
+  .expand-btn{ margin-left:auto; flex-shrink:0; width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); cursor:pointer; }
+  .expand-btn svg{ width:16px; height:16px; }
+  .expand-btn[aria-expanded="true"]{ background:var(--blue-soft); border-color:var(--blue-soft); color:var(--blue-deep); }
+  .list-summary{ display:block; width:100%; margin:6px 0 2px; padding:7px 11px; border:none; border-radius:10px; background:var(--paper); color:var(--ink-soft); font-family:inherit; font-size:12.5px; text-align:left; cursor:pointer; }
+  .list-summary span{ color:var(--blue-deep); font-weight:600; }
 </style>
 </head>
 <body>
@@ -359,12 +364,33 @@
 
     <main class="pager" id="pager">
       <div class="page" id="pageLeft" aria-label="Özet ve bilgi">
+        <section class="card dev-card" data-accent="gold">
+          <h2><span class="badge">🌱</span> Gelişim dönemleri</h2>
+          <div class="chart-empty" id="leapsNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
+          <div id="leapsBody" hidden>
+            <p class="dev-age" id="devAge"></p>
+            <div class="dev-weeks" id="devWeeks" role="group" aria-label="Haftalar"></div>
+            <p class="dev-legend">Noktalı haftalarda bir kontrol ya da gelişim dönemi var.</p>
+            <div id="devPanel"></div>
+            <p class="vaccine-disclaimer dev-disclaimer">Genel bilgilendirme amaçlıdır; her bebek kendi hızında gelişir. Aklınıza takılan bir durumda çocuk doktorunuza danışın.</p>
+          </div>
+        </section>
+
         <section class="card" data-accent="gold">
           <h2><span class="badge">✨</span> Günün bilgisi</h2>
           <p class="ai-tip-text" id="aiTipText">—</p>
         </section>
 
         <section class="card" data-accent="blue">
+          <h2><span class="badge">📋</span> Haftalık değerlendirme</h2>
+          <p class="ai-tip-text" id="aiAssessmentText">Henüz değerlendirme oluşturulmadı.</p>
+          <p class="settings-hint" id="aiAssessmentMeta"></p>
+          <button class="add-btn" type="button" id="generateAssessmentBtn">Değerlendirme oluştur</button>
+        </section>
+      </div>
+
+      <div class="page" id="pageCenter" aria-label="Günlük kayıtlar">
+        <section class="card weekly-card" data-accent="blue">
           <h2><span class="badge">📊</span> Haftalık bakış</h2>
           <div class="weekly-row">
             <div class="weekly-label">🍼 Ort. beslenme</div>
@@ -405,28 +431,7 @@
         </section>
 
         <section class="card" data-accent="blue">
-          <h2><span class="badge">📋</span> Haftalık değerlendirme</h2>
-          <p class="ai-tip-text" id="aiAssessmentText">Henüz değerlendirme oluşturulmadı.</p>
-          <p class="settings-hint" id="aiAssessmentMeta"></p>
-          <button class="add-btn" type="button" id="generateAssessmentBtn">Değerlendirme oluştur</button>
-        </section>
-
-        <section class="card dev-card" data-accent="gold">
-          <h2><span class="badge">🌱</span> Gelişim dönemleri</h2>
-          <div class="chart-empty" id="leapsNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
-          <div id="leapsBody" hidden>
-            <p class="dev-age" id="devAge"></p>
-            <div class="dev-weeks" id="devWeeks" role="group" aria-label="Haftalar"></div>
-            <p class="dev-legend">Noktalı haftalarda bir kontrol ya da gelişim dönemi var.</p>
-            <div id="devPanel"></div>
-            <p class="vaccine-disclaimer dev-disclaimer">Genel bilgilendirme amaçlıdır; her bebek kendi hızında gelişir. Aklınıza takılan bir durumda çocuk doktorunuza danışın.</p>
-          </div>
-        </section>
-      </div>
-
-      <div class="page" id="pageCenter" aria-label="Günlük kayıtlar">
-        <section class="card" data-accent="blue">
-          <h2><span class="badge">🍼</span> Beslenme takibi</h2>
+          <h2><span class="badge">🍼</span> Beslenme takibi <button type="button" class="expand-btn" id="feedExpandBtn" aria-controls="feedList"></button></h2>
           <div id="feedList"></div>
           <div class="add-btn-row">
             <button class="add-btn" id="addFeedBtn" type="button">+ Emzirme</button>
@@ -435,7 +440,7 @@
         </section>
 
         <section class="card" data-accent="sage">
-          <h2><span class="badge">🧷</span> Tuvalet takibi</h2>
+          <h2><span class="badge">🧷</span> Tuvalet takibi <button type="button" class="expand-btn" id="diaperExpandBtn" aria-controls="diaperList"></button></h2>
           <div id="diaperList"></div>
           <button class="add-btn" id="addDiaperBtn" type="button">+ Tuvalet ekle</button>
         </section>
@@ -890,6 +895,14 @@ function readStartPage(){
 }
 let startPageIndex = readStartPage();
 let currentPageIndex = startPageIndex; // 0 = Sol, 1 = Orta, 2 = Sağ
+
+// Beslenme ve Tuvalet listeleri: varsayılan daraltılmış (sadece son girilen kayıt),
+// kartın sağ üstündeki düğmeyle o günün tüm kayıtları açılır. Tercih bu cihazda saklanır.
+const LIST_EXPAND_KEY = "bebekGunlugu.listExpanded.";
+function readListExpanded(k){
+  try{ return localStorage.getItem(LIST_EXPAND_KEY + k) === "1"; }catch(e){ return false; }
+}
+const listExpanded = { feed: readListExpanded("feed"), diaper: readListExpanded("diaper") };
 
 function emptyDay(){
   return { feedings:[], diapers:[], sleeps:[], babyRoutine:{}, momRoutine:{}, notes:"" };
@@ -2308,10 +2321,44 @@ function stepperHtml(field, value, step){
           </div>`;
 }
 
+// Daraltılmış görünüm: sadece son girilen kayıt (dizinin sonu = en son eklenen)
+function visibleIndices(len, expanded){
+  if (expanded || len <= 1) return Array.from({ length: len }, (_, i) => i);
+  return [len - 1];
+}
+const EXPAND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></svg>';
+const COLLAPSE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4v6h6M14 10l7-7M10 20v-6H4M10 14l-7 7"/></svg>';
+function paintExpandBtn(key){
+  const btn = document.getElementById(key === "feed" ? "feedExpandBtn" : "diaperExpandBtn");
+  const ex = listExpanded[key];
+  btn.innerHTML = ex ? COLLAPSE_ICON : EXPAND_ICON;
+  btn.setAttribute("aria-expanded", String(ex));
+  btn.setAttribute("aria-label", ex ? "Sadece son kaydı göster" : "O günün tüm kayıtlarını göster");
+  btn.title = ex ? "Sadece son kayıt" : "Tüm kayıtlar";
+}
+function setListExpanded(key, value){
+  listExpanded[key] = value;
+  try{ localStorage.setItem(LIST_EXPAND_KEY + key, value ? "1" : "0"); }catch(e){ /* bu oturumda yine geçerli */ }
+  if (key === "feed") renderFeedList(); else renderDiaperList();
+}
+// Daraltılmışken gizli kayıt varsa üstte kısa bir özet (dokununca tümü açılır)
+function listSummaryEl(key, total, noun){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "list-summary";
+  b.innerHTML = `${total} ${noun} sonuncusu · <span>Tümünü göster</span>`;
+  b.addEventListener("click", () => setListExpanded(key, true));
+  return b;
+}
+
 function renderFeedList(){
   const wrap = document.getElementById("feedList");
   wrap.innerHTML = "";
-  dayData.feedings.forEach((f, idx) => {
+  const total = dayData.feedings.length;
+  paintExpandBtn("feed");
+  if (!listExpanded.feed && total > 1) wrap.appendChild(listSummaryEl("feed", total, "öğünün"));
+  visibleIndices(total, listExpanded.feed).forEach(idx => {
+    const f = dayData.feedings[idx];
     const row = document.createElement("div");
     row.className = "entry-row";
     if (f.type === "formula"){
@@ -2390,7 +2437,11 @@ document.getElementById("addFormulaBtn").addEventListener("click", () => {
 function renderDiaperList(){
   const wrap = document.getElementById("diaperList");
   wrap.innerHTML = "";
-  dayData.diapers.forEach((dp, idx) => {
+  const total = dayData.diapers.length;
+  paintExpandBtn("diaper");
+  if (!listExpanded.diaper && total > 1) wrap.appendChild(listSummaryEl("diaper", total, "kaydın"));
+  visibleIndices(total, listExpanded.diaper).forEach(idx => {
+    const dp = dayData.diapers[idx];
     const row = document.createElement("div");
     row.className = "entry-row";
     row.innerHTML = `
@@ -2423,6 +2474,9 @@ function renderDiaperList(){
     wrap.appendChild(row);
   });
 }
+
+document.getElementById("feedExpandBtn").addEventListener("click", () => setListExpanded("feed", !listExpanded.feed));
+document.getElementById("diaperExpandBtn").addEventListener("click", () => setListExpanded("diaper", !listExpanded.diaper));
 
 document.getElementById("addDiaperBtn").addEventListener("click", () => {
   dayData.diapers.push({ time:nowTimeStr(), pee:false, poop:false });
