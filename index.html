@@ -242,15 +242,55 @@
   .vaccine-row.done .vaccine-row-label{ text-decoration:line-through; }
   .vaccine-row.done .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
 
-  .leaps-next{ font-size:13px; font-weight:600; color:var(--ink); background:var(--gold-soft); border-radius:var(--radius-sm); padding:9px 12px; margin-bottom:12px; }
-  .leap-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); }
-  .leap-row:last-child{ border-bottom:none; }
-  .leap-row-week{ width:38px; text-align:center; font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; color:var(--gold); flex-shrink:0; }
-  .leap-row-week span{ display:block; font-size:8px; font-weight:400; color:var(--ink-soft); }
-  .leap-row.past{ opacity:.5; }
-  .leap-row.current .vaccine-row-badge{ background:var(--gold-soft); color:#9c6a1f; font-weight:600; }
-  .leap-row.upcoming .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
-  .leap-row.past .vaccine-row-badge{ background:transparent; color:var(--ink-soft); }
+  /* --- Gelişim dönemleri: haftalık rehber (1–12. hafta) + uzun dönemler --- */
+  .dev-age{ margin:2px 0 12px; font-size:13px; color:var(--ink-soft); }
+  .dev-age b{ color:var(--ink); font-weight:700; }
+  .dev-weeks{ display:grid; grid-template-columns:repeat(7, 1fr); gap:6px; }
+  .dev-chip{ position:relative; height:36px; padding:0; border-radius:11px; border:1px solid var(--line); background:#fff; color:var(--ink); font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; cursor:pointer; }
+  .dev-chip.past{ background:var(--paper); color:var(--ink-soft); }
+  .dev-chip.current{ background:var(--blue-deep); border-color:var(--blue-deep); color:#fff; }
+  .dev-chip.selected{ box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--gold); }
+  .dev-chip.later{ grid-column:span 2; font-size:13px; }
+  .dev-chip .dev-dot{ position:absolute; left:50%; bottom:3px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--gold); }
+  .dev-chip.current .dev-dot{ background:#fff; }
+  .dev-legend{ margin:8px 0 0; font-size:11px; line-height:1.4; color:var(--ink-soft); }
+
+  .dev-hero{ position:relative; overflow:hidden; margin-top:14px; padding:18px 12px 14px; border-radius:18px; background:linear-gradient(165deg, #F8E7CB 0%, #F4DCCB 100%); }
+  .dev-hero::before{ content:""; position:absolute; inset:0; background:url('paw-tile.png') repeat; background-size:28px 44px; opacity:.13; pointer-events:none; }
+  .dev-hero > *{ position:relative; }
+  .dev-title{ display:table; margin:0 auto; padding:9px 16px; border-radius:14px; background:#FBE5DC; color:#A9472B; font-family:'Fredoka',sans-serif; font-weight:700; font-size:21px; line-height:1.2; text-align:center; box-shadow:0 1px 2px rgba(74,53,32,.08); }
+  .dev-status{ margin:9px 0 12px; text-align:center; font-size:12px; font-weight:600; color:var(--ink-soft); }
+  .dev-status .now{ display:inline-block; padding:2px 10px; border-radius:999px; background:var(--blue-deep); color:#fff; }
+  .dev-box{ margin-top:8px; padding:10px 12px; border-radius:14px; background:#fff; font-size:14px; line-height:1.45; color:var(--ink); box-shadow:0 1px 2px rgba(74,53,32,.07); }
+  .dev-box b{ font-weight:700; }
+  .dev-box .ic{ margin-right:5px; }
+  .dev-box.period{ background:var(--gold-soft); }
+  .dev-box.checkup{ background:var(--sage-soft); }
+  .dev-box.you{ background:#FFF4EE; }
+  .dev-alert{ margin-top:10px; padding:8px 11px; border-radius:12px; background:rgba(178,85,74,.09); color:#8E3B31; font-size:12px; line-height:1.45; }
+  .dev-nav{ display:flex; justify-content:space-between; gap:8px; margin-top:12px; }
+  .dev-nav button, .dev-reset{ padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-family:'Fredoka',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer; }
+  .dev-nav .spacer{ flex:1; }
+  .dev-reset{ display:block; margin:10px auto 0; }
+  .dev-intro{ margin:14px 0 4px; font-size:13px; line-height:1.45; color:var(--ink-soft); }
+
+  .dev-tl{ margin-top:10px; }
+  .dev-tl-row{ display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .dev-tl-row:last-child{ border-bottom:none; }
+  .dev-tl-row.past{ opacity:.55; }
+  .dev-tl-row.current{ margin:4px 0; padding:10px; border-bottom:none; border-radius:12px; background:var(--gold-soft); }
+  .dev-tl-row.linkable{ cursor:pointer; }
+  .dev-tl-week{ width:38px; flex-shrink:0; text-align:center; font-family:'Fredoka',sans-serif; font-weight:600; font-size:16px; color:var(--gold); }
+  .dev-tl-week span{ display:block; font-size:8.5px; font-weight:400; color:var(--ink-soft); }
+  .dev-tl-text{ flex:1; min-width:0; }
+  .dev-tl-title{ font-size:14px; font-weight:700; }
+  .dev-tl-desc{ margin-top:2px; font-size:12.5px; line-height:1.4; color:var(--ink-soft); }
+  .dev-tl-meta{ margin-top:3px; font-size:11px; color:var(--ink-soft); }
+  .dev-tl-row .vaccine-row-badge{ margin-top:1px; }
+  .dev-tl-row.current .vaccine-row-badge{ background:var(--blue-deep); color:#fff; font-weight:600; }
+  .dev-tl-row.upcoming .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
+  .dev-tl-row.past .vaccine-row-badge{ background:transparent; color:var(--ink-soft); }
+  .dev-disclaimer{ margin:12px 0 0; }
 
   /* --- 3 sayfalı ana ekran: Sol / Orta / Sağ, yana kaydırılır --- */
   @supports (height:100dvh){ html,body{ height:100dvh; } body{ min-height:100dvh; } }
@@ -369,13 +409,15 @@
           <button class="add-btn" type="button" id="generateAssessmentBtn">Değerlendirme oluştur</button>
         </section>
 
-        <section class="card" data-accent="gold">
-          <h2><span class="badge">🌊</span> Gelişim dönemleri</h2>
-          <p class="vaccine-disclaimer">Genel gelişim araştırmalarına dayanan yaklaşık dönemlerdir, kesin bir takvim değildir — her bebek farklı gelişir.</p>
+        <section class="card dev-card" data-accent="gold">
+          <h2><span class="badge">🌱</span> Gelişim dönemleri</h2>
           <div class="chart-empty" id="leapsNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
           <div id="leapsBody" hidden>
-            <div class="leaps-next" id="leapsNext"></div>
-            <div id="leapsList"></div>
+            <p class="dev-age" id="devAge"></p>
+            <div class="dev-weeks" id="devWeeks" role="group" aria-label="Haftalar"></div>
+            <p class="dev-legend">Noktalı haftalarda bir kontrol ya da gelişim dönemi var.</p>
+            <div id="devPanel"></div>
+            <p class="vaccine-disclaimer dev-disclaimer">Genel bilgilendirme amaçlıdır; her bebek kendi hızında gelişir. Aklınıza takılan bir durumda çocuk doktorunuza danışın.</p>
           </div>
         </section>
       </div>
@@ -543,7 +585,7 @@
 
       <section class="card" data-accent="gold">
         <h2><span class="badge">🌊</span> Gelişim dönemleri seçenekleri</h2>
-        <p class="settings-hint">Soldaki sayı, doğumdan kaç hafta sonra gösterileceği.</p>
+        <p class="settings-hint">Soldaki sayı, dönemin başladığı hafta (bebeğin kaçıncı haftası). 1–12. haftalardaki dönemler o haftanın rehber kartında, sonrakiler "3 ay +" bölümünde görünür.</p>
         <div class="settings-list" id="settingsLeapList"></div>
         <div class="settings-add-row">
           <input type="number" min="0" id="newLeapAgeInput" placeholder="Hafta" class="settings-age-input">
@@ -687,16 +729,116 @@ const DEFAULT_VACCINES = [
 // Yaklaşık tahminlerdir, her bebek farklı gelişir; belirli bir ürünün
 // takvimi/isimlendirmesi değil, kendi genel özetimizdir.
 const DEFAULT_LEAPS = [
-  { key:"leap1", ageWeeks:5,  label:"Duyusal artış — dünya birden daha yoğun hissettiriyor" },
-  { key:"leap2", ageWeeks:8,  label:"Örüntü fark etme — tekrarları takip etmeye başlıyor" },
-  { key:"leap3", ageWeeks:12, label:"Geçişleri anlama — hareketlerin akışını kavrıyor" },
-  { key:"leap4", ageWeeks:19, label:"Olayları bütün görme — parçaları birleştirmeyi öğreniyor" },
-  { key:"leap5", ageWeeks:26, label:"İlişkileri kavrama — nesne ve insanlar arası bağı fark ediyor" },
-  { key:"leap6", ageWeeks:37, label:"Kategorilere ayırma — benzer ile farklıyı gruplandırıyor" },
-  { key:"leap7", ageWeeks:46, label:"Sıralama — önce/sonra düzenini kavramaya başlıyor" },
-  { key:"leap8", ageWeeks:55, label:"Planlı hareket — eylemlerini bir amaca yönelik birleştiriyor" },
-  { key:"leap9", ageWeeks:64, label:"İlkeleri fark etme — kuralların ve sebep-sonucun farkına varıyor" },
-  { key:"leap10", ageWeeks:75, label:"Büyük resmi görme — sistemleri ve bağlamı kavramaya başlıyor" }
+  { key:"leap1", ageWeeks:5,  label:"Duyusal artış — Sesler, ışıklar ve dokunuşlar birden daha yoğun gelir. Birkaç gün daha huysuz ve daha çok kucak isteyen bir bebek normaldir." },
+  { key:"leap2", ageWeeks:8,  label:"Örüntü fark etme — Tekrar eden şekilleri, sesleri ve kendi ellerini fark eder. Düzenli rutinler ona güven verir." },
+  { key:"leap3", ageWeeks:12, label:"Geçişleri anlama — Seslerin ve hareketlerin akışını takip eder; ses tonunuzdaki değişimlere daha çok tepki verir." },
+  { key:"leap4", ageWeeks:19, label:"Olayları bütün görme — Ses, görüntü ve hareketi birleştirip olayları bir bütün olarak algılar. Uzanma, yakalama ve dönme denemeleri artar." },
+  { key:"leap5", ageWeeks:26, label:"İlişkileri kavrama — Nesneler ve insanlar arasındaki mesafeyi fark eder. Siz uzaklaşınca huzursuzlanabilir; ayrılık kaygısının ilk işaretleri normaldir." },
+  { key:"leap6", ageWeeks:37, label:"Kategorilere ayırma — Benzer ile farklıyı ayırt etmeye başlar (hayvanlar, yiyecekler, insanlar). Kitaplara ve nesnelerin adına ilgisi artar." },
+  { key:"leap7", ageWeeks:46, label:"Sıralama — Önce-sonra düzenini kavrar. İç içe geçen kaplar, üst üste dizme ve yerine koyma oyunlarını sever." },
+  { key:"leap8", ageWeeks:55, label:"Planlı hareket — Hareketlerini bir amaca göre birleştirir; ne istediğini gösterir ve 'hayır' demeyi keşfedebilir." },
+  { key:"leap9", ageWeeks:64, label:"İlkeleri fark etme — Kuralları ve sebep-sonuç ilişkisini dener. Sınırları test etmesi bu öğrenmenin doğal bir parçası." },
+  { key:"leap10", ageWeeks:75, label:"Büyük resmi görme — Kendini ayrı bir birey olarak görmeye başlar. 'Kendim yapacağım' isteği ve küçük öfke nöbetleri artabilir." }
+];
+
+// İlk sürümün varsayılan metinleri. Kayıtlı listede metni hiç değiştirilmemiş
+// varsayılanlar yeni, daha açıklayıcı metinle güncellenir; düzenlenmişlere dokunulmaz.
+const OLD_DEFAULT_LEAP_LABELS = {
+  leap1:"Duyusal artış — dünya birden daha yoğun hissettiriyor",
+  leap2:"Örüntü fark etme — tekrarları takip etmeye başlıyor",
+  leap3:"Geçişleri anlama — hareketlerin akışını kavrıyor",
+  leap4:"Olayları bütün görme — parçaları birleştirmeyi öğreniyor",
+  leap5:"İlişkileri kavrama — nesne ve insanlar arası bağı fark ediyor",
+  leap6:"Kategorilere ayırma — benzer ile farklıyı gruplandırıyor",
+  leap7:"Sıralama — önce/sonra düzenini kavramaya başlıyor",
+  leap8:"Planlı hareket — eylemlerini bir amaca yönelik birleştiriyor",
+  leap9:"İlkeleri fark etme — kuralların ve sebep-sonucun farkına varıyor",
+  leap10:"Büyük resmi görme — sistemleri ve bağlamı kavramaya başlıyor"
+};
+
+// İlk 12 haftanın haftalık rehberi (sabit içerik). Hafta numarası bebeğin
+// kaçıncı haftasında olduğudur: 1. hafta = 0–6 günlük, 6. hafta = 35–41 günlük.
+const DEV_GUIDE_WEEKS = 12;
+const WEEKLY_GUIDE = [
+  { w:1, title:"Tanışma", emoji:"👶",
+    feeding:"Midesi bir kiraz kadar; günde 8–12 kez, az ama sık beslenir. İlk günlerin koyu sarı sütü (ağız sütü) az ama çok değerlidir; süt genellikle 2–5. günlerde artar.",
+    sleep:"Günde 16–17 saat, 1–3 saatlik parçalar halinde uyur. Her zaman sırt üstü, düz ve boş bir yatakta (yastık, yorgan ve oyuncak olmadan) yatırın.",
+    diaper:"İlk 1–2 gün koyu yeşil-siyah, yapışkan kaka (mekonyum) normaldir; sonra yeşile, hafta sonuna doğru hardal sarısına döner. Islak bez sayısı her gün biraz artar.",
+    also:"İlk günlerde doğum kilosunun %7–10'una kadarını kaybetmesi normaldir. Yüzünüzü en iyi 20–30 cm'den, yani kucağınızdayken görür; ten tene temas onu sakinleştirir.",
+    checkup:"İlk hafta içinde aile hekimi izlemi: topuk kanının alındığı kontrol edilir, D vitamini başlanır. Hafif sarılık 2–3. günlerde sık görülür; karına ya da bacaklara yayılırsa veya bebek çok uykulu ve emmede isteksizse hemen doktorunuza danışın.",
+    you:"Kimse bu işe ilk haftadan bilerek başlamaz. Şimdilik tek hedef: beslemek, dinlenmek ve tanışmak." },
+  { w:2, title:"Alışma", emoji:"🌙",
+    feeding:"Süt yerine oturuyor. Akşamları arka arkaya emmek isteyebilir (küme beslenme); bu, süt üretimini artırmanın doğal yolu.",
+    sleep:"Gece-gündüz farkını henüz bilmez. Gündüz aydınlık ve sesli, gece loş ve sakin bir ortam bu ayrımı öğrenmesine yardım eder. İlk aylarda sizin odanızda ama kendi yatağında uyuması önerilir.",
+    diaper:"Günde en az 6 ıslak bez beklenir. Anne sütü alan bebekler çoğunlukla günde 3 ya da daha fazla sarı, taneli kaka yapar; mama alanların kakası daha koyu ve kıvamlıdır.",
+    also:"Çoğu bebek 10–14. günde doğum kilosuna geri döner. Göbek kordonu genellikle 1–3 hafta içinde kuruyup düşer; kuru ve temiz tutmak yeterli.",
+    you:"İlk iki haftada ani ağlama krizleri ve duygusal iniş çıkışlar (lohusa hüznü) çok yaygındır. İki haftadan uzun sürer ya da ağırlaşırsa doktorunuzla konuşun." },
+  { w:3, title:"Büyüme atağı", emoji:"🌱",
+    feeding:"2–3. haftalarda sık görülen bir büyüme atağı olabilir: birkaç gün boyunca çok daha sık emmek ister. Süt bu talebe göre artar.",
+    sleep:"Atak günlerinde uykusu bölünebilir, daha çok kucak isteyebilir. Kucakta uyuyakalırsa yatağına sırt üstü bırakın.",
+    diaper:"Yeterince beslendiğinin en iyi göstergesi ıslak bez sayısı ve kilo alımı. Ortalamaları Haftalık bakış'tan takip edebilirsiniz.",
+    also:"Uyanıkken ve gözetim altında kısa yüzüstü oyun zamanlarına (birkaç dakika, günde birkaç kez) başlayabilirsiniz; boyun ve sırt kaslarını güçlendirir.",
+    checkup:"15. gün izlemi: kilo alımı, sarılık ve beslenme değerlendirilir.",
+    you:"Sık emmek çoğu zaman 'süt yetmiyor' değil, 'biraz daha üret' siparişidir. Bol su için, fırsat buldukça dinlenin." },
+  { w:4, title:"Yüz yüze", emoji:"👀",
+    feeding:"Emzirme daha akıcı hale gelir; bebek daha verimli emer, öğünler kısalabilir. Mama alıyorsa öğün başına miktar yavaş yavaş artar.",
+    sleep:"Uyanık kalma süreleri uzamaya başlar. Uykulu ama henüz uyanıkken yatağa bırakmayı denemek için iyi bir zaman.",
+    diaper:"Anne sütü alan bebeklerde kaka sıklığı azalmaya başlayabilir; yumuşak olduğu ve bebek iyi göründüğü sürece normaldir.",
+    also:"Yüzünüzü uzun uzun inceler, siyah-beyaz ve kontrastlı desenlerle ilgilenir. Konuşun, şarkı söyleyin; sesinizi tanıyor.",
+    you:"İlk ayın sonuna geldiniz. Rutinler yavaş yavaş oturuyor; kendinize de küçük molalar ayırmayı unutmayın." },
+  { w:5, title:"Duyular uyanıyor", emoji:"✨",
+    feeding:"Hâlâ sık beslenir. 5–6. haftalar civarında yeni bir büyüme atağı daha gelebilir.",
+    sleep:"Gece uykusunda bir parça daha uzun bir dilim görünmeye başlayabilir.",
+    diaper:"Bez düzeni oturur. Islak bez sayısı yerinde olduğu sürece kaka aralıklarının uzaması normaldir.",
+    also:"Hareketli nesneleri kısa süre gözleriyle takip etmeye başlar. Gerçek 'sosyal gülümseme' yaklaşıyor; yüzünüzü dikkatle inceliyor.",
+    checkup:"Ailede kalça çıkığı ya da makat geliş gibi bir risk varsa kalça ultrasonu genellikle 4–6. haftalarda istenir; doktorunuza danışın.",
+    you:"Dışarıdan bakınca 'sadece' beş hafta; içeride koca bir uyum süreci var. Kendinizle gurur duyun." },
+  { w:6, title:"İlk gülümseme", emoji:"😊",
+    feeding:"6. hafta civarında büyüme atağı sık görülür; birkaç gün boyunca emme sıklığı zirve yapabilir.",
+    sleep:"Gece uykusu yavaş yavaş daha öngörülebilir hale gelir; bazı bebekler 3–5 saatlik bir dilimi aralıksız uyur.",
+    diaper:"Anne sütü alan bebeklerde kaka sıklığı belirgin azalabilir; birkaç gün yapmayıp sonra yumuşak kaka yapması, bebek iyiyse normaldir. Sert ya da kanlı kaka, şişkin ve huzursuz bir karın doktora danışmayı gerektirir.",
+    also:"Ağlama 6–8. haftalar civarında zirve yapar, ardından azalmaya başlar. Size bakıp gülümsediği o ilk 'sosyal gülümseme' çoğunlukla bu dönemde gelir; görünce sağ sayfadaki Gelişim aşamaları'ndan işaretleyin.",
+    checkup:"41. gün izlemi: büyüme, kalça muayenesi ve genel gelişim değerlendirilir. Anne için de doğum sonu kontrolünün zamanı.",
+    you:"En yoğun haftaları geride bırakıyorsunuz. O ilk gülümseme, uykusuz gecelerin en güzel karşılığı." },
+  { w:7, title:"Sohbet başlıyor", emoji:"🗣️",
+    feeding:"Öğünler daha düzenli aralıklara oturmaya başlar. Açlık işaretlerini (elini emme, ağzıyla arama) okumak artık daha kolay.",
+    sleep:"Çoğu bebek bu dönemde 60–90 dakikadan uzun uyanık kalınca aşırı yorulur; esneme ve göz ovma gibi uyku işaretlerini kaçırmayın.",
+    diaper:"Düzen oturdu. Ani değişiklikleri (belirgin şekilde az ıslak bez, sert kaka) not edin; Haftalık bakış'taki çiş ve kaka ortalamaları burada işe yarar.",
+    also:"'Agu', 'ıııh' gibi ilk sesler gelir; siz konuşunca sırasını bekleyip cevap verir gibi ses çıkarır. Bu sohbetlere karşılık vermek dil gelişimini destekler.",
+    you:"Bebekle 'sohbet' etmek başta tuhaf gelebilir ama tam olarak ihtiyacı olan şey bu. Onun seslerini taklit edin; sohbeti sürdürmeyi sever." },
+  { w:8, title:"Desenler", emoji:"🧩",
+    feeding:"Daha hızlı ve etkili beslenir ama dikkati kolay dağılır; sakin, loş bir ortam beslenmeyi kolaylaştırır.",
+    sleep:"Gece ile gündüzü ayırt etmeye başlar. Akşamları kısa ve tutarlı bir rutin (banyo, masaj, ninni) için güzel bir zaman.",
+    diaper:"Pişikten korunmak için sık bez değişimi, bezsiz hava alma molaları ve bariyer krem çoğu zaman yeterlidir.",
+    also:"Yüzüstüyken başını kısa süre kaldırabilir. Sizi görünce kollarını ve bacaklarını heyecanla hareket ettirir.",
+    checkup:"2. ay aşıları (verem, pnömokok ve 5'li karma) yaklaşıyor; tarihler Aşı takvimi kartında.",
+    you:"İki ay oldu sayılır! Kendinize ve eşinize küçük bir kutlama borçlusunuz." },
+  { w:9, title:"Güçleniyor", emoji:"💪",
+    feeding:"Bazı bebekler gece öğünlerinden birini kendiliğinden uzatmaya başlar; öğün başına aldığı miktar artar.",
+    sleep:"Gece uykusunda 4–6 saatlik bir dilim oturmaya başlayabilir. Şanslıysanız!",
+    diaper:"Kaka rengi sarı, yeşil ya da kahverengi olabilir; hepsi normaldir. Beyaz-gri, siyah (ilk günler hariç) ya da kanlı kaka görürseniz doktorunuza danışın.",
+    also:"Kucağınızda başını eskisinden çok daha iyi taşır, kollarını ve bacaklarını daha düzenli hareket ettirir.",
+    checkup:"2. ay izlemi ve aşıları. Aşı sonrası hafif ateş, huzursuzluk ve aşı yerinde kızarıklık sık görülür ve geçicidir.",
+    you:"Aşı günü bol kucak, emzirme ve sarılma en iyi ilaç. Size de bir mola gerekebilir." },
+  { w:10, title:"Keşif", emoji:"🔍",
+    feeding:"Etrafa merakı arttıkça beslenirken sık sık bırakıp çevreye bakabilir. Sessiz bir oda ve sakin bir ses yardımcı olur.",
+    sleep:"Gündüz uykuları belirginleşir; gün içinde 3–5 şekerleme normaldir.",
+    diaper:"Mama da alıyorsa kaka biraz daha koyu ve kıvamlı olabilir. Sert, kuru topaklar ve ıkınırken huzursuzluk kabızlığa işaret edebilir.",
+    also:"Sese doğru başını çevirir, sizi odada gözleriyle takip eder. Renkli, hareketli oyuncaklar ilgisini çekmeye başlar.",
+    you:"Birlikte kısa açık hava yürüyüşleri hem size hem ona iyi gelir." },
+  { w:11, title:"Kahkahaya doğru", emoji:"😄",
+    feeding:"Öğün sayısı biraz azalırken her öğünde aldığı miktar artabilir; bu, büyüdüğünün işareti.",
+    sleep:"Kendini sakinleştirme becerileri (elini emme gibi) gelişir. Gece uyanmaları azalmaya başlayabilir.",
+    diaper:"Bez sayısı biraz azalabilir ama bezler daha dolu olur; günde 5–6 ıslak bez hâlâ iyi bir ölçüdür.",
+    also:"Gülümsemeleri sesli kıkırdamalara dönüşmeye başlayabilir. Yüzüstüyken başını ve göğsünü daha uzun süre kaldırır.",
+    you:"Bu gülüşler biriktirmeye değer; Notlar'a yazacağınız küçük bir satır bile yıllar sonra çok kıymetli olur." },
+  { w:12, title:"Üç ay!", emoji:"🎉",
+    feeding:"Çoğu bebek gün içinde daha belirgin bir beslenme düzenine oturmuştur: daha az ama daha dolu öğünler.",
+    sleep:"Biyolojik saati gelişiyor; gece uykuları uzar, gündüz uykuları daha düzenli hale gelir.",
+    diaper:"Bez düzeni artık oturmuştur. Yeni bir değişiklik fark ederseniz bir haftalık kaydı doktorunuza göstermek işinizi kolaylaştırır.",
+    also:"Başını dik ve sabit tutmaya yaklaşır, ellerini birleştirir, oyuncağa uzanmayı dener. Ağlama çoğu bebekte belirgin şekilde azalmıştır.",
+    checkup:"3. ay izlemi yaklaşıyor. Demir desteği genellikle 4. ay izleminde başlanır.",
+    you:"Yenidoğan dönemini tamamladınız! 🎉 Bundan sonra gelişim daha uzun dönemlere yayılıyor; devamı '3 ay +' bölümünde." }
 ];
 function formatDateLabel(dateStr){
   const [y,m,d] = dateStr.split("-").map(Number);
@@ -1192,6 +1334,15 @@ function startChecklistConfig(){
     if (!checklistConfig.milestones){ checklistConfig.milestones = deepClone(DEFAULT_MILESTONES); needsSave = true; }
     if (!checklistConfig.vaccines){ checklistConfig.vaccines = deepClone(DEFAULT_VACCINES); needsSave = true; }
     if (!checklistConfig.leaps){ checklistConfig.leaps = deepClone(DEFAULT_LEAPS); needsSave = true; }
+    // Metni hiç değiştirilmemiş eski varsayılan dönemleri yeni, daha açıklayıcı
+    // metinle güncelle (kullanıcının düzenlediği metinlere dokunma)
+    const newLeapLabels = Object.fromEntries(DEFAULT_LEAPS.map(l => [l.key, l.label]));
+    checklistConfig.leaps.forEach(l => {
+      if (l && OLD_DEFAULT_LEAP_LABELS[l.key] && l.label === OLD_DEFAULT_LEAP_LABELS[l.key]){
+        l.label = newLeapLabels[l.key];
+        needsSave = true;
+      }
+    });
     // Aşı takvimi ve gelişim dönemleri her zaman kronolojik dursun — önceden
     // eklenip listenin sonuna düşmüş kayıtlar da burada yerine oturur
     if (sortConfigListByAge("vaccines")) needsSave = true;
@@ -1552,44 +1703,216 @@ function renderVaccines(){
   `;
 }
 
+/* ========================================================================
+   Gelişim dönemleri — ilk 12 hafta haftalık rehber kartları (sabit içerik),
+   sonrası Ayarlar'dan düzenlenebilen uzun dönemler. Her dönem bir sonrakinin
+   başladığı haftaya kadar sürer. Hafta = bebeğin kaçıncı haftası (1. hafta = 0–6 gün).
+   ===================================================================== */
+let devSelected = null; // null = otomatik (bulunduğu hafta / dönem); 1–12 ya da "later"
+
+function babyAgeDays(){
+  if (!babyProfile.birthDate) return null;
+  // İki "YYYY-MM-DD" de UTC gece yarısı olarak ayrıştırılır; fark tam gün çıkar
+  return Math.round((new Date(todayStr()) - new Date(babyProfile.birthDate)) / 86400000);
+}
+
+// "Başlık — açıklama" biçimindeki metni ikiye ayırır
+function splitLabel(label){
+  const s = String(label || "");
+  const i = s.indexOf(" — ");
+  return i === -1 ? { title:s.trim(), desc:"" } : { title:s.slice(0,i).trim(), desc:s.slice(i+3).trim() };
+}
+
+// Ayarlar'daki dönemler: başlangıç haftasına göre sıralı, her biri bir sonrakine kadar sürer
+function devPeriods(){
+  const list = (checklistConfig && Array.isArray(checklistConfig.leaps)) ? checklistConfig.leaps : [];
+  const sorted = list.map(l => ({ ...l, start: Math.max(1, Math.round(Number(l.ageWeeks) || 0)) }))
+                     .sort((a,b) => a.start - b.start);
+  sorted.forEach((p, i) => {
+    const next = sorted.slice(i+1).find(q => q.start > p.start);
+    p.end = next ? next.start - 1 : null;
+  });
+  return sorted;
+}
+function devSpanText(p){
+  if (p.end == null) return `${p.start}. haftadan itibaren`;
+  return p.end === p.start ? `${p.start}. hafta` : `${p.start}.–${p.end}. hafta`;
+}
+function devMonthsText(p){
+  const m = Math.round(7*(p.start-1)/30.44); // dönemin başındaki yaklaşık yaş
+  return m >= 1 ? `~${m} aylık` : "";
+}
+
 function renderLeaps(){
   const noBd = document.getElementById("leapsNoBirthdate");
   const body = document.getElementById("leapsBody");
-  if (!checklistConfig || !babyProfile.birthDate){
-    noBd.hidden = false; body.hidden = true;
-    return;
-  }
+  if (!babyProfile.birthDate){ noBd.hidden = false; body.hidden = true; return; }
   noBd.hidden = true; body.hidden = false;
 
-  // "YYYY-MM-DD" dizeleri JS'te UTC gece yarısı olarak ayrıştırılır; iki
-  // taraf da aynı şekilde ayrıştırıldığı için gün farkı yine de doğru çıkar.
-  const ageInWeeksToday = Math.floor((new Date(todayStr()) - new Date(babyProfile.birthDate)) / (7*24*60*60*1000));
-  const sorted = [...checklistConfig.leaps].sort((a,b) => a.ageWeeks - b.ageWeeks);
+  const days = babyAgeDays();
+  const cw = days >= 0 ? Math.floor(days/7) + 1 : null;   // bebeğin kaçıncı haftası (doğmadıysa null)
+  const periods = devPeriods();
+  const autoSel = cw == null ? 1 : (cw <= DEV_GUIDE_WEEKS ? cw : "later");
+  const sel = devSelected ?? autoSel;
 
-  const nextLeap = sorted.find(l => (l.ageWeeks - ageInWeeksToday) > 1) || null;
-  document.getElementById("leapsNext").textContent = nextLeap
-    ? "Sıradaki: " + nextLeap.label.split(" — ")[0] + " · " + (nextLeap.ageWeeks - ageInWeeksToday) + " hafta sonra"
-    : "";
+  // Yaş satırı
+  const ageEl = document.getElementById("devAge");
+  if (cw == null) ageEl.innerHTML = `Doğuma <b>${-days} gün</b> var; ilk haftalara şimdiden göz atabilirsiniz.`;
+  else if (days === 0) ageEl.innerHTML = `<b>Bugün doğdu 🎉</b> · 1. haftası`;
+  else if (cw <= DEV_GUIDE_WEEKS) ageEl.innerHTML = `<b>${days} günlük</b> · ${cw}. haftasında`;
+  else ageEl.innerHTML = `<b>${Math.floor(days/7)} haftalık</b> · ${monthsBetween(babyProfile.birthDate, todayStr())} aylık`;
 
-  const listEl = document.getElementById("leapsList");
-  listEl.innerHTML = "";
-  sorted.forEach(l => {
-    const diffWeeks = l.ageWeeks - ageInWeeksToday;
-    let status, statusText;
-    if (diffWeeks < -2){ status="past"; statusText="Geçti"; }
-    else if (diffWeeks <= 1){ status="current"; statusText="Şu sıralar"; }
-    else { status="upcoming"; statusText = diffWeeks + " hafta sonra"; }
+  // Hafta seçici: noktalı haftalarda bir kontrol ya da gelişim dönemi başlıyor
+  const marked = new Set(WEEKLY_GUIDE.filter(g => g.checkup).map(g => g.w));
+  periods.forEach(p => { if (p.start <= DEV_GUIDE_WEEKS) marked.add(p.start); });
+  let chips = "";
+  for (let w = 1; w <= DEV_GUIDE_WEEKS; w++){
+    const cls = ["dev-chip"];
+    if (cw != null && w < cw) cls.push("past");
+    if (w === cw) cls.push("current");
+    if (w === sel) cls.push("selected");
+    chips += `<button type="button" class="${cls.join(" ")}" data-dev-week="${w}" aria-pressed="${w === sel}" aria-label="${w}. hafta${w === cw ? ", bu hafta" : ""}">${w}${marked.has(w) ? '<span class="dev-dot"></span>' : ""}</button>`;
+  }
+  const laterCls = ["dev-chip", "later"];
+  if (cw != null && cw > DEV_GUIDE_WEEKS) laterCls.push("current");
+  if (sel === "later") laterCls.push("selected");
+  chips += `<button type="button" class="${laterCls.join(" ")}" data-dev-week="later" aria-pressed="${sel === "later"}" aria-label="3 ay ve sonrası">3 ay +</button>`;
+  document.getElementById("devWeeks").innerHTML = chips;
 
-    const row = document.createElement("div");
-    row.className = "leap-row " + status;
-    row.innerHTML = `
-      <div class="leap-row-week">${l.ageWeeks}<span>hafta</span></div>
-      <div class="vaccine-row-text"><div class="vaccine-row-label">${l.label}</div></div>
-      <div class="vaccine-row-badge">${statusText}</div>
-    `;
-    listEl.appendChild(row);
-  });
+  const resetLabel = autoSel === "later" ? "↺ Şu anki döneme dön" : (cw == null ? "↺ 1. haftaya dön" : "↺ Bu haftaya dön");
+  const reset = (devSelected !== null && devSelected !== autoSel)
+    ? `<button type="button" class="dev-reset" data-dev-reset>${resetLabel}</button>` : "";
+
+  document.getElementById("devPanel").innerHTML =
+    (sel === "later" ? devLaterHtml(cw, periods) : devWeekHtml(sel, cw, periods)) + reset;
 }
+
+function devBox(cls, icon, label, text){
+  return text ? `<div class="dev-box ${cls}"><span class="ic">${icon}</span><b>${label}:</b> ${text}</div>` : "";
+}
+
+// 1–12. haftalar: örnekteki gibi başlık + Beslenme / Uyku / Bez / Bu hafta ayrıca / Sizin için
+function devWeekHtml(w, cw, periods){
+  const g = WEEKLY_GUIDE.find(x => x.w === w);
+  if (!g) return "";
+  let status;
+  if (cw == null) status = `Doğumdan sonraki ${w}. hafta`;
+  else if (w === cw) status = `<span class="now">Bu hafta</span>`;
+  else if (w > cw) status = `${w - cw} hafta sonra`;
+  else status = `${cw - w} hafta önce`;
+
+  // Bu hafta başlayan dönemler tam metinle, sürmekte olanlar kısa bir satırla
+  const periodBoxes = periods.map(p => {
+    const { title, desc } = splitLabel(p.label);
+    if (p.start === w){
+      return `<div class="dev-box period"><span class="ic">🌊</span><b>Gelişim dönemi · ${escapeHtml(title)}${desc ? ":" : ""}</b> ${escapeHtml(desc)}</div>`;
+    }
+    if (p.start < w && p.end != null && p.end >= w){
+      return `<div class="dev-box period"><span class="ic">🌊</span><b>Süren gelişim dönemi:</b> ${escapeHtml(title)} (${devSpanText(p)})</div>`;
+    }
+    return "";
+  }).join("");
+
+  const prev = w > 1
+    ? `<button type="button" data-dev-week="${w-1}" data-dev-nav>‹ ${w-1}. hafta</button>`
+    : `<span class="spacer"></span>`;
+  const next = w < DEV_GUIDE_WEEKS
+    ? `<button type="button" data-dev-week="${w+1}" data-dev-nav>${w+1}. hafta ›</button>`
+    : `<button type="button" data-dev-week="later" data-dev-nav>3 ay + ›</button>`;
+
+  return `<div class="dev-hero">
+      <div class="dev-title">${w}. Hafta: ${g.title}&nbsp;${g.emoji}</div>
+      <div class="dev-status">${status}</div>
+      ${devBox("", "🍼", "Beslenme", g.feeding)}
+      ${devBox("", "🌙", "Uyku", g.sleep)}
+      ${devBox("", "🧷", "Bez", g.diaper)}
+      ${devBox("", "✨", "Bu hafta ayrıca", g.also)}
+      ${periodBoxes}
+      ${devBox("checkup", "🩺", "Kontrol", g.checkup)}
+      ${devBox("you", "🫶", "Sizin için", g.you)}
+      <div class="dev-alert">⚠️ 3 aydan küçük bebekte 38°C ve üzeri ateş, emmeyi reddetme, belirgin halsizlik, nefes almada zorlanma ya da morarma varsa vakit kaybetmeden doktora başvurun.</div>
+      <div class="dev-nav">${prev}${next}</div>
+    </div>`;
+}
+
+// 12. haftadan sonrası: şu anki dönem öne çıkar, altında tüm dönemlerin zaman çizelgesi
+function devLaterHtml(cw, periods){
+  const current = cw == null ? [] : periods.filter(p => p.start <= cw && (p.end == null || p.end >= cw));
+  const upcoming = periods.find(p => cw == null || p.start > cw);
+
+  let hero, heroShown = false;
+  if (cw != null && cw > DEV_GUIDE_WEEKS && current.length){
+    heroShown = true;
+    const p = current[current.length - 1];
+    const { title, desc } = splitLabel(p.label);
+    const months = devMonthsText(p);
+    const nextBox = upcoming
+      ? devBox("checkup", "⏭️", "Sıradaki", `${escapeHtml(splitLabel(upcoming.label).title)} · ${upcoming.start - cw} hafta sonra`)
+      : "";
+    hero = `<div class="dev-hero">
+        <div class="dev-title">${p.start}. Hafta: ${escapeHtml(title)}</div>
+        <div class="dev-status"><span class="now">Şu anki dönem</span> · ${devSpanText(p)}${months ? " · " + months : ""}</div>
+        ${desc ? devBox("", "🌊", "Bu dönemde", escapeHtml(desc)) : ""}
+        ${devBox("you", "🫶", "Sizin için", "Yeni bir döneme girerken birkaç gün daha huysuz, daha çok kucak ve emme isteyen bir bebek normaldir; bu geçicidir.")}
+        ${nextBox}
+      </div>`;
+  } else if (cw != null && cw > DEV_GUIDE_WEEKS && upcoming){
+    hero = `<div class="dev-hero">
+        <div class="dev-title">İlk 3 ay tamam 🎉</div>
+        <div class="dev-status">Sıradaki dönem: ${escapeHtml(splitLabel(upcoming.label).title)} · ${upcoming.start - cw} hafta sonra</div>
+      </div>`;
+  } else {
+    hero = `<p class="dev-intro">İlk 12 haftadan sonra gelişim daha uzun dönemlere yayılır; her dönem bir sonrakine kadar sürer. 1–12. haftalardaki dönemler o haftanın kartında da görünür, satırlarına dokunarak gidebilirsiniz.</p>`;
+  }
+
+  const rows = periods.map(p => {
+    const { title, desc } = splitLabel(p.label);
+    let status = "upcoming";
+    let badge = cw == null ? `${p.start}. hafta` : `${p.start - cw} hafta sonra`;
+    if (cw != null && p.start <= cw){
+      status = current.includes(p) ? "current" : "past";
+      badge = status === "current" ? "Şu an" : "Geçti";
+    }
+    const linkable = p.start <= DEV_GUIDE_WEEKS;
+    const showDesc = desc && status !== "past" && !(status === "current" && heroShown);
+    const meta = [devSpanText(p), devMonthsText(p)].filter(Boolean).join(" · ") + (linkable ? " · haftalık karta git ›" : "");
+    return `<div class="dev-tl-row ${status}${linkable ? " linkable" : ""}"${linkable ? ` data-dev-week="${p.start}" role="button" tabindex="0"` : ""}>
+        <div class="dev-tl-week">${p.start}<span>hafta</span></div>
+        <div class="dev-tl-text">
+          <div class="dev-tl-title">${escapeHtml(title)}</div>
+          ${showDesc ? `<div class="dev-tl-desc">${escapeHtml(desc)}</div>` : ""}
+          <div class="dev-tl-meta">${meta}</div>
+        </div>
+        <div class="vaccine-row-badge">${badge}</div>
+      </div>`;
+  }).join("");
+
+  return hero
+    + `<div class="dev-tl">${rows || `<p class="dev-intro">Henüz dönem yok; ⚙ Ayarlar'dan ekleyebilirsiniz.</p>`}</div>`
+    + `<div class="dev-nav"><button type="button" data-dev-week="${DEV_GUIDE_WEEKS}" data-dev-nav>‹ ${DEV_GUIDE_WEEKS}. hafta</button><span class="spacer"></span></div>`;
+}
+
+// Hafta düğmeleri, ‹ › gezinme, zaman çizelgesi satırları ve "Bu haftaya dön"
+document.getElementById("leapsBody").addEventListener("click", (e) => {
+  const resetBtn = e.target.closest("[data-dev-reset]");
+  const target = e.target.closest("[data-dev-week]");
+  if (!resetBtn && !target) return;
+  devSelected = resetBtn ? null : (target.dataset.devWeek === "later" ? "later" : Number(target.dataset.devWeek));
+  const scrollUp = !!resetBtn || target.hasAttribute("data-dev-nav") || target.classList.contains("dev-tl-row");
+  renderLeaps();
+  // Kartın altındaki bir düğmeyle gelindiyse yeni haftanın başını göster
+  if (scrollUp){
+    const page = document.getElementById("pageLeft");
+    const top = document.getElementById("devWeeks").getBoundingClientRect().top;
+    const pageTop = page.getBoundingClientRect().top;
+    if (top < pageTop) page.scrollBy({ top: top - pageTop - 12, behavior: "smooth" });
+  }
+});
+document.getElementById("leapsBody").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const row = e.target.closest(".dev-tl-row[data-dev-week]");
+  if (row){ e.preventDefault(); row.click(); }
+});
 
 /* ========================================================================
    6h) AI özellikleri — Cloudflare Worker üzerinden Gemini'ye gider, worker
