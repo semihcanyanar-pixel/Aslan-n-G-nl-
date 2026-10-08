@@ -116,10 +116,12 @@
   .field-group > div{ display:flex; gap:6px; }
   input[type="time"]{ border:1px solid var(--line); border-radius:9px; padding:7px 6px; background:#fff; color:var(--ink); width:100%; min-width:0; }
   /* Temizlenebilir saat kutusu: iPhone'un saat seçicisindeki "Sıfırla" alanı her
-     zaman boşaltmıyor, o yüzden emzirme ve uyku saatlerinin kendi ⊗ düğmesi var */
+     zaman boşaltmıyor, o yüzden her saat kutusunun kendi ⊗ düğmesi var.
+     iPhone saat kutusuna "width:100%" uygulamayıp kendi 10em genişliğinde
+     bırakıyor; genişliği flex belirlesin diye kutu bir flex öğesi. */
   input[type="time"]::-webkit-date-and-time-value{ min-height:1.2em; } /* iOS: boş kutu dolu olandan basık görünmesin */
-  .time-field{ position:relative; display:block; flex:1; min-width:0; }
-  .time-field input[type="time"]{ padding:7px 26px 7px 8px; }
+  .time-field{ position:relative; display:flex; flex:1 1 0; min-width:0; }
+  .time-field input[type="time"]{ flex:1 1 0; min-width:0; padding:7px 26px 7px 8px; }
   .time-clear{ position:absolute; top:50%; right:0; transform:translateY(-50%); width:28px; height:34px; padding:0; border:none; background:none; color:var(--ink-soft); opacity:.5; display:none; align-items:center; justify-content:center; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .time-field.has-value .time-clear{ display:flex; }
   .time-clear svg{ width:16px; height:16px; }
@@ -321,7 +323,7 @@
   .page{
     flex:0 0 100%; min-width:0;
     scroll-snap-align:start; scroll-snap-stop:always;
-    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
     padding-bottom:24px;
   }
   .page-dots{ flex:none; display:flex; justify-content:center; gap:2px; padding-top:6px; }
@@ -2422,7 +2424,7 @@ function renderFeedList(){
       row.innerHTML = `
         <div class="field-group">
           <label>Mama · saat</label>
-          <div><input type="time" data-field="time" value="${f.time||""}"></div>
+          <div>${timeFieldHtml("time", f.time, "Mama saati")}</div>
         </div>
         <div class="mini-group formula-amount">
           <label>Mama</label>
@@ -2502,7 +2504,7 @@ function renderDiaperList(){
     const row = document.createElement("div");
     row.className = "entry-row";
     row.innerHTML = `
-      <div class="field-group"><label>Saat</label><div><input type="time" data-field="time" value="${dp.time||""}"></div></div>
+      <div class="field-group"><label>Saat</label><div>${timeFieldHtml("time", dp.time, "Tuvalet saati")}</div></div>
       <div class="mini-group diaper-checks">
         <label>&nbsp;</label>
         <div class="check-pair">
