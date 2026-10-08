@@ -115,6 +115,21 @@
   .field-group label{ font-size:11px; color:var(--ink-soft); }
   .field-group > div{ display:flex; gap:6px; }
   input[type="time"]{ border:1px solid var(--line); border-radius:9px; padding:7px 6px; background:#fff; color:var(--ink); width:100%; min-width:0; }
+  /* Temizlenebilir saat kutusu: iPhone'un saat seçicisindeki "Sıfırla" alanı her
+     zaman boşaltmıyor, o yüzden emzirme ve uyku saatlerinin kendi ⊗ düğmesi var */
+  input[type="time"]::-webkit-date-and-time-value{ min-height:1.2em; } /* iOS: boş kutu dolu olandan basık görünmesin */
+  .time-field{ position:relative; display:block; flex:1; min-width:0; }
+  .time-field input[type="time"]{ padding:7px 26px 7px 8px; }
+  .time-clear{ position:absolute; top:50%; right:0; transform:translateY(-50%); width:28px; height:34px; padding:0; border:none; background:none; color:var(--ink-soft); opacity:.5; display:none; align-items:center; justify-content:center; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .time-field.has-value .time-clear{ display:flex; }
+  .time-clear svg{ width:16px; height:16px; }
+  .time-clear:active{ opacity:.85; }
+  /* Emzirme satırı: her meme kendi satırında — "Sağ meme  [başlangıç] – [bitiş]" */
+  .breast-times{ grid-column:1 / -1; display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px 10px; align-items:center; }
+  .breast-label{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  .time-range{ display:flex; align-items:center; gap:5px; min-width:0; }
+  .time-range .time-field{ max-width:170px; }
+  .range-dash{ color:var(--ink-soft); font-size:13px; flex-shrink:0; }
 
   .feed-row-extra{ grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:14px 20px; align-items:flex-end; margin-top:2px; }
   .mini-group label{ display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
@@ -2351,6 +2366,46 @@ function listSummaryEl(key, total, noun){
   return b;
 }
 
+// Saat kutusu + ⊗ temizleme düğmesi. iPhone'un seçicisindeki "Sıfırla" bazı iOS
+// sürümlerinde alanı boşaltmıyor, seçici açıldığındaki saate geri döndürüyor;
+// uygulama o düğmeye karışamadığı için temizleme bu düğmeyle yapılır.
+const CLEAR_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M6.9 6.9l6.2 6.2M13.1 6.9l-6.2 6.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>';
+function timeFieldHtml(field, value, label){
+  const v = value || "";
+  return `<span class="time-field${v ? " has-value" : ""}">` +
+    `<input type="time" data-field="${field}" value="${v}" aria-label="${label}">` +
+    `<button type="button" class="time-clear" aria-label="${label}ni temizle" title="Saati temizle">${CLEAR_ICON}</button>` +
+    `</span>`;
+}
+
+// Bir satırdaki saat kutularını kayda bağlar. Sadece "change"e güvenmez: iOS'un
+// saat seçicisi bazı durumlarda yalnızca "input" gönderiyor, o yüzden ikisi de ve
+// odak kaybı da dinlenir — ekrandaki saat ile kaydedilen hiç ayrışmaz.
+function bindTimeInputs(row, getRec){
+  row.querySelectorAll('input[type="time"]').forEach(inp => {
+    const box = inp.closest(".time-field");
+    const sync = () => {
+      if (!inp.isConnected) return;            // liste bu arada yeniden çizildiyse eski kutu
+      const rec = getRec();
+      if (!rec) return;
+      if (box) box.classList.toggle("has-value", !!inp.value);
+      const field = inp.dataset.field;
+      if ((rec[field] || "") === inp.value) return;
+      rec[field] = inp.value;
+      scheduleSave();
+    };
+    inp.addEventListener("input", sync);
+    inp.addEventListener("change", sync);
+    inp.addEventListener("blur", sync);
+    const clearBtn = box && box.querySelector(".time-clear");
+    if (clearBtn) clearBtn.addEventListener("click", () => {
+      if (document.activeElement === inp) inp.blur();
+      inp.value = "";
+      sync();
+    });
+  });
+}
+
 function renderFeedList(){
   const wrap = document.getElementById("feedList");
   wrap.innerHTML = "";
@@ -2376,15 +2431,19 @@ function renderFeedList(){
         <button type="button" class="row-delete">Bu kaydı sil</button>
       `;
     } else {
-      // Emzirme öğünü (istenirse aynı öğünde mama da işlenir)
+      // Emzirme öğünü (istenirse aynı öğünde mama da işlenir). Her meme kendi
+      // satırında: başlangıç – bitiş, her saatin yanında ⊗ ile temizleme.
+      const side = (label, startField, endField) => `
+          <span class="breast-label">${label}</span>
+          <div class="time-range">
+            ${timeFieldHtml(startField, f[startField], label + " başlangıç saati")}
+            <span class="range-dash" aria-hidden="true">–</span>
+            ${timeFieldHtml(endField, f[endField], label + " bitiş saati")}
+          </div>`;
       row.innerHTML = `
-        <div class="field-group">
-          <label>Sağ meme</label>
-          <div><input type="time" data-field="rightStart" value="${f.rightStart||""}"><input type="time" data-field="rightEnd" value="${f.rightEnd||""}"></div>
-        </div>
-        <div class="field-group">
-          <label>Sol meme</label>
-          <div><input type="time" data-field="leftStart" value="${f.leftStart||""}"><input type="time" data-field="leftEnd" value="${f.leftEnd||""}"></div>
+        <div class="breast-times">
+          ${side("Sağ meme", "rightStart", "rightEnd")}
+          ${side("Sol meme", "leftStart", "leftEnd")}
         </div>
         <div class="feed-row-extra">
           <div class="mini-group"><label>Mama</label>${stepperHtml("formulaCc", f.formulaCc, 5)}</div>
@@ -2394,9 +2453,7 @@ function renderFeedList(){
         <button type="button" class="row-delete">Bu kaydı sil</button>
       `;
     }
-    row.querySelectorAll('input[type="time"]').forEach(inp => {
-      inp.addEventListener("change", () => { dayData.feedings[idx][inp.dataset.field] = inp.value; scheduleSave(); });
-    });
+    bindTimeInputs(row, () => dayData.feedings[idx]);
     row.querySelectorAll(".stepper").forEach(st => {
       const field = st.dataset.field;
       const step = Number(st.dataset.step) || 5;
@@ -2455,10 +2512,7 @@ function renderDiaperList(){
       </div>
       <button type="button" class="row-delete">Bu kaydı sil</button>
     `;
-    row.querySelector('input[type="time"]').addEventListener("change", (e) => {
-      dayData.diapers[idx].time = e.target.value;
-      scheduleSave();
-    });
+    bindTimeInputs(row, () => dayData.diapers[idx]);
     row.querySelectorAll('input[type="checkbox"]').forEach(cb => {
       cb.addEventListener("change", () => {
         dayData.diapers[idx][cb.dataset.field] = cb.checked;
@@ -2491,13 +2545,11 @@ function renderSleepList(){
     const row = document.createElement("div");
     row.className = "entry-row";
     row.innerHTML = `
-      <div class="field-group"><label>Uyudu</label><div><input type="time" data-field="sleepTime" value="${s.sleepTime||""}"></div></div>
-      <div class="field-group"><label>Uyandı</label><div><input type="time" data-field="wakeTime" value="${s.wakeTime||""}"></div></div>
+      <div class="field-group"><label>Uyudu</label><div>${timeFieldHtml("sleepTime", s.sleepTime, "Uyuma saati")}</div></div>
+      <div class="field-group"><label>Uyandı</label><div>${timeFieldHtml("wakeTime", s.wakeTime, "Uyanma saati")}</div></div>
       <button type="button" class="row-delete">Bu kaydı sil</button>
     `;
-    row.querySelectorAll('input[type="time"]').forEach(inp => {
-      inp.addEventListener("change", () => { dayData.sleeps[idx][inp.dataset.field] = inp.value; scheduleSave(); });
-    });
+    bindTimeInputs(row, () => dayData.sleeps[idx]);
     row.querySelector(".row-delete").addEventListener("click", () => {
       dayData.sleeps.splice(idx,1);
       renderSleepList();
