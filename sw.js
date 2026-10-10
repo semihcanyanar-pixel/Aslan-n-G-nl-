@@ -2,13 +2,14 @@
 // Only caches our own static files, so the app opens instantly even on a
 // weak connection. It never touches Firebase requests — those always go
 // straight to the network so your data stays live and accurate.
-const CACHE_NAME = "bebek-gunlugu-shell-v2";
+// v3: yeni uygulama simgesi — eski önbellek (eski simge ve manifest) silinir
+const CACHE_NAME = "bebek-gunlugu-shell-v3";
 const SHELL_FILES = [
   "./",
   "./index.html",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./manifest.json?v=2",
+  "./icon-192.png?v=2",
+  "./icon-512.png?v=2"
 ];
 
 self.addEventListener("install", (event) => {
