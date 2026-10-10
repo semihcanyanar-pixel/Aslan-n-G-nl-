@@ -80,7 +80,9 @@
     background:var(--blue-deep); color:#fff; font-size:16px; font-weight:600; cursor:pointer;
   }
   .btn-primary:active{ transform:scale(.98); }
-  .auth-error{ color:var(--danger); font-size:13px; margin-top:12px; min-height:16px; }
+  .auth-error{ color:var(--danger); font-size:13px; line-height:1.45; margin-top:10px; min-height:16px; }
+  .auth-error.info{ color:var(--ink-soft); }
+  .link-btn{ margin-top:12px; padding:6px 8px; border:none; background:none; color:var(--blue-deep); font-family:inherit; font-size:14px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
   .auth-scene{ margin:-6px -8px 14px; }
   .auth-scene img{ width:100%; max-width:260px; height:auto; display:block; margin:0 auto; }
 
@@ -362,7 +364,8 @@
       <input type="email" id="emailInput" placeholder="E-posta" autocomplete="email" inputmode="email">
       <input type="password" id="passwordInput" placeholder="Şifre" autocomplete="current-password">
       <button class="btn-primary" id="loginBtn" type="button">Giriş yap</button>
-      <p class="auth-error" id="authError"></p>
+      <button class="link-btn" id="forgotBtn" type="button">Şifremi unuttum</button>
+      <p class="auth-error" id="authError" role="alert" aria-live="polite"></p>
     </div>
   </div>
 
@@ -638,7 +641,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 import {
-  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
   getFirestore, doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, collection, query, where, documentId, waitForPendingWrites
@@ -666,6 +669,7 @@ const WORKER_CONFIGURED = !WORKER_URL.startsWith("BURAYA_");
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+auth.languageCode = "tr"; // şifre yenileme e-postası ve sayfası Türkçe gelsin
 const db = getFirestore(app);
 
 /* ========================================================================
@@ -941,17 +945,53 @@ if (NOT_CONFIGURED){
 document.getElementById("loginBtn").addEventListener("click", doLogin);
 document.getElementById("passwordInput").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
 
+function showAuthMsg(text, isError = true){
+  authError.textContent = text;
+  authError.classList.toggle("info", !isError);
+}
+// Firebase'in hata kodunu ne olduğunu söyleyen bir mesaja çevir (eskiden her
+// hata "şifre yanlış" gibi görünüyordu: çok deneme kilidi, bağlantı yokluğu…)
+function authErrorText(e){
+  switch (e && e.code){
+    case "auth/invalid-credential":
+    case "auth/invalid-login-credentials":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return "E-posta ya da şifre yanlış. iPhone'un önerdiği kayıtlı şifre aynı adresteki başka bir uygulamanın olabilir; şifreyi elle yazmayı dene ya da \"Şifremi unuttum\"a dokun.";
+    case "auth/invalid-email":
+      return "E-posta adresi geçersiz görünüyor.";
+    case "auth/too-many-requests":
+      return "Çok fazla deneme yapıldı, Firebase girişi bir süreliğine durdurdu (doğru şifre de şu an reddedilir). Birkaç dakika bekle ya da şifreni yenile.";
+    case "auth/network-request-failed":
+      return "İnternet bağlantısı yok gibi görünüyor. Bağlantını kontrol edip tekrar dene.";
+    case "auth/user-disabled":
+      return "Bu hesap devre dışı bırakılmış (Firebase Console → Authentication).";
+    default:
+      return "Giriş başarısız" + (e && e.code ? " (" + e.code + ")" : "") + ".";
+  }
+}
 async function doLogin(){
   const email = document.getElementById("emailInput").value.trim();
   const pass = document.getElementById("passwordInput").value;
-  if (!email || !pass){ authError.textContent = "E-posta ve şifre gerekli."; return; }
-  authError.textContent = "";
+  if (!email || !pass){ showAuthMsg("E-posta ve şifre gerekli."); return; }
+  showAuthMsg("", false);
   try{
     await signInWithEmailAndPassword(auth, email, pass);
   }catch(e){
-    authError.textContent = "Giriş başarısız. E-posta/şifreyi kontrol edin.";
+    showAuthMsg(authErrorText(e));
   }
 }
+// Şifremi unuttum: Firebase hesabın e-postasına şifre yenileme bağlantısı yollar
+document.getElementById("forgotBtn").addEventListener("click", async () => {
+  const email = document.getElementById("emailInput").value.trim();
+  if (!email){ showAuthMsg("Önce yukarıya e-posta adresini yaz, sonra tekrar dokun."); return; }
+  try{
+    await sendPasswordResetEmail(auth, email);
+    showAuthMsg("Şifre yenileme bağlantısı " + email + " adresine gönderildi (bu adresle bir hesap varsa). Gelen kutuna ve spam klasörüne bak; bağlantıdan yeni şifreni belirleyip buradan giriş yap.", false);
+  }catch(e){
+    showAuthMsg(authErrorText(e));
+  }
+});
 // Bekleyen (gönderilmemiş) kayıtları gönder ve sunucu onayını bekle.
 // Bağlantı yoksa belirli süre sonra vazgeçer ve false döner.
 async function flushPendingWrites(timeoutMs = 5000){
