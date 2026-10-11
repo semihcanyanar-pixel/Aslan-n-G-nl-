@@ -163,6 +163,23 @@
   .check-pill input{ width:17px; height:17px; accent-color:var(--blue-deep); }
   .check-pill.on{ color:var(--ink); font-weight:600; }
   .row-delete{ grid-column:1 / -1; text-align:right; background:none; border:none; color:var(--ink-soft); font-size:12px; padding:2px 0 0; cursor:pointer; }
+  /* Silme onayı (Evet/Hayır) */
+  .confirm-dialog{ padding:0; border:none; border-radius:20px; background:var(--card); color:var(--ink); width:min(320px, calc(100vw - 48px)); max-width:none; box-shadow:0 18px 50px rgba(74,53,32,.28); }
+  .confirm-dialog::backdrop{ background:rgba(74,53,32,.38); }
+  .confirm-inner{ padding:22px 20px 18px; text-align:center; }
+  .confirm-title{ margin:0; font-family:'Fredoka',sans-serif; font-size:18px; font-weight:600; }
+  .confirm-detail{ margin:8px 0 0; font-size:14px; line-height:1.45; color:var(--ink-soft); }
+  .confirm-actions{ display:flex; gap:10px; margin-top:20px; }
+  .confirm-actions button{ flex:1; padding:12px 10px; border-radius:12px; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer; }
+  .confirm-no{ border:1px solid var(--line); background:var(--paper); color:var(--ink); }
+  .confirm-yes{ border:none; background:var(--danger); color:#fff; }
+  /* Silindikten sonra "Geri al" bildirimi; alttaki çubuk kalan süreyi gösterir */
+  .undo-toast{ position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 74px); transform:translateX(-50%); z-index:60; width:max-content; max-width:calc(100vw - 32px); display:flex; align-items:center; gap:12px; padding:10px 10px 10px 16px; border-radius:14px; background:var(--ink); color:#FFF4DF; font-size:14px; box-shadow:0 10px 30px rgba(74,53,32,.3); overflow:hidden; }
+  .undo-text{ min-width:0; }
+  .undo-btn{ flex-shrink:0; border:none; background:rgba(255,244,223,.12); color:#F4C27A; font-family:inherit; font-size:14px; font-weight:700; padding:7px 12px; border-radius:9px; cursor:pointer; }
+  .undo-bar{ position:absolute; left:0; bottom:0; width:100%; height:3px; background:#F4C27A; transform-origin:left center; }
+  .undo-bar.run{ animation:undo-countdown var(--undo-ms, 10s) linear forwards; }
+  @keyframes undo-countdown{ from{ transform:scaleX(1); } to{ transform:scaleX(0); } }
 
   .add-btn{ width:100%; margin-top:10px; padding:12px; border-radius:var(--radius-sm); border:1.5px dashed var(--line); background:transparent; color:var(--ink-soft); font-size:14px; font-weight:600; cursor:pointer; }
   .add-btn:active{ transform:scale(.99); }
@@ -642,6 +659,24 @@
     </main>
   </div>
 
+  <!-- Silme onayı (Evet/Hayır) -->
+  <dialog id="confirmDialog" class="confirm-dialog" aria-labelledby="confirmTitle" aria-describedby="confirmDetail">
+    <div class="confirm-inner">
+      <p class="confirm-title" id="confirmTitle">Bu kayıt silinsin mi?</p>
+      <p class="confirm-detail" id="confirmDetail"></p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-no" id="confirmNo">Hayır</button>
+        <button type="button" class="confirm-yes" id="confirmYes">Evet, sil</button>
+      </div>
+    </div>
+  </dialog>
+  <!-- Silindikten sonra birkaç saniye "Geri al" -->
+  <div id="undoToast" class="undo-toast" role="status" aria-live="polite" hidden>
+    <span class="undo-text" id="undoText"></span>
+    <button type="button" class="undo-btn" id="undoBtn">Geri al</button>
+    <span class="undo-bar" id="undoBar" aria-hidden="true"></span>
+  </div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 import {
@@ -1033,6 +1068,8 @@ onAuthStateChanged(auth, (user) => {
     startVaccines();
     startAiCache();
   } else {
+    hideUndo();
+    finishConfirm(false);
     authScreen.hidden = false;
     appScreen.hidden = true;
     document.getElementById("settingsScreen").hidden = true;
@@ -1665,7 +1702,12 @@ function renderGrowthList(){
     const row = document.createElement("div");
     row.className = "growth-list-row";
     row.innerHTML = `<span>${formatDateLabel(e.date)} — ${parts.join(", ")}</span><button type="button" class="row-delete-inline">Sil</button>`;
-    row.querySelector("button").addEventListener("click", () => deleteDoc(doc(db,"growth",e.id)));
+    row.querySelector("button").addEventListener("click", async () => {
+      if (!(await askConfirm("Büyüme ölçümü · " + formatDateLabel(e.date) + " — " + parts.join(", "), "Bu ölçüm silinsin mi?"))) return;
+      const { id, ...data } = e;
+      deleteDoc(doc(db,"growth",id)).catch(() => setSyncStatus("Silinemedi — bağlantını kontrol et", true));
+      offerUndo({ kind:"growth", id, data, label:"Ölçüm silindi" });
+    });
     wrap.appendChild(row);
   });
 }
@@ -2367,6 +2409,138 @@ function setSyncStatus(text, isError){
 }
 
 /* ========================================================================
+   7b) Silme: önce Evet/Hayır onayı, sildikten sonra 10 sn "Geri al"
+   ===================================================================== */
+const confirmDialog = document.getElementById("confirmDialog");
+let confirmResolve = null;
+function finishConfirm(answer){
+  if (!confirmResolve) return;
+  const resolve = confirmResolve;
+  confirmResolve = null;
+  if (confirmDialog.open) confirmDialog.close();
+  resolve(answer);
+}
+document.getElementById("confirmYes").addEventListener("click", () => finishConfirm(true));
+document.getElementById("confirmNo").addEventListener("click", () => finishConfirm(false));
+confirmDialog.addEventListener("cancel", (e) => { e.preventDefault(); finishConfirm(false); });
+// Pencerenin dışına (karartılmış alana) dokunmak "Hayır" sayılır
+confirmDialog.addEventListener("click", (e) => { if (e.target === confirmDialog) finishConfirm(false); });
+
+// Evet/Hayır sorar, cevabı Promise olarak döner. <dialog> desteklenmiyorsa confirm()'e düşer.
+function askConfirm(detail, title = "Bu kayıt silinsin mi?", yesLabel = "Evet, sil"){
+  if (typeof confirmDialog.showModal !== "function"){
+    return Promise.resolve(window.confirm(title + (detail ? "\n\n" + detail : "")));
+  }
+  finishConfirm(false); // açık kalmış bir soru varsa onu "hayır" say
+  document.getElementById("confirmTitle").textContent = title;
+  document.getElementById("confirmDetail").textContent = detail || "";
+  document.getElementById("confirmYes").textContent = yesLabel;
+  return new Promise(resolve => {
+    confirmResolve = resolve;
+    confirmDialog.showModal();
+    document.getElementById("confirmNo").focus(); // yanlışlıkla "Evet"e basılmasın
+  });
+}
+
+// Onay penceresinde hangi kaydın silineceği tek satırla yazılır
+function rangeText(a, b){ return (a || b) ? (a || "?") + "–" + (b || "…") : ""; }
+function recordSummary(list, r){
+  if (list === "feedings"){
+    if (r.type === "formula") return "Mama · " + (r.time || "saatsiz") + " · " + (Number(r.formulaCc) || 0) + " cc";
+    const parts = [];
+    const right = rangeText(r.rightStart, r.rightEnd); if (right) parts.push("Sağ " + right);
+    const left = rangeText(r.leftStart, r.leftEnd);    if (left) parts.push("Sol " + left);
+    if (Number(r.formulaCc) > 0) parts.push("Mama " + r.formulaCc + " cc");
+    if (Number(r.extraCc) > 0) parts.push("Ek süt " + r.extraCc + " cc");
+    if (Number(r.pumpedCc) > 0) parts.push("Sağılan " + r.pumpedCc + " cc");
+    return "Emzirme" + (parts.length ? " · " + parts.join(", ") : "");
+  }
+  if (list === "diapers"){
+    const what = [r.pee && "Çiş", r.poop && "Kaka"].filter(Boolean).join(" + ") || "işaretsiz";
+    return "Tuvalet · " + (r.time || "saatsiz") + " · " + what;
+  }
+  if (list === "sleeps") return "Uyku · " + (rangeText(r.sleepTime, r.wakeTime) || "saatsiz");
+  return "";
+}
+const DELETED_LABEL = {
+  feedings: (r) => r.type === "formula" ? "Mama kaydı silindi" : "Emzirme kaydı silindi",
+  diapers: () => "Tuvalet kaydı silindi",
+  sleeps: () => "Uyku kaydı silindi",
+};
+const RENDER_LIST = { feedings: () => renderFeedList(), diapers: () => renderDiaperList(), sleeps: () => renderSleepList() };
+
+// Günlük listelerden (beslenme / tuvalet / uyku) bir kaydı onaylatıp sil
+async function deleteDayRecord(list, idx){
+  const rec = dayData[list][idx];
+  if (!rec) return;
+  const key = stableStringify(rec);
+  const date = currentDate;
+  if (!(await askConfirm(recordSummary(list, rec)))) return;
+  if (currentDate !== date) return; // soru açıkken gün değiştiyse hiçbir şey silme
+  // Soru açıkken diğer telefondan kayıt gelip liste kaymış olabilir: kaydı içeriğinden bul
+  const arr = dayData[list];
+  const i = (arr[idx] && stableStringify(arr[idx]) === key) ? idx : arr.findIndex(r => stableStringify(r) === key);
+  if (i < 0) return;
+  const removed = arr.splice(i, 1)[0];
+  RENDER_LIST[list]();
+  scheduleSave();
+  offerUndo({ kind:"day", date, list, index:i, record:deepClone(removed), label:DELETED_LABEL[list](removed) });
+}
+
+const UNDO_MS = 10000;
+const undoToast = document.getElementById("undoToast");
+let undoEntry = null, undoTimer = null;
+function offerUndo(entry){
+  undoEntry = entry;
+  document.getElementById("undoText").textContent = entry.label;
+  const bar = document.getElementById("undoBar");
+  bar.style.setProperty("--undo-ms", UNDO_MS + "ms");
+  bar.classList.remove("run"); void bar.offsetWidth; bar.classList.add("run"); // geri sayımı baştan başlat
+  undoToast.hidden = false;
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(hideUndo, UNDO_MS);
+}
+function hideUndo(){
+  clearTimeout(undoTimer);
+  undoTimer = null;
+  undoEntry = null;
+  undoToast.hidden = true;
+}
+document.getElementById("undoBtn").addEventListener("click", () => {
+  const e = undoEntry;
+  hideUndo();
+  if (!e) return;
+  if (e.kind === "growth"){
+    setDoc(doc(db, "growth", e.id), e.data).catch(() => setSyncStatus("Geri alınamadı — bağlantını kontrol et", true));
+    return;
+  }
+  if (e.date === currentDate && !dayLoading){
+    const arr = dayData[e.list];
+    arr.splice(Math.min(e.index, arr.length), 0, e.record);
+    RENDER_LIST[e.list]();
+    scheduleSave();
+    return;
+  }
+  // Bu arada başka güne geçildiyse: kaydı kendi gününe geri yaz ve o güne dön
+  restoreToOtherDay(e);
+});
+async function restoreToOtherDay(e){
+  try{
+    const ref = doc(db, "days", e.date);
+    const snap = await getDoc(ref);
+    const day = snap.exists() ? normalizeDay(snap.data()) : emptyDay();
+    const arr = day[e.list];
+    arr.splice(Math.min(e.index, arr.length), 0, e.record);
+    setDoc(ref, { [e.list]: arr, updatedAt: new Date().toISOString() }, { merge:true })
+      .catch(() => setSyncStatus("Geri alınamadı — bağlantını kontrol et", true));
+    loadDate(e.date);
+    goToPage(1, true);
+  }catch(err){
+    setSyncStatus("Geri alınamadı — bağlantını kontrol et", true);
+  }
+}
+
+/* ========================================================================
    8) Render
    ===================================================================== */
 function render(){
@@ -2522,11 +2696,7 @@ function renderFeedList(){
       st.querySelector(".dec").addEventListener("click", () => setVal((dayData.feedings[idx][field]||0) - step));
       inp.addEventListener("change", () => setVal(inp.value));
     });
-    row.querySelector(".row-delete").addEventListener("click", () => {
-      dayData.feedings.splice(idx,1);
-      renderFeedList();
-      scheduleSave();
-    });
+    row.querySelector(".row-delete").addEventListener("click", () => deleteDayRecord("feedings", idx));
     wrap.appendChild(row);
   });
 }
@@ -2574,11 +2744,7 @@ function renderDiaperList(){
         scheduleSave();
       });
     });
-    row.querySelector(".row-delete").addEventListener("click", () => {
-      dayData.diapers.splice(idx,1);
-      renderDiaperList();
-      scheduleSave();
-    });
+    row.querySelector(".row-delete").addEventListener("click", () => deleteDayRecord("diapers", idx));
     wrap.appendChild(row);
   });
 }
@@ -2604,11 +2770,7 @@ function renderSleepList(){
       <button type="button" class="row-delete">Bu kaydı sil</button>
     `;
     bindTimeInputs(row, () => dayData.sleeps[idx]);
-    row.querySelector(".row-delete").addEventListener("click", () => {
-      dayData.sleeps.splice(idx,1);
-      renderSleepList();
-      scheduleSave();
-    });
+    row.querySelector(".row-delete").addEventListener("click", () => deleteDayRecord("sleeps", idx));
     wrap.appendChild(row);
   });
 }
