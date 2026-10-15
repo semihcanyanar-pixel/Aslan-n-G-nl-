@@ -29,7 +29,9 @@
     --brass:#B8935A; --danger:#B2554A;
     --radius:22px; --radius-sm:12px;
   }
-  *{ box-sizing:border-box; }
+  /* touch-action: çift dokununca yakınlaşma kapalı (+/− gibi düğmelere hızlı
+     dokunmak artık ekranı büyütmez); iki parmakla yakınlaştırma ve kaydırma açık */
+  *{ box-sizing:border-box; touch-action:manipulation; }
   [hidden]{ display:none !important; }
   html,body{ height:100%; }
   body{
