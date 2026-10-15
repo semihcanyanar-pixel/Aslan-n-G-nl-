@@ -138,12 +138,15 @@
   .time-range .time-field{ max-width:170px; }
   .range-dash{ color:var(--ink-soft); font-size:13px; flex-shrink:0; }
 
-  .feed-row-extra{ grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:14px 20px; align-items:flex-end; margin-top:2px; }
+  /* Mama / Ek süt / Sağılan: üçü tek satırda yan yana (birim etikette: "Mama (cc)") */
+  .feed-row-extra{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; align-items:end; margin-top:2px; }
+  .feed-row-extra .mini-group{ min-width:0; }
   .mini-group label{ display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
-  .stepper{ display:flex; align-items:center; gap:8px; background:var(--blue-soft); border-radius:999px; padding:4px; }
-  .stepper button{ width:26px; height:26px; border-radius:50%; border:none; background:#fff; color:var(--blue-deep); font-size:16px; line-height:1; cursor:pointer; }
-  .stepper .val{ min-width:56px; display:flex; align-items:center; justify-content:center; gap:2px; font-size:13px; font-weight:600; }
-  .stepper .val input{ width:38px; padding:0; border:none; background:transparent; color:var(--ink); font-size:16px; font-weight:600; text-align:right; -moz-appearance:textfield; appearance:textfield; }
+  .feed-row-extra .mini-group label, .formula-amount label{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stepper{ display:flex; align-items:center; justify-content:space-between; background:var(--blue-soft); border-radius:999px; padding:3px; }
+  .stepper button{ flex-shrink:0; width:26px; height:26px; border-radius:50%; border:none; background:#fff; color:var(--blue-deep); font-size:16px; line-height:1; cursor:pointer; }
+  .stepper .val{ flex:1; min-width:0; display:flex; align-items:center; justify-content:center; }
+  .stepper .val input{ width:100%; max-width:48px; padding:0; border:none; background:transparent; color:var(--ink); font-size:16px; font-weight:600; text-align:center; -moz-appearance:textfield; appearance:textfield; }
   .stepper .val input::-webkit-outer-spin-button, .stepper .val input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
   .add-btn-row{ display:flex; gap:8px; }
   .add-btn-row .add-btn{ flex:1; width:auto; }
@@ -163,6 +166,16 @@
   .check-pill input{ width:17px; height:17px; accent-color:var(--blue-deep); }
   .check-pill.on{ color:var(--ink); font-weight:600; }
   .row-delete{ grid-column:1 / -1; text-align:right; background:none; border:none; color:var(--ink-soft); font-size:12px; padding:2px 0 0; cursor:pointer; }
+  /* Günlük bakış: seçili günün toplamları, 3×2 kutucuk */
+  .day-chip{ margin-left:auto; font-family:'Karla',sans-serif; font-size:11.5px; font-weight:600; color:var(--blue-deep); background:var(--blue-soft); padding:3px 10px; border-radius:999px; white-space:nowrap; }
+  .day-stats{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin-top:10px; }
+  .day-stat{ min-width:0; padding:10px 6px 9px; border-radius:14px; background:var(--paper); text-align:center; }
+  .day-stat-label{ font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .day-stat-val{ margin-top:3px; font-family:'Fredoka',sans-serif; font-size:21px; font-weight:600; line-height:1.15; color:var(--ink); }
+  .day-stat-val small{ margin-left:2px; font-size:12px; font-weight:500; color:var(--ink-soft); }
+  .day-stat-sub{ margin-top:1px; font-size:10.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .day-stat.total{ background:var(--line); }
+  .day-stat.zero .day-stat-val{ opacity:.4; }
   /* Silme onayı (Evet/Hayır) */
   .confirm-dialog{ padding:0; border:none; border-radius:20px; background:var(--card); color:var(--ink); width:min(320px, calc(100vw - 48px)); max-width:none; box-shadow:0 18px 50px rgba(74,53,32,.28); }
   .confirm-dialog::backdrop{ background:rgba(74,53,32,.38); }
@@ -450,6 +463,16 @@
             <div class="weekly-value" id="leftVal">–</div>
           </div>
           <div class="weekly-row">
+            <div class="weekly-label">🍼 Ort. mama</div>
+            <div class="weekly-bars" id="formulaBars"></div>
+            <div class="weekly-value" id="formulaVal">–</div>
+          </div>
+          <div class="weekly-row">
+            <div class="weekly-label">🫙 Ort. sağılan</div>
+            <div class="weekly-bars" id="pumpedBars"></div>
+            <div class="weekly-value" id="pumpedVal">–</div>
+          </div>
+          <div class="weekly-row">
             <div class="weekly-label">💧 Ort. çiş</div>
             <div class="weekly-bars" id="peeBars"></div>
             <div class="weekly-value" id="peeVal">–</div>
@@ -469,7 +492,12 @@
             <div class="weekly-bars weekly-day-labels" id="weekDayLabels"></div>
             <div class="weekly-value"></div>
           </div>
-          <p class="settings-hint weekly-note">Ortalamalar sadece kayıt girilmiş, tamamlanmış günlerden hesaplanır; bugünün soluk çubuğu ortalamaya dahil değil. Emzirme süreleri o taraftaki günlük toplam süredir.</p>
+          <p class="settings-hint weekly-note">Ortalamalar sadece kayıt girilmiş, tamamlanmış günlerden hesaplanır; bugünün soluk çubuğu ortalamaya dahil değil. Emzirme süreleri o taraftaki günlük toplam süre; mama ve sağılan da o günün toplam miktarıdır.</p>
+        </section>
+
+        <section class="card day-summary-card" data-accent="gold">
+          <h2><span class="badge">📋</span> Günlük bakış <span class="day-chip" id="daySummaryDay"></span></h2>
+          <div class="day-stats" id="dayStats"></div>
         </section>
 
         <section class="card" data-accent="blue">
@@ -1272,6 +1300,7 @@ function computeWeekStats(byDate, endDateStr){
       date, isToday: date === endDateStr,
       feedCount: feedings.length, feedHas: feedings.length > 0,
       formulaCc: feedings.reduce((s,f) => s + (Number(f.formulaCc)||0), 0),
+      pumpedCc: feedings.reduce((s,f) => s + (Number(f.pumpedCc)||0), 0),
       rightTotal: rightMins.reduce((a,b) => a+b, 0),
       leftTotal: leftMins.reduce((a,b) => a+b, 0),
       breastHas: rightMins.length + leftMins.length > 0,
@@ -1294,7 +1323,9 @@ function computeWeekStats(byDate, endDateStr){
       pee: meanOf(diaperDays.map(p => p.pee)),
       poop: meanOf(diaperDays.map(p => p.poop)),
       sleep: meanOf(done.filter(p => p.sleepHas).map(p => p.sleepHrs)),
-      formula: meanOf(feedDays.map(p => p.formulaCc))
+      // Mama/sağılan: beslenme kaydı olan her gün sayılır; o gün hiç verilmediyse gerçek bir 0'dır
+      formula: meanOf(feedDays.map(p => p.formulaCc)),
+      pumped: meanOf(feedDays.map(p => p.pumpedCc))
     }
   };
 }
@@ -1307,6 +1338,8 @@ function renderWeeklyStats(byDate, endDateStr){
   paintWeeklyRow("feed",  P.map(p => p.feedHas ? p.feedCount : null), st.avg.feed, v => v.toFixed(1));
   paintWeeklyRow("right", P.map(p => p.breastHas ? p.rightTotal : null), st.avg.right, v => Math.round(v) + " dk");
   paintWeeklyRow("left",  P.map(p => p.breastHas ? p.leftTotal : null), st.avg.left, v => Math.round(v) + " dk");
+  paintWeeklyRow("formula", P.map(p => p.feedHas ? p.formulaCc : null), st.avg.formula, v => Math.round(v) + " cc");
+  paintWeeklyRow("pumped",  P.map(p => p.feedHas ? p.pumpedCc : null), st.avg.pumped, v => Math.round(v) + " cc");
   paintWeeklyRow("pee",   P.map(p => p.diaperHas ? p.pee : null), st.avg.pee, v => v.toFixed(1));
   paintWeeklyRow("poop",  P.map(p => p.diaperHas ? p.poop : null), st.avg.poop, v => v.toFixed(1));
   paintWeeklyRow("sleep", P.map(p => p.sleepHas ? p.sleepHrs : null), st.avg.sleep, v => v.toFixed(1) + " sa");
@@ -2150,6 +2183,7 @@ function summarizeWeek(byDate, endDateStr){
     ortalamaKakaSayisiGunde: r1(st.avg.poop)
   };
   if (st.avg.formula) summary.ortalamaMamaMiktariCcGunde = r0(st.avg.formula);
+  if (st.avg.pumped) summary.ortalamaSagilanSutCcGunde = r0(st.avg.pumped);
   if (sleepTrackingOn()){
     summary.ortalamaUykuSaatiGunde = r1(st.avg.sleep);
   } else {
@@ -2372,6 +2406,7 @@ setInterval(() => {
    ===================================================================== */
 function scheduleSave(){
   setSyncStatus("Kaydediliyor…", false);
+  renderDaySummary(); // bu cihazdaki her değişiklik buradan geçer: Günlük bakış anında güncellenir
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 600);
 }
@@ -2543,7 +2578,44 @@ async function restoreToOtherDay(e){
 /* ========================================================================
    8) Render
    ===================================================================== */
+/* Günlük bakış — seçili günün toplamları. Bu cihazdaki her değişiklikte
+   (scheduleSave) ve diğer telefondan gelen her veride (render) yeniden hesaplanır. */
+function computeDayTotals(d){
+  const feedings = d.feedings || [];
+  const sum = (k) => feedings.reduce((s, f) => s + (Number(f[k]) || 0), 0);
+  const diapers = d.diapers || [];
+  const formula = sum("formulaCc"), extra = sum("extraCc");
+  return { formula, extra, intake: formula + extra, pumped: sum("pumpedCc"),
+           pee: diapers.filter(x => x.pee).length, poop: diapers.filter(x => x.poop).length };
+}
+function dayChipText(dateStr){
+  if (dateStr === todayStr()) return "Bugün";
+  if (dateStr === shiftDate(todayStr(), -1)) return "Dün";
+  const [, m, d] = dateStr.split("-").map(Number);
+  return d + " " + MONTHS[m-1];
+}
+function renderDaySummary(){
+  const box = document.getElementById("dayStats");
+  if (!box) return;
+  const t = computeDayTotals(dayData);
+  const tile = (label, value, unit, extraClass = "", sub = "") =>
+    `<div class="day-stat${value ? "" : " zero"}${extraClass}">` +
+      `<div class="day-stat-label">${label}</div>` +
+      `<div class="day-stat-val">${value}${unit ? `<small>${unit}</small>` : ""}</div>` +
+      (sub ? `<div class="day-stat-sub">${sub}</div>` : "") +
+    `</div>`;
+  box.innerHTML =
+    tile("🍼 Mama", t.formula, "cc") +
+    tile("🥛 Ek süt", t.extra, "cc") +
+    tile("Toplam", t.intake, "cc", " total", "mama + ek süt") +
+    tile("🫙 Sağılan", t.pumped, "cc") +
+    tile("💧 Çiş", t.pee, "") +
+    tile("💩 Kaka", t.poop, "");
+  document.getElementById("daySummaryDay").textContent = dayChipText(currentDate);
+}
+
 function render(){
+  renderDaySummary();
   renderFeedList();
   renderDiaperList();
   renderSleepList();
@@ -2556,11 +2628,12 @@ function render(){
 }
 
 // Miktar kutusu: +/- ile adım adım artar, ya da sayıya dokunup doğrudan yazılır
-function stepperHtml(field, value, step){
+// (birim "cc" etikette yazar: üç kutu dar ekranda da yan yana sığsın diye)
+function stepperHtml(field, value, step, name){
   return `<div class="stepper" data-field="${field}" data-step="${step}">
-            <button type="button" class="dec" aria-label="Azalt">–</button>
-            <span class="val"><input type="number" min="0" step="${step}" value="${value||0}" aria-label="Miktar (cc)">cc</span>
-            <button type="button" class="inc" aria-label="Artır">+</button>
+            <button type="button" class="dec" aria-label="${name} azalt">–</button>
+            <span class="val"><input type="number" inputmode="numeric" min="0" step="${step}" value="${value||0}" aria-label="${name} (cc)"></span>
+            <button type="button" class="inc" aria-label="${name} artır">+</button>
           </div>`;
 }
 
@@ -2653,8 +2726,8 @@ function renderFeedList(){
           <div>${timeFieldHtml("time", f.time, "Mama saati")}</div>
         </div>
         <div class="mini-group formula-amount">
-          <label>Mama</label>
-          ${stepperHtml("formulaCc", f.formulaCc, 5)}
+          <label>Mama (cc)</label>
+          ${stepperHtml("formulaCc", f.formulaCc, 5, "Mama")}
         </div>
         <button type="button" class="row-delete">Bu kaydı sil</button>
       `;
@@ -2674,9 +2747,9 @@ function renderFeedList(){
           ${side("Sol meme", "leftStart", "leftEnd")}
         </div>
         <div class="feed-row-extra">
-          <div class="mini-group"><label>Mama</label>${stepperHtml("formulaCc", f.formulaCc, 5)}</div>
-          <div class="mini-group"><label>Ek süt</label>${stepperHtml("extraCc", f.extraCc, 5)}</div>
-          <div class="mini-group"><label>Sağılan</label>${stepperHtml("pumpedCc", f.pumpedCc, 5)}</div>
+          <div class="mini-group"><label>Mama (cc)</label>${stepperHtml("formulaCc", f.formulaCc, 5, "Mama")}</div>
+          <div class="mini-group"><label>Ek süt (cc)</label>${stepperHtml("extraCc", f.extraCc, 5, "Ek süt")}</div>
+          <div class="mini-group"><label>Sağılan (cc)</label>${stepperHtml("pumpedCc", f.pumpedCc, 5, "Sağılan")}</div>
         </div>
         <button type="button" class="row-delete">Bu kaydı sil</button>
       `;
