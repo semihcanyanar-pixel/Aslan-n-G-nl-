@@ -9,7 +9,19 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Bebek Günlüğü">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#F5E6C8">
+<meta name="theme-color" content="#F4F6FA">
+<script>
+  // Gündüz / Gece görünümü bu telefonda saklanır ve sayfa çizilmeden önce uygulanır
+  // (açılışta bir an yanlış renk görünmesin). Sadece düğmeyle değişir, saate göre değil.
+  (function(){
+    try{
+      if (localStorage.getItem("bebekGunlugu.theme") === "dark"){
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", "#0B0E1A");
+      }
+    }catch(e){}
+  })();
+</script>
 <!-- ?v=2: simge değişti; eski simgenin önbellekten gelmemesi için adres sürümlü -->
 <link rel="manifest" href="manifest.json?v=2">
 <link rel="apple-touch-icon" href="icon-180.png?v=2">
@@ -17,388 +29,583 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
+  /* ===== Renkler: Gündüz (Günün ritmi) — html[data-theme=dark] olunca Gece (Ay ışığı) ===== */
   :root{
-    --paper:#F5E6C8; --card:#FFFAEF; --ink:#4A3520; --ink-soft:#8A6D48; --line:#E8D3A0;
-    --blue:#C17F2E; --blue-deep:#8F5A19; --blue-soft:#F5E3C0;
-    --gold:#D97D5C; --gold-soft:#F7E0D3;
-    --sage:#8A9B5E; --sage-soft:#E9EDD9;
-    --pink:#C9673F; --pink-soft:#F3DDCE;
-    --brass:#B8935A; --danger:#B2554A;
-    --radius:22px; --radius-sm:12px;
+    --bg:#F4F6FA; --surface:#FFFFFF; --surface-2:#F1F4F9; --surface-3:#E6EAF1;
+    --line:#E2E7EF; --line-soft:#EBEFF5;
+    --ink:#0F1B2D; --ink-2:#56667B; --ink-3:#8C99AB;
+    --primary:#2F6FEB; --primary-soft:#E7EEFD;
+    --strong:#0F1B2D; --strong-ink:#FFFFFF;
+    --tab-on:#FFFFFF;
+    --feed:#F2A31B; --feed-soft:#FDF1D9; --feed-ink:#875800;
+    --formula:#EA7B30; --formula-soft:#FDE9DA; --formula-ink:#963F0B;
+    --diaper:#1FA982; --diaper-soft:#DDF4EB; --diaper-ink:#0A6A4D;
+    --poop:#AE7646; --poop-soft:#F4E8DD; --poop-ink:#76491F;
+    --sleep:#7564EE; --sleep-soft:#ECE9FD; --sleep-ink:#4637B5;
+    --pump:#E14F7C; --pump-soft:#FCE4EC; --pump-ink:#A0244C;
+    --danger:#D03E3E; --danger-soft:#FCEBEB; --on-danger:#FFFFFF;
+    --dock:#0F1B2D; --dock-line:#0F1B2D; --dock-ink:#EEF2F8;
+    --toast-bg:#0F1B2D; --toast-ink:#F3F6FB; --toast-accent:#F7C35F;
+    --backdrop:rgba(15,27,45,.42);
+    --shadow:0 8px 24px rgba(15,27,45,.06);
+    --shadow-lg:0 18px 40px rgba(15,27,45,.22);
+    --radius:22px; --radius-sm:14px;
+    --font-display:'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-ui:'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color-scheme:light;
   }
-  /* touch-action: çift dokununca yakınlaşma kapalı (+/− gibi düğmelere hızlı
-     dokunmak artık ekranı büyütmez); iki parmakla yakınlaştırma ve kaydırma açık */
+  :root[data-theme="dark"]{
+    --bg:#0B0E1A; --surface:#151A2C; --surface-2:#1B2137; --surface-3:#232A45;
+    --line:#2A314D; --line-soft:#212842;
+    --ink:#F3EEE4; --ink-2:#A6ACC4; --ink-3:#737A97;
+    --primary:#FFB59A; --primary-soft:rgba(255,181,154,.14);
+    --strong:#F3EEE4; --strong-ink:#0B0E1A;
+    --tab-on:#2E3658;
+    --feed:#F5BE55; --feed-soft:rgba(245,190,85,.15); --feed-ink:#F8CD7C;
+    --formula:#F39B5C; --formula-soft:rgba(243,155,92,.15); --formula-ink:#F7B07F;
+    --diaper:#5FD3BB; --diaper-soft:rgba(95,211,187,.14); --diaper-ink:#86E0CD;
+    --poop:#D7A97C; --poop-soft:rgba(215,169,124,.15); --poop-ink:#E4C19F;
+    --sleep:#A99BFF; --sleep-soft:rgba(169,155,255,.16); --sleep-ink:#C2B8FF;
+    --pump:#F49DB5; --pump-soft:rgba(244,157,181,.15); --pump-ink:#F8B9CA;
+    --danger:#FF8A80; --danger-soft:rgba(255,138,128,.14); --on-danger:#2A0D0B;
+    --dock:#181E33; --dock-line:#2A314D; --dock-ink:#F3EEE4;
+    --toast-bg:#F3EEE4; --toast-ink:#0B0E1A; --toast-accent:#B4441F;
+    --backdrop:rgba(3,5,12,.62);
+    --shadow:none;
+    --shadow-lg:0 18px 40px rgba(0,0,0,.5);
+    color-scheme:dark;
+  }
+  /* Kayıt türlerinin renkleri (rozet, nokta, çubuk, sayaç) */
+  .k-feed{ --c:var(--feed); --c-soft:var(--feed-soft); --c-ink:var(--feed-ink); --on-c:#2A1A00; }
+  .k-formula{ --c:var(--formula); --c-soft:var(--formula-soft); --c-ink:var(--formula-ink); --on-c:#2B1200; }
+  .k-diaper{ --c:var(--diaper); --c-soft:var(--diaper-soft); --c-ink:var(--diaper-ink); --on-c:#FFFFFF; }
+  .k-poop{ --c:var(--poop); --c-soft:var(--poop-soft); --c-ink:var(--poop-ink); --on-c:#FFFFFF; }
+  .k-sleep{ --c:var(--sleep); --c-soft:var(--sleep-soft); --c-ink:var(--sleep-ink); --on-c:#FFFFFF; }
+  .k-pump{ --c:var(--pump); --c-soft:var(--pump-soft); --c-ink:var(--pump-ink); --on-c:#FFFFFF; }
+  .k-primary{ --c:var(--primary); --c-soft:var(--primary-soft); --c-ink:var(--primary); --on-c:#FFFFFF; }
+  .k-neutral{ --c:var(--ink-2); --c-soft:var(--surface-2); --c-ink:var(--ink-2); --on-c:var(--surface); }
+  :root[data-theme="dark"] .k-diaper, :root[data-theme="dark"] .k-poop, :root[data-theme="dark"] .k-sleep,
+  :root[data-theme="dark"] .k-pump, :root[data-theme="dark"] .k-primary{ --on-c:#12131F; }
+
+  /* touch-action: çift dokununca yakınlaşma kapalı; iki parmakla yakınlaştırma ve kaydırma açık */
   *{ box-sizing:border-box; touch-action:manipulation; }
   [hidden]{ display:none !important; }
   html,body{ height:100%; }
+  html{ background:var(--bg); }
   body{
-    margin:0; background:var(--paper); color:var(--ink);
-    font-family:'Karla',sans-serif; -webkit-font-smoothing:antialiased;
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--font-ui); font-size:15px; line-height:1.4; -webkit-font-smoothing:antialiased;
     padding-top:env(safe-area-inset-top,0px);
-    padding-bottom:env(safe-area-inset-bottom,0px);
-    padding-left:max(30px, calc(env(safe-area-inset-left,0px) + 22px));
-    padding-right:env(safe-area-inset-right,0px);
+    padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px);
     min-height:100vh;
   }
-  h1,h2,.date-label,.day-badge,.btn-primary,.add-btn{ font-family:'Fredoka',sans-serif; }
-  button, input, textarea{ font-family:inherit; }
-  input, textarea, select{ font-size:16px; } /* keeps iOS Safari from auto-zooming on focus */
-  button:focus-visible, input:focus-visible, textarea:focus-visible{
-    outline:2px solid var(--blue-deep); outline-offset:2px;
-  }
+  h1,h2,h3{ font-family:var(--font-display); font-weight:600; letter-spacing:-.2px; }
+  button, input, textarea, select{ font-family:inherit; }
+  button{ color:inherit; -webkit-tap-highlight-color:transparent; }
+  input, textarea, select{ font-size:16px; } /* iOS'ta odaklanınca sayfa yakınlaşmasın */
+  :focus-visible{ outline:2px solid var(--primary); outline-offset:2px; }
+  .i{ width:20px; height:20px; flex:none; display:block; }
   @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+  html.no-sleep .sleep-only{ display:none !important; }
 
-  /* paw-print trail down the bound edge */
-  .spine{
-    position:fixed; left:0; top:0; bottom:0; width:28px;
-    background-color:#EFE1BE;
-    background-image:url('paw-tile.png');
-    background-size:28px 44px; background-repeat:repeat-y;
-    background-position:top center;
-    z-index:5; pointer-events:none; opacity:.85;
-  }
-  .spine::after{
-    content:""; position:absolute; top:0; right:-7px; bottom:0; width:7px;
-    background:linear-gradient(to right, rgba(70,57,46,0.12), transparent);
-  }
-
+  /* ===== Açılış ve giriş ===== */
   .loading-screen,.auth-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   /* Açılış/yenileme ekranı: uygulama simgesi büyük ve soluk, hafifçe "nefes alır" */
   .loading-screen .splash-art{ width:min(66vw, 280px); height:auto; aspect-ratio:1 / 1; border-radius:22.4%; opacity:.5; display:block; animation:splash-pulse 2.4s ease-in-out infinite; }
   @keyframes splash-pulse{ 0%, 100%{ opacity:.5; transform:scale(1); } 50%{ opacity:.36; transform:scale(.985); } }
-  .auth-card{
-    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:28px 24px 34px; width:100%; max-width:360px; text-align:center;
-  }
-  .auth-card h1{ font-size:21px; margin:0 0 4px; }
-  .auth-card p.sub{ color:var(--ink-soft); font-size:14px; margin:0 0 22px; }
-  .auth-card input{
-    width:100%; padding:13px 14px; margin-bottom:12px; border-radius:var(--radius-sm);
-    border:1px solid var(--line); background:#fff; color:var(--ink);
-  }
-  .btn-primary{
-    width:100%; padding:14px; border:none; border-radius:var(--radius-sm);
-    background:var(--blue-deep); color:#fff; font-size:16px; font-weight:600; cursor:pointer;
-  }
-  .btn-primary:active{ transform:scale(.98); }
+  .auth-card{ background:var(--surface); border:1px solid var(--line-soft); border-radius:28px; padding:24px 22px 28px; width:100%; max-width:370px; text-align:center; box-shadow:var(--shadow); }
+  .auth-card h1{ font-size:25px; margin:0 0 4px; }
+  .auth-card p.sub{ color:var(--ink-2); font-size:14px; margin:0 0 20px; }
+  .auth-card input{ width:100%; height:52px; padding:0 16px; margin-bottom:10px; border-radius:16px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); }
+  .btn-primary{ width:100%; height:54px; border:none; border-radius:16px; background:var(--strong); color:var(--strong-ink); font-size:16px; font-weight:600; cursor:pointer; margin-top:4px; }
+  .btn-primary:active{ transform:scale(.985); }
   .auth-error{ color:var(--danger); font-size:13px; line-height:1.45; margin-top:10px; min-height:16px; }
-  .auth-error.info{ color:var(--ink-soft); }
-  .link-btn{ margin-top:12px; padding:6px 8px; border:none; background:none; color:var(--blue-deep); font-family:inherit; font-size:14px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-  .auth-scene{ margin:-6px -8px 14px; }
-  .auth-scene img{ width:100%; max-width:260px; height:auto; display:block; margin:0 auto; }
+  .auth-error.info{ color:var(--ink-2); }
+  .link-btn{ margin-top:10px; padding:10px 8px; border:none; background:none; color:var(--primary); font-size:14px; font-weight:600; cursor:pointer; }
+  .auth-scene{ margin:-4px -8px 10px; }
+  .auth-scene img{ width:100%; max-width:240px; height:auto; display:block; margin:0 auto; }
 
-  .app-screen{ max-width:560px; margin:0 auto; padding:18px 16px 56px; }
-  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:18px; }
-  .icon-btn{
-    width:40px; height:40px; border-radius:50%; border:1px solid var(--line);
-    background:var(--card); color:var(--ink-soft); font-size:15px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-  }
-  .date-nav{ flex:1; display:flex; align-items:center; justify-content:center; gap:4px; }
-  .date-nav button{
-    width:34px; height:34px; border-radius:50%; border:1px solid var(--line);
-    background:var(--card); font-size:17px; color:var(--ink); cursor:pointer; flex-shrink:0;
-  }
-  .date-center{ text-align:center; padding:2px 10px; cursor:pointer; min-width:150px; }
-  .date-label{ font-size:16px; font-weight:600; }
-  .day-badge{
-    display:inline-block; font-size:11px; color:var(--blue-deep); background:var(--blue-soft);
-    padding:2px 9px; border-radius:999px; margin-top:3px;
-  }
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 16px 20px; margin-bottom:16px; }
-  .card h2{ display:flex; align-items:center; gap:10px; font-size:17px; margin:0 0 6px; font-weight:600; }
-  .badge{ width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
-  .card[data-accent="blue"] .badge{ background:var(--blue-soft); }
-  .card[data-accent="gold"] .badge{ background:var(--gold-soft); }
-  .card[data-accent="sage"] .badge{ background:var(--sage-soft); }
-  .card[data-accent="pink"] .badge{ background:var(--pink-soft); }
+  /* ===== Ana ekran: üst çubuk + sekmeler + kaydırılan 3 sayfa + alt hızlı kayıt ===== */
+  .app-screen{ max-width:560px; margin:0 auto; }
+  @supports (height:100dvh){ html,body{ height:100dvh; } body{ min-height:100dvh; } }
+  #appScreen{ display:flex; flex-direction:column; height:100%; }
+  .topbar{ flex:none; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px 10px; }
+  .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .avatar{ position:relative; flex:none; width:40px; height:40px; border-radius:50%; overflow:hidden; background:#FDF3D8; box-shadow:0 0 0 2px var(--surface), 0 3px 10px rgba(15,27,45,.14); }
+  .avatar img{ position:absolute; width:160%; height:160%; left:-30%; top:0; max-width:none; }
+  .brand-text{ min-width:0; }
+  .brand-title{ font-family:var(--font-display); font-weight:600; font-size:18px; line-height:1.15; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .brand-sub{ margin-top:1px; font-size:12.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .top-actions{ display:flex; gap:4px; flex:none; }
+  @media (max-width:374px){ .brand-title{ font-size:16.5px; } .avatar{ width:36px; height:36px; } }
+  .icon-btn{ width:44px; height:44px; flex:none; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; }
+  .icon-btn .i{ width:20px; height:20px; }
+  .icon-btn:active{ transform:scale(.95); }
+  .icon-btn:disabled{ cursor:default; }
+  .icon-btn.spinning .i{ animation:spin .8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  #themeBtn .i{ transition:transform .35s ease; }
+  :root[data-theme="dark"] #themeBtn{ color:#F3D58B; }
 
-  .entry-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; padding:14px 0; border-bottom:1px solid var(--line); }
+  .tabs{ flex:none; margin:0 16px 12px; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:4px; padding:4px; border-radius:17px; background:var(--surface-3); }
+  .tab{ height:42px; border:none; border-radius:13px; background:transparent; color:var(--ink-2); font-size:14.5px; font-weight:500; cursor:pointer; transition:background .2s, color .2s; }
+  .tab[aria-selected="true"]{ background:var(--tab-on); color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(15,27,45,.1); }
+
+  .pager{ flex:1; min-height:0; display:flex; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; overscroll-behavior-x:contain; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .pager::-webkit-scrollbar{ display:none; }
+  .page{ flex:0 0 100%; min-width:0; scroll-snap-align:start; scroll-snap-stop:always; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; padding:2px 16px calc(env(safe-area-inset-bottom,0px) + 118px); }
+
+  /* ===== Kartlar ===== */
+  .card{ background:var(--surface); border:1px solid var(--line-soft); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+  .card h2{ display:flex; align-items:center; gap:10px; font-size:17px; margin:0 0 12px; }
+  .badge{ width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:none; background:var(--c-soft, var(--surface-2)); color:var(--c-ink, var(--ink-2)); }
+  .badge .i{ width:17px; height:17px; }
+  .section-title{ margin:0; font-size:19px; }
+  .section-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:18px 2px 10px; }
+  .settings-hint{ font-size:12.5px; line-height:1.45; color:var(--ink-2); margin:8px 0 0; }
+  .ai-tip-text{ font-size:14.5px; line-height:1.6; color:var(--ink); margin:0; }
+
+  /* Gün gezinme: ‹ Cuma, 16 Ekim · Bugün › */
+  .day-nav{ display:flex; align-items:center; gap:8px; margin:2px 0 12px; }
+  .nav-btn{ width:44px; height:46px; flex:none; border-radius:15px; border:1px solid var(--line); background:var(--surface); color:var(--ink); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; }
+  .nav-btn .i{ width:19px; height:19px; }
+  .date-center{ flex:1; min-width:0; height:46px; border-radius:15px; border:1px solid var(--line); background:var(--surface); display:flex; align-items:center; justify-content:center; gap:8px; padding:0 10px; cursor:pointer; }
+  .date-center .i{ width:17px; height:17px; color:var(--ink-2); }
+  .date-label{ font-family:var(--font-display); font-weight:600; font-size:16.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .day-badge{ flex:none; font-size:11.5px; font-weight:600; color:var(--primary); background:var(--primary-soft); padding:3px 9px; border-radius:999px; }
+
+  /* ===== Süren emzirme / uyku (sayaç) ===== */
+  .live-card{ position:relative; overflow:hidden; border-radius:24px; padding:16px; margin-bottom:12px; background:var(--surface); border:1.5px solid var(--c); box-shadow:var(--shadow); }
+  .live-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .live-tag{ display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px; background:var(--c-soft); color:var(--c-ink); font-size:13px; font-weight:600; }
+  .live-tag i{ width:8px; height:8px; border-radius:50%; background:var(--c); animation:live-pulse 1.6s ease-in-out infinite; }
+  @keyframes live-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
+  .live-edit{ border:none; background:none; color:var(--primary); font-size:13.5px; font-weight:600; padding:12px 2px; cursor:pointer; }
+  .live-timer{ margin:12px 0 4px; font-family:var(--font-display); font-weight:500; font-size:60px; line-height:1; letter-spacing:-2px; font-variant-numeric:tabular-nums; }
+  .live-sub{ font-size:13.5px; color:var(--ink-2); }
+  .side-grid{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; margin-top:14px; }
+  .side-btn{ min-height:86px; border-radius:20px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); padding:12px 14px; display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; gap:8px; text-align:left; cursor:pointer; }
+  .side-btn b{ font-family:var(--font-display); font-weight:600; font-size:21px; line-height:1.1; }
+  .side-btn small{ font-size:12.5px; color:var(--ink-2); }
+  .side-btn.active{ background:var(--c); border-color:var(--c); color:var(--on-c); cursor:default; }
+  .side-btn.active small{ color:inherit; opacity:.85; }
+  .side-btn.done{ cursor:default; opacity:.7; }
+  .live-actions{ display:flex; gap:10px; margin-top:10px; }
+
+  /* ===== Düğmeler ===== */
+  .btn{ height:52px; border-radius:16px; border:none; font-size:15.5px; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 18px; cursor:pointer; }
+  .btn .i{ width:19px; height:19px; }
+  .btn:active{ transform:scale(.985); }
+  .btn-strong{ background:var(--strong); color:var(--strong-ink); flex:1; }
+  .btn-soft{ background:var(--surface-2); color:var(--ink); border:1px solid var(--line); }
+  .btn-danger-soft{ background:var(--danger-soft); color:var(--danger); }
+  .btn-link{ width:100%; height:50px; margin-top:12px; border-radius:16px; border:1.5px dashed var(--line); background:transparent; color:var(--ink); font-size:14.5px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
+  .btn-link .i{ width:18px; height:18px; color:var(--ink-2); }
+
+  /* ===== Günün ritmi: 24 saatlik şerit ===== */
+  .ritim{ position:relative; height:104px; margin:0; }
+  .ritim-lane{ position:absolute; left:0; right:0; }
+  .ritim-feed{ top:22px; height:12px; }
+  .ritim-feed span{ position:absolute; top:0; height:12px; min-width:6px; border-radius:4px; background:var(--feed); }
+  .ritim-feed span.formula{ width:6px; margin-left:-3px; background:var(--formula); }
+  .ritim-track{ top:38px; height:28px; border-radius:9px; background:var(--surface-2); overflow:hidden; }
+  .ritim-track .future{ position:absolute; top:0; bottom:0; right:0; background:repeating-linear-gradient(135deg, transparent 0 6px, var(--line-soft) 6px 7px); }
+  .ritim-track span{ position:absolute; top:4px; bottom:4px; min-width:4px; border-radius:6px; background:var(--sleep); }
+  .ritim-track span.live{ opacity:.6; }
+  .ritim-diaper{ top:72px; height:9px; }
+  .ritim-diaper span{ position:absolute; top:0; width:9px; height:9px; margin-left:-4.5px; border-radius:50%; background:var(--diaper); }
+  .ritim-diaper span.poop{ background:var(--poop); }
+  .ritim-now{ position:absolute; top:19px; height:66px; width:2px; margin-left:-1px; border-radius:1px; background:var(--ink); }
+  .ritim-nowlabel{ position:absolute; top:0; transform:translateX(-50%); padding:0 7px; border-radius:7px; background:var(--ink); color:var(--bg); font-size:10.5px; font-weight:600; line-height:17px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .ritim-hours{ position:absolute; left:0; right:0; bottom:0; display:flex; justify-content:space-between; font-size:10.5px; line-height:16px; color:var(--ink-2); font-variant-numeric:tabular-nums; }
+  .legend{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px 14px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line-soft); font-size:12px; color:var(--ink-2); }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ width:9px; height:9px; border-radius:3px; background:var(--c); }
+
+  /* ===== Günlük bakış: seçili günün toplamları (3×3) ===== */
+  .day-chip{ margin-left:auto; font-family:var(--font-ui); font-size:11.5px; font-weight:600; color:var(--primary); background:var(--primary-soft); padding:3px 10px; border-radius:999px; white-space:nowrap; }
+  .day-stats{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
+  .day-stat{ min-width:0; padding:11px 10px 10px; border-radius:16px; background:var(--surface-2); }
+  .day-stat-label{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-2); white-space:nowrap; overflow:hidden; }
+  .day-stat-label i{ width:7px; height:7px; flex:none; border-radius:50%; background:var(--c); }
+  .day-stat-val{ margin-top:4px; font-family:var(--font-display); font-size:22px; font-weight:600; line-height:1.15; color:var(--ink); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .day-stat-val small{ margin:0 2px 0 2px; font-family:var(--font-ui); font-size:11.5px; font-weight:500; color:var(--ink-2); }
+  .day-stat-sub{ margin-top:2px; font-size:10.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .day-stat.total{ background:var(--primary-soft); }
+  .day-stat.zero .day-stat-val{ opacity:.35; }
+
+  /* ===== Kayıtlar: Akış (saat sırasıyla) / Listeler ===== */
+  .view-toggle{ display:flex; gap:2px; padding:3px; border-radius:13px; background:var(--surface-3); flex:none; }
+  .view-toggle button{ height:36px; padding:0 13px; border:none; border-radius:10px; background:transparent; color:var(--ink-2); font-size:13px; font-weight:500; cursor:pointer; }
+  .view-toggle button[aria-pressed="true"]{ background:var(--tab-on); color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(15,27,45,.1); }
+  .akis{ display:flex; flex-direction:column; gap:8px; }
+  .akis-item{ display:grid; grid-template-columns:46px 20px minmax(0, 1fr); align-items:center; column-gap:6px; width:100%; padding:0; border:none; background:none; text-align:left; cursor:pointer; }
+  .akis-time{ font-family:var(--font-display); font-weight:600; font-size:15px; font-variant-numeric:tabular-nums; }
+  .akis-time.none{ font-family:var(--font-ui); font-size:12px; font-weight:500; color:var(--ink-2); }
+  .akis-node{ position:relative; align-self:stretch; display:flex; align-items:center; justify-content:center; }
+  .akis-node::before{ content:""; position:absolute; top:-8px; bottom:-8px; left:50%; width:2px; margin-left:-1px; background:var(--line); }
+  .akis-item:first-child .akis-node::before{ top:50%; }
+  .akis-item:last-child .akis-node::before{ bottom:50%; }
+  .akis-item:only-child .akis-node::before{ display:none; }
+  .akis-node i{ position:relative; width:12px; height:12px; border-radius:50%; background:var(--c); box-shadow:0 0 0 4px var(--bg); }
+  .akis-card{ display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:60px; padding:9px 12px 9px 14px; border-radius:17px; background:var(--surface); border:1px solid var(--line-soft); box-shadow:var(--shadow); }
+  .akis-item:active .akis-card{ transform:scale(.99); }
+  .akis-item.live .akis-card{ border:1.5px solid var(--c); }
+  .akis-main{ display:block; min-width:0; }
+  .akis-title{ display:block; font-size:15px; font-weight:600; }
+  .akis-detail{ display:block; margin-top:2px; font-size:12.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .akis-val{ flex:none; font-family:var(--font-display); font-weight:600; font-size:15px; font-variant-numeric:tabular-nums; }
+  .chip{ flex:none; font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; background:var(--c-soft); color:var(--c-ink); white-space:nowrap; }
+  .akis-empty{ padding:20px 16px; text-align:center; color:var(--ink-2); font-size:14px; line-height:1.5; border:1.5px dashed var(--line); border-radius:18px; }
+  .list-summary{ display:block; width:100%; margin:8px 0 2px; padding:10px 12px; border:none; border-radius:12px; background:var(--surface-2); color:var(--ink-2); font-size:13px; text-align:left; cursor:pointer; }
+  .list-summary span{ color:var(--primary); font-weight:600; }
+
+  /* Listeler görünümü ve düzenleme penceresindeki kayıt satırları */
+  .entry-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:14px 0; border-bottom:1px solid var(--line-soft); }
   .entry-row:last-of-type{ border-bottom:none; }
-  .field-group{ display:flex; flex-direction:column; gap:4px; min-width:0; }
-  .field-group label{ font-size:11px; color:var(--ink-soft); }
+  .entry-row.in-sheet{ padding:0; border-bottom:none; }
+  .field-group{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .field-group label, .mini-group label{ font-size:12px; font-weight:500; color:var(--ink-2); }
   .field-group > div{ display:flex; gap:6px; }
-  input[type="time"]{ border:1px solid var(--line); border-radius:9px; padding:7px 6px; background:#fff; color:var(--ink); width:100%; min-width:0; }
+  input[type="time"]{ height:44px; border:1px solid var(--line); border-radius:12px; padding:0 8px; background:var(--surface-2); color:var(--ink); width:100%; min-width:0; font-variant-numeric:tabular-nums; }
   /* Temizlenebilir saat kutusu: iPhone'un saat seçicisindeki "Sıfırla" alanı her
      zaman boşaltmıyor, o yüzden her saat kutusunun kendi ⊗ düğmesi var.
      iPhone saat kutusuna "width:100%" uygulamayıp kendi 10em genişliğinde
      bırakıyor; genişliği flex belirlesin diye kutu bir flex öğesi. */
   input[type="time"]::-webkit-date-and-time-value{ min-height:1.2em; } /* iOS: boş kutu dolu olandan basık görünmesin */
   .time-field{ position:relative; display:flex; flex:1 1 0; min-width:0; }
-  .time-field input[type="time"]{ flex:1 1 0; min-width:0; padding:7px 26px 7px 8px; }
-  .time-clear{ position:absolute; top:50%; right:0; transform:translateY(-50%); width:28px; height:34px; padding:0; border:none; background:none; color:var(--ink-soft); opacity:.5; display:none; align-items:center; justify-content:center; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .time-field input[type="time"]{ flex:1 1 0; min-width:0; padding:0 28px 0 9px; }
+  .time-clear{ position:absolute; top:50%; right:0; transform:translateY(-50%); width:30px; height:40px; padding:0; border:none; background:none; color:var(--ink-2); opacity:.55; display:none; align-items:center; justify-content:center; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .time-field.has-value .time-clear{ display:flex; }
-  .time-clear svg{ width:16px; height:16px; }
-  .time-clear:active{ opacity:.85; }
+  .time-clear svg{ width:17px; height:17px; }
+  .time-clear:active{ opacity:.9; }
   /* Emzirme satırı: her meme kendi satırında — "Sağ meme  [başlangıç] – [bitiş]" */
-  .breast-times{ grid-column:1 / -1; display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px 10px; align-items:center; }
-  .breast-label{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  .breast-times{ grid-column:1 / -1; display:grid; grid-template-columns:auto minmax(0,1fr); gap:10px 10px; align-items:center; }
+  .breast-label{ font-size:12.5px; font-weight:500; color:var(--ink-2); white-space:nowrap; }
   .time-range{ display:flex; align-items:center; gap:5px; min-width:0; }
   .time-range .time-field{ max-width:170px; }
-  .range-dash{ color:var(--ink-soft); font-size:13px; flex-shrink:0; }
-
+  .range-dash{ color:var(--ink-3); font-size:13px; flex-shrink:0; }
   /* Mama / Ek süt / Sağılan: üçü tek satırda yan yana (birim etikette: "Mama (cc)") */
   .feed-row-extra{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; align-items:end; margin-top:2px; }
   .feed-row-extra .mini-group{ min-width:0; }
-  .mini-group label{ display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
+  .mini-group label{ display:block; margin-bottom:6px; }
   .feed-row-extra .mini-group label, .formula-amount label{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .stepper{ display:flex; align-items:center; justify-content:space-between; background:var(--blue-soft); border-radius:999px; padding:3px; }
-  .stepper button{ flex-shrink:0; width:26px; height:26px; border-radius:50%; border:none; background:#fff; color:var(--blue-deep); font-size:16px; line-height:1; cursor:pointer; }
+  .stepper{ display:flex; align-items:center; justify-content:space-between; height:44px; background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:3px; }
+  .stepper button{ flex-shrink:0; width:30px; height:36px; border-radius:11px; border:none; background:var(--surface); color:var(--primary); font-size:18px; line-height:1; cursor:pointer; box-shadow:0 1px 2px rgba(15,27,45,.08); }
+  :root[data-theme="dark"] .stepper button{ background:var(--surface-3); box-shadow:none; }
   .stepper .val{ flex:1; min-width:0; display:flex; align-items:center; justify-content:center; }
-  .stepper .val input{ width:100%; max-width:48px; padding:0; border:none; background:transparent; color:var(--ink); font-size:16px; font-weight:600; text-align:center; -moz-appearance:textfield; appearance:textfield; }
+  .stepper .val input{ width:100%; max-width:48px; padding:0; border:none; background:transparent; color:var(--ink); font-size:16px; font-weight:600; text-align:center; font-variant-numeric:tabular-nums; -moz-appearance:textfield; appearance:textfield; }
   .stepper .val input::-webkit-outer-spin-button, .stepper .val input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .formula-amount{ align-self:end; }
   .add-btn-row{ display:flex; gap:8px; }
   .add-btn-row .add-btn{ flex:1; width:auto; }
-  .formula-amount{ align-self:end; }
-  .switch-row{ position:relative; display:flex; align-items:center; gap:14px; cursor:pointer; }
-  .switch-text{ flex:1; min-width:0; }
-  .switch-title{ display:block; font-size:15px; font-weight:600; }
-  .switch-row .settings-hint{ display:block; margin-top:4px; }
-  .switch-input{ position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
-  .switch{ position:relative; flex-shrink:0; width:48px; height:28px; border-radius:999px; background:var(--line); transition:background .2s; }
-  .switch::after{ content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:transform .2s; }
-  .switch-input:checked + .switch{ background:var(--sage); }
-  .switch-input:checked + .switch::after{ transform:translateX(20px); }
-  .switch-input:focus-visible + .switch{ outline:2px solid var(--blue-deep); outline-offset:2px; }
-  .check-pair{ display:flex; gap:14px; }
-  .check-pill{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); cursor:pointer; user-select:none; }
-  .check-pill input{ width:17px; height:17px; accent-color:var(--blue-deep); }
-  .check-pill.on{ color:var(--ink); font-weight:600; }
-  .row-delete{ grid-column:1 / -1; text-align:right; background:none; border:none; color:var(--ink-soft); font-size:12px; padding:2px 0 0; cursor:pointer; }
-  /* Günlük bakış: seçili günün toplamları, 3×2 kutucuk */
-  .day-chip{ margin-left:auto; font-family:'Karla',sans-serif; font-size:11.5px; font-weight:600; color:var(--blue-deep); background:var(--blue-soft); padding:3px 10px; border-radius:999px; white-space:nowrap; }
-  .day-stats{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin-top:10px; }
-  .day-stat{ min-width:0; padding:10px 6px 9px; border-radius:14px; background:var(--paper); text-align:center; }
-  .day-stat-label{ font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .day-stat-val{ margin-top:3px; font-family:'Fredoka',sans-serif; font-size:21px; font-weight:600; line-height:1.15; color:var(--ink); }
-  .day-stat-val small{ margin-left:2px; font-size:12px; font-weight:500; color:var(--ink-soft); }
-  .day-stat-sub{ margin-top:1px; font-size:10.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .day-stat.total{ background:var(--line); }
-  .day-stat.zero .day-stat-val{ opacity:.4; }
-  /* Silme onayı (Evet/Hayır) */
-  .confirm-dialog{ padding:0; border:none; border-radius:20px; background:var(--card); color:var(--ink); width:min(320px, calc(100vw - 48px)); max-width:none; box-shadow:0 18px 50px rgba(74,53,32,.28); }
-  .confirm-dialog::backdrop{ background:rgba(74,53,32,.38); }
+  .add-btn{ width:100%; margin-top:10px; height:46px; border-radius:var(--radius-sm); border:1.5px dashed var(--line); background:transparent; color:var(--ink-2); font-size:14px; font-weight:600; cursor:pointer; }
+  .add-btn:active{ transform:scale(.99); }
+  .add-btn:disabled{ opacity:.6; }
+  .row-delete{ grid-column:1 / -1; justify-self:end; min-height:40px; margin:-6px 0 -8px; background:none; border:none; color:var(--danger); font-size:12.5px; font-weight:500; padding:4px 2px 0; cursor:pointer; }
+  .check-pair{ display:flex; gap:8px; }
+  .check-pill{ display:flex; align-items:center; gap:8px; height:44px; padding:0 13px; border-radius:14px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink-2); font-size:14px; font-weight:600; cursor:pointer; user-select:none; -webkit-user-select:none; }
+  .check-pill.on{ background:var(--c-soft); border-color:var(--c); color:var(--c-ink); }
+  .diaper-checks{ align-self:end; }
+  .expand-btn{ margin-left:auto; flex-shrink:0; width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; }
+  .expand-btn svg{ width:16px; height:16px; }
+  .expand-btn[aria-expanded="true"]{ background:var(--primary-soft); border-color:transparent; color:var(--primary); }
+
+  /* Yuvarlak onay kutuları (rutinler, aşılar, çiş/kaka) */
+  .routine-list input[type="checkbox"], .vaccine-row input[type="checkbox"], .check-pill input[type="checkbox"]{
+    -webkit-appearance:none; appearance:none; flex:none; margin:0; width:24px; height:24px; border-radius:50%;
+    border:2px solid var(--line); background:var(--surface); display:grid; place-content:center; cursor:pointer;
+  }
+  .check-pill input[type="checkbox"]{ width:20px; height:20px; }
+  .routine-list input[type="checkbox"]:checked, .vaccine-row input[type="checkbox"]:checked, .check-pill input[type="checkbox"]:checked{ background:var(--c, var(--diaper)); border-color:var(--c, var(--diaper)); }
+  .routine-list input[type="checkbox"]:checked::after, .vaccine-row input[type="checkbox"]:checked::after, .check-pill input[type="checkbox"]:checked::after{
+    content:""; width:9px; height:5px; margin-top:-2px; border:2.4px solid var(--on-c, #FFFFFF); border-top:none; border-right:none; transform:rotate(-45deg);
+  }
+
+  .routine-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+  .routine-list li{ display:flex; align-items:center; gap:12px; min-height:48px; padding:6px 2px; border-bottom:1px solid var(--line-soft); cursor:pointer; }
+  .routine-list li:last-child{ border-bottom:none; }
+  .routine-list span{ font-size:15px; }
+  .routine-list li.checked span{ text-decoration:line-through; color:var(--ink-2); }
+  .notes-card textarea{ width:100%; min-height:100px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px; color:var(--ink); resize:vertical; background:var(--surface-2); line-height:1.5; }
+  .sync-status{ text-align:center; font-size:12px; color:var(--ink-2); padding:8px 0 4px; min-height:18px; }
+  .start-page-btn{ display:flex; align-items:center; gap:7px; margin:10px auto 0; height:40px; padding:0 15px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); font-size:12.5px; font-weight:500; cursor:pointer; }
+  .start-page-btn svg{ width:15px; height:15px; flex-shrink:0; opacity:.45; }
+  .start-page-btn.is-start{ color:var(--primary); background:var(--primary-soft); border-color:transparent; font-weight:600; cursor:default; }
+  .start-page-btn.is-start svg{ opacity:1; }
+
+  /* Veri gelene kadar giriş alanları kilitli */
+  #pageDay .card, #pageDay .akis{ transition:opacity .15s; }
+  #pageDay.day-loading .card:not(.no-lock), #pageDay.day-loading .akis, #pageDay.day-loading .section-head{ pointer-events:none; opacity:.55; transition:opacity .2s .15s; }
+
+  /* ===== Haftalık bakış ===== */
+  .weekly-row{ display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line-soft); }
+  .weekly-row:last-child{ border-bottom:none; }
+  .weekly-label{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-2); width:108px; flex-shrink:0; }
+  .weekly-label i{ width:8px; height:8px; border-radius:50%; background:var(--c); flex:none; }
+  .weekly-bars{ flex:1; display:flex; align-items:flex-end; gap:4px; height:30px; }
+  .weekly-bars .bar{ flex:1; background:var(--c, var(--primary)); border-radius:4px; min-height:4px; opacity:.9; }
+  .weekly-value{ font-family:var(--font-display); font-size:15px; font-weight:600; width:58px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
+  .weekly-bars .bar.empty{ opacity:.18; }   /* o gün o türden kayıt yok — ortalamaya girmez */
+  .weekly-bars .bar.today{ opacity:.4; }    /* bugün henüz bitmedi — ortalamaya girmez */
+  .weekly-days{ border-bottom:none; padding:6px 0 0; }
+  .weekly-day-labels{ height:auto; align-items:center; }
+  .weekly-day-labels span{ flex:1; text-align:center; font-size:10px; color:var(--ink-2); }
+  .weekly-day-labels span.today{ color:var(--primary); font-weight:700; }
+  .weekly-note{ margin-top:12px; font-size:11.5px; }
+  .milestone-count{ margin-left:auto; font-family:var(--font-ui); font-size:12.5px; font-weight:500; color:var(--ink-2); }
+
+  /* ===== Alttaki hızlı kayıt şeridi ===== */
+  .dock{ position:fixed; z-index:40; left:0; right:0; bottom:calc(env(safe-area-inset-bottom,0px) + 10px); margin:0 auto; width:calc(100% - 24px); max-width:536px; height:76px; padding:0 6px; border-radius:26px; background:var(--dock); border:1px solid var(--dock-line); box-shadow:var(--shadow-lg); display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); align-items:center; }
+  .dock-btn{ height:66px; border:none; border-radius:20px; background:transparent; color:var(--dock-ink); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-size:11.5px; font-weight:600; padding:0; cursor:pointer; }
+  .dock-btn:active{ background:rgba(255,255,255,.07); }
+  .dock-ic{ width:38px; height:38px; border-radius:13px; display:flex; align-items:center; justify-content:center; background:var(--dk-soft); color:var(--dk); }
+  .dock-ic .i{ width:19px; height:19px; }
+  .dock-btn.k-feed{ --dk:#F7C35F; --dk-soft:rgba(245,190,85,.2); }
+  .dock-btn.k-formula{ --dk:#F6A56C; --dk-soft:rgba(243,155,92,.2); }
+  .dock-btn.k-diaper{ --dk:#6FDCC6; --dk-soft:rgba(95,211,187,.18); }
+  .dock-btn.k-sleep{ --dk:#B4A8FF; --dk-soft:rgba(169,155,255,.22); }
+  .dock-btn.running .dock-ic{ background:var(--dk); color:#141824; animation:live-pulse 1.6s ease-in-out infinite; }
+  .dock-btn.running .dock-label{ font-family:var(--font-display); font-size:13px; font-variant-numeric:tabular-nums; }
+  .dock-btn:disabled{ opacity:.5; }
+  /* iPhone'da klavye açıkken (not, saat, miktar yazarken) şerit yazılan alanı örtmesin */
+  #appScreen.typing .dock{ display:none; }
+
+  /* ===== Alttan açılan pencere: hızlı kayıt seçenekleri ve kayıt düzenleme ===== */
+  .sheet{ width:100%; max-width:560px; max-height:min(90vh, 760px); margin:auto auto 0; padding:0; border:none; border-radius:28px 28px 0 0; background:var(--surface); color:var(--ink); box-shadow:var(--shadow-lg); overflow:hidden; }
+  .sheet[open]{ animation:sheet-up .22s ease-out; }
+  @keyframes sheet-up{ from{ transform:translateY(40px); opacity:.6; } to{ transform:none; opacity:1; } }
+  .sheet::backdrop{ background:var(--backdrop); }
+  .sheet:not(:modal)[open]{ position:fixed; left:0; right:0; bottom:0; z-index:70; }
+  .sheet-inner{ max-height:min(90vh, 760px); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:10px 18px calc(env(safe-area-inset-bottom,0px) + 20px); }
+  .sheet-grip{ width:40px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 10px; }
+  .sheet-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
+  .sheet-title{ margin:0; font-size:21px; }
+  .sheet-close{ width:40px; height:40px; flex:none; border-radius:50%; border:none; background:var(--surface-2); color:var(--ink-2); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; }
+  .sheet-close .i{ width:18px; height:18px; }
+  .sheet-actions{ display:flex; gap:10px; margin-top:20px; }
+  .sheet-actions .btn{ flex:1; }
+  .sheet-note{ margin:12px 2px 0; font-size:13px; line-height:1.5; color:var(--ink-2); }
+  .choice-grid{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+  .choice-grid.three{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  .choice{ min-height:112px; border-radius:22px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); padding:14px; display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; gap:10px; text-align:left; cursor:pointer; }
+  .choice.wide{ grid-column:1 / -1; min-height:96px; flex-direction:row; align-items:center; justify-content:flex-start; gap:14px; }
+  .choice:active{ transform:scale(.98); }
+  .choice .ci{ width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--c-soft); color:var(--c-ink); flex:none; }
+  .choice .ci .i{ width:20px; height:20px; }
+  .choice b{ display:block; font-family:var(--font-display); font-weight:600; font-size:21px; line-height:1.1; }
+  .choice small{ display:block; margin-top:3px; font-size:12.5px; color:var(--ink-2); }
+  .choice-grid.three .choice{ min-height:104px; padding:12px; }
+  .choice-grid.three .choice b{ font-size:18px; }
+
+  /* ===== Silme onayı ve "Geri al" ===== */
+  .confirm-dialog{ padding:0; border:none; border-radius:22px; background:var(--surface); color:var(--ink); width:min(330px, calc(100vw - 48px)); max-width:none; box-shadow:var(--shadow-lg); }
+  .confirm-dialog::backdrop{ background:var(--backdrop); }
   .confirm-inner{ padding:22px 20px 18px; text-align:center; }
-  .confirm-title{ margin:0; font-family:'Fredoka',sans-serif; font-size:18px; font-weight:600; }
-  .confirm-detail{ margin:8px 0 0; font-size:14px; line-height:1.45; color:var(--ink-soft); }
+  .confirm-title{ margin:0; font-family:var(--font-display); font-size:19px; font-weight:600; }
+  .confirm-detail{ margin:8px 0 0; font-size:14px; line-height:1.45; color:var(--ink-2); }
   .confirm-actions{ display:flex; gap:10px; margin-top:20px; }
-  .confirm-actions button{ flex:1; padding:12px 10px; border-radius:12px; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer; }
-  .confirm-no{ border:1px solid var(--line); background:var(--paper); color:var(--ink); }
-  .confirm-yes{ border:none; background:var(--danger); color:#fff; }
-  /* Silindikten sonra "Geri al" bildirimi; alttaki çubuk kalan süreyi gösterir */
-  .undo-toast{ position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 74px); transform:translateX(-50%); z-index:60; width:max-content; max-width:calc(100vw - 32px); display:flex; align-items:center; gap:12px; padding:10px 10px 10px 16px; border-radius:14px; background:var(--ink); color:#FFF4DF; font-size:14px; box-shadow:0 10px 30px rgba(74,53,32,.3); overflow:hidden; }
+  .confirm-actions button{ flex:1; height:48px; border-radius:14px; font-size:15px; font-weight:600; cursor:pointer; }
+  .confirm-no{ border:1px solid var(--line); background:var(--surface-2); color:var(--ink); }
+  .confirm-yes{ border:none; background:var(--danger); color:var(--on-danger); }
+  .undo-toast{ position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 98px); transform:translateX(-50%); z-index:60; width:max-content; max-width:calc(100vw - 32px); display:flex; align-items:center; gap:12px; padding:10px 10px 10px 16px; border-radius:16px; background:var(--toast-bg); color:var(--toast-ink); font-size:14px; box-shadow:var(--shadow-lg); overflow:hidden; }
   .undo-text{ min-width:0; }
-  .undo-btn{ flex-shrink:0; border:none; background:rgba(255,244,223,.12); color:#F4C27A; font-family:inherit; font-size:14px; font-weight:700; padding:7px 12px; border-radius:9px; cursor:pointer; }
-  .undo-bar{ position:absolute; left:0; bottom:0; width:100%; height:3px; background:#F4C27A; transform-origin:left center; }
+  .undo-btn{ flex-shrink:0; height:36px; border:none; background:rgba(127,127,127,.16); color:var(--toast-accent); font-size:14px; font-weight:700; padding:0 12px; border-radius:10px; cursor:pointer; }
+  .undo-bar{ position:absolute; left:0; bottom:0; width:100%; height:3px; background:var(--toast-accent); transform-origin:left center; }
   .undo-bar.run{ animation:undo-countdown var(--undo-ms, 10s) linear forwards; }
   @keyframes undo-countdown{ from{ transform:scaleX(1); } to{ transform:scaleX(0); } }
 
-  .add-btn{ width:100%; margin-top:10px; padding:12px; border-radius:var(--radius-sm); border:1.5px dashed var(--line); background:transparent; color:var(--ink-soft); font-size:14px; font-weight:600; cursor:pointer; }
-  .add-btn:active{ transform:scale(.99); }
-
-  .routine-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:0; }
-  .routine-list li{ display:flex; align-items:center; gap:12px; padding:11px 2px; border-bottom:1px solid var(--line); cursor:pointer; }
-  .routine-list li:last-child{ border-bottom:none; }
-  .routine-list input[type="checkbox"]{ width:22px; height:22px; border-radius:50%; accent-color:var(--sage); flex-shrink:0; }
-  .card[data-accent="pink"] .routine-list input[type="checkbox"]{ accent-color:var(--pink); }
-  .routine-list span{ font-size:15px; }
-  .routine-list li.checked span{ text-decoration:line-through; color:var(--ink-soft); }
-
-  .notes-card textarea{ width:100%; min-height:96px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px; color:var(--ink); resize:vertical; background:#fff; }
-
-  .weekly-row{ display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); }
-  .weekly-row:last-child{ border-bottom:none; }
-  .weekly-label{ font-size:12.5px; color:var(--ink-soft); width:104px; flex-shrink:0; }
-  .weekly-bars{ flex:1; display:flex; align-items:flex-end; gap:4px; height:28px; }
-  .weekly-bars .bar{ flex:1; background:var(--blue-soft); border-radius:3px; min-height:4px; }
-  .weekly-value{ font-size:15px; font-weight:600; width:56px; text-align:right; flex-shrink:0; }
-  .weekly-bars .bar.empty{ opacity:.35; }   /* o gün o türden kayıt yok — ortalamaya girmez */
-  .weekly-bars .bar.today{ opacity:.45; }   /* bugün henüz bitmedi — ortalamaya girmez */
-  .weekly-days{ border-bottom:none; padding:5px 0 0; }
-  .weekly-day-labels{ height:auto; align-items:center; }
-  .weekly-day-labels span{ flex:1; text-align:center; font-size:9.5px; color:var(--ink-soft); }
-  .weekly-day-labels span.today{ color:var(--blue-deep); font-weight:700; }
-  .weekly-note{ margin-top:10px; font-size:11px; line-height:1.4; }
-  .milestone-count{ margin-left:auto; font-size:12px; font-weight:400; color:var(--ink-soft); }
-
-  .sync-status{ text-align:center; font-size:12px; color:var(--ink-soft); padding:10px 0 4px; min-height:18px; }
-
-  .calendar-overlay{ position:fixed; inset:0; background:rgba(70,57,46,.38); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; }
-  .calendar-popup{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px; width:100%; max-width:320px; }
-  .calendar-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-  .calendar-head button{ width:32px; height:32px; border-radius:50%; border:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:16px; cursor:pointer; }
-  .calendar-month-label{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; }
-  .calendar-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
+  /* ===== Takvim ===== */
+  .calendar-overlay{ position:fixed; inset:0; background:var(--backdrop); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .calendar-popup{ background:var(--surface); border:1px solid var(--line-soft); border-radius:24px; padding:18px; width:100%; max-width:340px; box-shadow:var(--shadow-lg); }
+  .calendar-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .calendar-head button{ width:40px; height:40px; border-radius:50%; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); font-size:17px; cursor:pointer; }
+  .calendar-month-label{ font-family:var(--font-display); font-weight:600; font-size:16px; }
+  .calendar-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:11px; color:var(--ink-2); margin-bottom:4px; }
   .calendar-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-  .calendar-grid button{ aspect-ratio:1; border:none; background:none; border-radius:50%; font-size:14px; color:var(--ink); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:0; }
-  .calendar-grid button.today{ font-weight:700; box-shadow:inset 0 0 0 2px var(--gold); }
-  .calendar-grid button.selected{ background:var(--blue-deep); color:#fff; box-shadow:none; }
-  .cal-dot{ width:4px; height:4px; border-radius:50%; background:var(--sage); }
+  .calendar-grid button{ aspect-ratio:1; border:none; background:none; border-radius:50%; font-size:14px; color:var(--ink); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:0; font-variant-numeric:tabular-nums; }
+  .calendar-grid button.today{ font-weight:700; box-shadow:inset 0 0 0 2px var(--primary); }
+  .calendar-grid button.selected{ background:var(--strong); color:var(--strong-ink); box-shadow:none; }
+  .cal-dot{ width:4px; height:4px; border-radius:50%; background:var(--diaper); }
   .cal-dot.cal-dot-empty{ background:transparent; }
-  .calendar-grid button.selected .cal-dot{ background:#fff; }
-  .calendar-close{ width:100%; margin-top:12px; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--line); background:transparent; color:var(--ink-soft); font-size:14px; cursor:pointer; }
+  .calendar-grid button.selected .cal-dot{ background:var(--strong-ink); }
+  .calendar-close{ width:100%; margin-top:12px; height:46px; border-radius:var(--radius-sm); border:1px solid var(--line); background:transparent; color:var(--ink-2); font-size:14px; font-weight:600; cursor:pointer; }
 
+  /* ===== Ayarlar ===== */
+  .settings-screen{ max-width:560px; margin:0 auto; }
+  .settings-bar{ position:sticky; top:0; z-index:5; background:var(--bg); }
+  .settings-title{ font-family:var(--font-display); font-weight:600; font-size:20px; }
+  .topbar-spacer{ width:44px; flex:none; }
+  .settings-main{ padding:2px 16px calc(env(safe-area-inset-bottom,0px) + 32px); }
   /* Ayarlar: uzun seçenek listeleri başlığa dokununca açılır/kapanır (biri açılınca diğeri kapanır) */
   .settings-acc > summary{ list-style:none; display:flex; align-items:center; gap:8px; min-height:44px; margin:-6px 0; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
   .settings-acc > summary::-webkit-details-marker{ display:none; }
   .settings-acc > summary h2{ flex:1; min-width:0; margin:0; }
-  .settings-acc > summary:focus-visible{ outline:2px solid var(--blue-deep); outline-offset:4px; border-radius:10px; }
-  .acc-count{ flex-shrink:0; font-size:12px; color:var(--ink-soft); white-space:nowrap; }
-  .acc-chevron{ flex-shrink:0; width:30px; height:30px; border-radius:50%; background:var(--paper); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; transition:transform .2s ease; }
+  .settings-acc > summary:focus-visible{ outline:2px solid var(--primary); outline-offset:4px; border-radius:10px; }
+  .acc-count{ flex-shrink:0; font-size:12px; color:var(--ink-2); white-space:nowrap; }
+  .acc-chevron{ flex-shrink:0; width:32px; height:32px; border-radius:50%; background:var(--surface-2); color:var(--ink-2); display:flex; align-items:center; justify-content:center; transition:transform .2s ease; }
   .settings-acc[open] .acc-chevron{ transform:rotate(180deg); }
   .settings-acc .acc-body{ margin-top:16px; }
   .settings-acc .acc-hint{ margin:0 0 10px; }
   .settings-list{ display:flex; flex-direction:column; gap:8px; }
   .settings-item{ display:flex; gap:8px; align-items:center; }
-  .settings-item-label{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
-  .settings-item-age{ width:52px; flex-shrink:0; border:1px solid var(--line); border-radius:9px; padding:9px 6px; background:#fff; color:var(--ink); text-align:center; }
-  .settings-age-input{ width:52px; flex-shrink:0; }
+  .settings-item-label{ flex:1; height:44px; border:1px solid var(--line); border-radius:12px; padding:0 12px; background:var(--surface-2); color:var(--ink); min-width:0; }
+  .settings-item-age{ width:54px; height:44px; flex-shrink:0; border:1px solid var(--line); border-radius:12px; padding:0 6px; background:var(--surface-2); color:var(--ink); text-align:center; }
+  .settings-age-input{ width:54px; flex-shrink:0; }
   /* "Ay"/"Hafta" kutusu ekleme satırında isim kutusu kadar genişliyordu */
-  .settings-add-row .settings-age-input{ flex:0 0 58px; width:58px; padding:9px 6px; text-align:center; }
-  .settings-move{ display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
-  .settings-move button{ width:32px; height:19px; padding:0; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink-soft); font-size:9px; line-height:1; cursor:pointer; }
-  .settings-move button:active{ background:var(--blue-soft); }
+  .settings-add-row .settings-age-input{ flex:0 0 60px; width:60px; padding:0 6px; text-align:center; }
+  .settings-move{ display:flex; flex-direction:column; gap:3px; flex-shrink:0; }
+  .settings-move button{ width:34px; height:20px; padding:0; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--ink-2); font-size:9px; line-height:1; cursor:pointer; }
+  .settings-move button:active{ background:var(--primary-soft); }
   .settings-move button:disabled{ opacity:.3; cursor:default; }
-  .settings-item-delete{ border:none; background:none; color:var(--danger); font-size:13px; padding:6px 2px; flex-shrink:0; cursor:pointer; }
+  .settings-item-delete{ border:none; background:none; color:var(--danger); font-size:13px; font-weight:500; padding:10px 4px; flex-shrink:0; cursor:pointer; }
   .settings-add-row{ display:flex; gap:8px; margin-top:12px; }
-  .settings-add-row input{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
-  .settings-add-row button{ border:none; border-radius:9px; background:var(--blue-deep); color:#fff; padding:9px 16px; font-weight:600; font-size:14px; flex-shrink:0; cursor:pointer; }
+  .settings-add-row input{ flex:1; height:44px; border:1px solid var(--line); border-radius:12px; padding:0 12px; background:var(--surface-2); color:var(--ink); min-width:0; }
+  .settings-add-row button{ height:44px; border:none; border-radius:12px; background:var(--strong); color:var(--strong-ink); padding:0 18px; font-weight:600; font-size:14px; flex-shrink:0; cursor:pointer; }
+  #birthDateInput{ height:46px; border:1px solid var(--line); border-radius:12px; padding:0 12px; background:var(--surface-2); color:var(--ink); width:100%; }
+  .switch-row{ position:relative; display:flex; align-items:center; gap:14px; cursor:pointer; }
+  .switch-text{ flex:1; min-width:0; }
+  .switch-title{ display:block; font-size:15px; font-weight:600; }
+  .switch-row .settings-hint{ display:block; margin-top:4px; }
+  .switch-input{ position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+  .switch{ position:relative; flex-shrink:0; width:50px; height:30px; border-radius:999px; background:var(--surface-3); transition:background .2s; }
+  .switch::after{ content:""; position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .2s; }
+  .switch-input:checked + .switch{ background:var(--diaper); }
+  .switch-input:checked + .switch::after{ transform:translateX(20px); }
+  .switch-input:focus-visible + .switch{ outline:2px solid var(--primary); outline-offset:2px; }
+  .account-email{ margin:0 0 12px; word-break:break-all; }
+  .logout-btn{ width:100%; height:48px; border-radius:var(--radius-sm); border:1px solid var(--line); background:transparent; color:var(--danger); font-size:14.5px; font-weight:600; cursor:pointer; }
+  .logout-btn:active{ transform:scale(.99); }
 
-  .growth-tabs{ display:flex; gap:6px; margin-bottom:12px; }
-  .growth-tab{ flex:1; padding:8px 4px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-size:12.5px; font-weight:600; cursor:pointer; }
-  .growth-tab.active{ background:var(--blue-deep); border-color:var(--blue-deep); color:#fff; }
+  /* ===== Büyüme ===== */
+  .growth-tabs{ display:flex; gap:4px; margin-bottom:12px; padding:4px; border-radius:14px; background:var(--surface-3); }
+  .growth-tab{ flex:1; height:36px; border-radius:10px; border:none; background:transparent; color:var(--ink-2); font-size:13px; font-weight:600; cursor:pointer; }
+  .growth-tab.active{ background:var(--tab-on); color:var(--ink); box-shadow:0 1px 3px rgba(15,27,45,.1); }
   .growth-chart{ width:100%; height:auto; display:block; }
-  .chart-axis-label{ font-size:8px; fill:var(--ink-soft); }
-  .chart-empty{ text-align:center; color:var(--ink-soft); font-size:13px; padding:22px 0; }
-  .growth-latest{ text-align:center; font-size:13px; color:var(--ink-soft); margin:8px 0 4px; }
-  .growth-list-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .chart-axis-label{ font-size:8px; fill:var(--ink-2); }
+  .chart-empty{ text-align:center; color:var(--ink-2); font-size:13.5px; padding:22px 0; }
+  .growth-latest{ text-align:center; font-size:13px; color:var(--ink-2); margin:8px 0 4px; }
+  .growth-list-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:44px; border-bottom:1px solid var(--line-soft); font-size:13.5px; }
   .growth-list-row:last-child{ border-bottom:none; }
-  .growth-list-row .row-delete-inline{ border:none; background:none; color:var(--ink-soft); font-size:12px; cursor:pointer; flex-shrink:0; }
-  .growth-add-form{ background:var(--paper); border-radius:var(--radius-sm); padding:12px; margin-top:10px; }
-  .growth-add-form input[type="date"]{ border:1px solid var(--line); border-radius:9px; padding:8px 9px; background:#fff; color:var(--ink); }
-  .growth-inputs{ display:flex; flex-wrap:wrap; gap:12px; margin:10px 0 4px; }
-  .growth-inputs input[type="number"]{ width:88px; border:1px solid var(--line); border-radius:9px; padding:8px 9px; background:#fff; color:var(--ink); }
+  .growth-list-row .row-delete-inline{ border:none; background:none; color:var(--danger); font-size:12.5px; padding:10px 2px; cursor:pointer; flex-shrink:0; }
+  .growth-add-form{ background:var(--surface-2); border-radius:var(--radius-sm); padding:14px; margin-top:10px; }
+  .growth-add-form input[type="date"], .growth-inputs input[type="number"]{ height:44px; border:1px solid var(--line); border-radius:12px; padding:0 10px; background:var(--surface); color:var(--ink); }
+  .growth-inputs{ display:flex; flex-wrap:wrap; gap:12px; margin:12px 0 4px; }
+  .growth-inputs input[type="number"]{ width:96px; }
   #saveGrowthBtn{ margin-top:8px; }
 
-  #birthDateInput{ border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); width:100%; }
-  .settings-hint{ font-size:12px; color:var(--ink-soft); margin:8px 0 0; }
-  .ai-tip-text{ font-size:14px; line-height:1.55; color:var(--ink); margin:0; }
-
-  .vaccine-disclaimer{ font-size:11.5px; color:var(--ink-soft); margin:-2px 0 12px; line-height:1.4; }
-  .vaccine-summary{ display:flex; justify-content:space-around; text-align:center; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+  /* ===== Aşı takvimi ===== */
+  .vaccine-disclaimer{ font-size:11.5px; color:var(--ink-2); margin:-4px 0 12px; line-height:1.45; }
+  .vaccine-summary{ display:flex; justify-content:space-around; text-align:center; margin-bottom:10px; padding:10px 0 12px; border-bottom:1px solid var(--line-soft); }
   .vaccine-summary div{ display:flex; flex-direction:column; gap:2px; }
-  .vaccine-summary b{ font-size:19px; font-family:'Fredoka',sans-serif; font-weight:600; }
-  .vaccine-summary span{ font-size:10px; color:var(--ink-soft); }
-  .vaccine-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .vaccine-summary b{ font-size:21px; font-family:var(--font-display); font-weight:600; }
+  .vaccine-summary span{ font-size:11px; color:var(--ink-2); }
+  .vaccine-row{ display:flex; align-items:center; gap:12px; min-height:56px; padding:8px 0; border-bottom:1px solid var(--line-soft); }
   .vaccine-row:last-child{ border-bottom:none; }
-  .vaccine-row input[type="checkbox"]{ width:21px; height:21px; border-radius:50%; accent-color:var(--sage); flex-shrink:0; }
   .vaccine-row-text{ flex:1; min-width:0; }
   .vaccine-row-label{ font-size:13.5px; font-weight:600; }
-  .vaccine-row-dose{ font-weight:400; color:var(--ink-soft); font-size:11.5px; }
-  .vaccine-row-due{ font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
-  .vaccine-row-badge{ font-size:10.5px; padding:3px 9px; border-radius:999px; flex-shrink:0; white-space:nowrap; }
-  .vaccine-row.overdue .vaccine-row-badge{ background:var(--pink-soft); color:var(--danger); }
-  .vaccine-row.upcoming .vaccine-row-badge{ background:var(--gold-soft); color:#9c6a1f; }
+  .vaccine-row-dose{ font-weight:400; color:var(--ink-2); font-size:11.5px; }
+  .vaccine-row-due{ font-size:12px; color:var(--ink-2); margin-top:2px; }
+  .vaccine-row-badge{ font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px; flex-shrink:0; white-space:nowrap; }
+  .vaccine-row.overdue .vaccine-row-badge{ background:var(--danger-soft); color:var(--danger); }
+  .vaccine-row.upcoming .vaccine-row-badge{ background:var(--feed-soft); color:var(--feed-ink); }
   .vaccine-row.done{ opacity:.6; }
   .vaccine-row.done .vaccine-row-label{ text-decoration:line-through; }
-  .vaccine-row.done .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
+  .vaccine-row.done .vaccine-row-badge{ background:var(--diaper-soft); color:var(--diaper-ink); }
 
-  /* --- Gelişim dönemleri: haftalık rehber (1–12. hafta) + uzun dönemler --- */
-  .dev-age{ margin:2px 0 12px; font-size:13px; color:var(--ink-soft); }
+  /* ===== Gelişim dönemleri: haftalık rehber (1–12. hafta) + uzun dönemler ===== */
+  .dev-age{ margin:0 0 12px; font-size:13.5px; color:var(--ink-2); }
   .dev-age b{ color:var(--ink); font-weight:700; }
   .dev-weeks{ display:grid; grid-template-columns:repeat(7, 1fr); gap:6px; }
-  .dev-chip{ position:relative; height:36px; padding:0; border-radius:11px; border:1px solid var(--line); background:#fff; color:var(--ink); font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; cursor:pointer; }
-  .dev-chip.past{ background:var(--paper); color:var(--ink-soft); }
-  .dev-chip.current{ background:var(--blue-deep); border-color:var(--blue-deep); color:#fff; }
-  .dev-chip.selected{ box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--gold); }
+  .dev-chip{ position:relative; height:40px; padding:0; border-radius:12px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-family:var(--font-display); font-weight:600; font-size:15px; cursor:pointer; font-variant-numeric:tabular-nums; }
+  .dev-chip.past{ background:var(--surface-2); color:var(--ink-3); }
+  .dev-chip.current{ background:var(--strong); border-color:var(--strong); color:var(--strong-ink); }
+  .dev-chip.selected{ box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
   .dev-chip.later{ grid-column:span 2; font-size:13px; }
-  .dev-chip .dev-dot{ position:absolute; left:50%; bottom:3px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--gold); }
-  .dev-chip.current .dev-dot{ background:#fff; }
-  .dev-legend{ margin:8px 0 0; font-size:11px; line-height:1.4; color:var(--ink-soft); }
-
-  .dev-hero{ position:relative; overflow:hidden; margin-top:14px; padding:18px 12px 14px; border-radius:18px; background:linear-gradient(165deg, #F8E7CB 0%, #F4DCCB 100%); }
-  .dev-hero::before{ content:""; position:absolute; inset:0; background:url('paw-tile.png') repeat; background-size:28px 44px; opacity:.13; pointer-events:none; }
-  .dev-hero > *{ position:relative; }
-  .dev-title{ display:table; margin:0 auto; padding:9px 16px; border-radius:14px; background:#FBE5DC; color:#A9472B; font-family:'Fredoka',sans-serif; font-weight:700; font-size:21px; line-height:1.2; text-align:center; box-shadow:0 1px 2px rgba(74,53,32,.08); }
-  .dev-status{ margin:9px 0 12px; text-align:center; font-size:12px; font-weight:600; color:var(--ink-soft); }
-  .dev-status .now{ display:inline-block; padding:2px 10px; border-radius:999px; background:var(--blue-deep); color:#fff; }
-  .dev-box{ margin-top:8px; padding:10px 12px; border-radius:14px; background:#fff; font-size:14px; line-height:1.45; color:var(--ink); box-shadow:0 1px 2px rgba(74,53,32,.07); }
+  .dev-chip .dev-dot{ position:absolute; left:50%; bottom:4px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--feed); }
+  .dev-chip.current .dev-dot{ background:var(--strong-ink); }
+  .dev-legend{ margin:8px 0 0; font-size:11.5px; line-height:1.4; color:var(--ink-2); }
+  .dev-hero{ position:relative; overflow:hidden; margin-top:14px; padding:16px 12px 14px; border-radius:20px; background:var(--surface-2); }
+  .dev-title{ display:table; margin:0 auto; padding:9px 16px; border-radius:14px; background:var(--surface); color:var(--ink); font-family:var(--font-display); font-weight:600; font-size:20px; line-height:1.2; text-align:center; box-shadow:var(--shadow); }
+  .dev-status{ margin:10px 0 12px; text-align:center; font-size:12.5px; font-weight:600; color:var(--ink-2); }
+  .dev-status .now{ display:inline-block; padding:2px 10px; border-radius:999px; background:var(--strong); color:var(--strong-ink); }
+  .dev-box{ display:flex; gap:10px; margin-top:8px; padding:11px 12px; border-radius:15px; background:var(--surface); font-size:14px; line-height:1.5; color:var(--ink); }
+  .dev-box .ic{ flex:none; width:28px; height:28px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:var(--c-soft); color:var(--c-ink); }
+  .dev-box .ic .i{ width:15px; height:15px; }
   .dev-box b{ font-weight:700; }
-  .dev-box .ic{ margin-right:5px; }
-  .dev-box.period{ background:var(--gold-soft); }
-  .dev-box.checkup{ background:var(--sage-soft); }
-  .dev-box.you{ background:#FFF4EE; }
-  .dev-alert{ margin-top:10px; padding:8px 11px; border-radius:12px; background:rgba(178,85,74,.09); color:#8E3B31; font-size:12px; line-height:1.45; }
+  .dev-box.period{ background:var(--sleep-soft); }
+  .dev-box.checkup{ background:var(--diaper-soft); }
+  .dev-box.you{ background:var(--pump-soft); }
+  .dev-alert{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; padding:10px 12px; border-radius:13px; background:var(--danger-soft); color:var(--danger); font-size:12.5px; line-height:1.45; }
+  .dev-alert .i{ width:16px; height:16px; margin-top:1px; }
   .dev-nav{ display:flex; justify-content:space-between; gap:8px; margin-top:12px; }
-  .dev-nav button, .dev-reset{ padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-family:'Fredoka',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer; }
+  .dev-nav button, .dev-reset{ height:40px; padding:0 15px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-family:var(--font-display); font-weight:600; font-size:13.5px; cursor:pointer; }
   .dev-nav .spacer{ flex:1; }
   .dev-reset{ display:block; margin:10px auto 0; }
-  .dev-intro{ margin:14px 0 4px; font-size:13px; line-height:1.45; color:var(--ink-soft); }
-
+  .dev-intro{ margin:14px 0 4px; font-size:13.5px; line-height:1.5; color:var(--ink-2); }
   .dev-tl{ margin-top:10px; }
-  .dev-tl-row{ display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .dev-tl-row{ display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft); }
   .dev-tl-row:last-child{ border-bottom:none; }
   .dev-tl-row.past{ opacity:.55; }
-  .dev-tl-row.current{ margin:4px 0; padding:10px; border-bottom:none; border-radius:12px; background:var(--gold-soft); }
+  .dev-tl-row.current{ margin:4px 0; padding:10px; border-bottom:none; border-radius:14px; background:var(--feed-soft); }
   .dev-tl-row.linkable{ cursor:pointer; }
-  .dev-tl-week{ width:38px; flex-shrink:0; text-align:center; font-family:'Fredoka',sans-serif; font-weight:600; font-size:16px; color:var(--gold); }
-  .dev-tl-week span{ display:block; font-size:8.5px; font-weight:400; color:var(--ink-soft); }
+  .dev-tl-week{ width:38px; flex-shrink:0; text-align:center; font-family:var(--font-display); font-weight:600; font-size:17px; color:var(--feed-ink); }
+  .dev-tl-week span{ display:block; font-family:var(--font-ui); font-size:9px; font-weight:400; color:var(--ink-2); }
   .dev-tl-text{ flex:1; min-width:0; }
   .dev-tl-title{ font-size:14px; font-weight:700; }
-  .dev-tl-desc{ margin-top:2px; font-size:12.5px; line-height:1.4; color:var(--ink-soft); }
-  .dev-tl-meta{ margin-top:3px; font-size:11px; color:var(--ink-soft); }
+  .dev-tl-desc{ margin-top:2px; font-size:12.5px; line-height:1.45; color:var(--ink-2); }
+  .dev-tl-meta{ margin-top:3px; font-size:11.5px; color:var(--ink-2); }
   .dev-tl-row .vaccine-row-badge{ margin-top:1px; }
-  .dev-tl-row.current .vaccine-row-badge{ background:var(--blue-deep); color:#fff; font-weight:600; }
-  .dev-tl-row.upcoming .vaccine-row-badge{ background:var(--sage-soft); color:#4c6b46; }
-  .dev-tl-row.past .vaccine-row-badge{ background:transparent; color:var(--ink-soft); }
+  .dev-tl-row.current .vaccine-row-badge{ background:var(--strong); color:var(--strong-ink); }
+  .dev-tl-row.upcoming .vaccine-row-badge{ background:var(--diaper-soft); color:var(--diaper-ink); }
+  .dev-tl-row.past .vaccine-row-badge{ background:transparent; color:var(--ink-2); }
   .dev-disclaimer{ margin:12px 0 0; }
-
-  /* --- 3 sayfalı ana ekran: Sol / Orta / Sağ, yana kaydırılır --- */
-  @supports (height:100dvh){ html,body{ height:100dvh; } body{ min-height:100dvh; } }
-  #appScreen{ display:flex; flex-direction:column; height:100%; padding-bottom:6px; }
-  #appScreen .topbar{ flex:none; }
-  .pager{
-    flex:1; min-height:0; display:flex;
-    overflow-x:auto; overflow-y:hidden;
-    scroll-snap-type:x mandatory; overscroll-behavior-x:contain;
-    scrollbar-width:none; -webkit-overflow-scrolling:touch;
-  }
-  .pager::-webkit-scrollbar{ display:none; }
-  .page{
-    flex:0 0 100%; min-width:0;
-    scroll-snap-align:start; scroll-snap-stop:always;
-    overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
-    padding-bottom:24px;
-  }
-  .page-dots{ flex:none; display:flex; justify-content:center; gap:2px; padding-top:6px; }
-  .page-dots button{ width:28px; height:22px; border:none; background:none; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-  .page-dots button::before{ content:""; width:8px; height:8px; border-radius:50%; background:var(--line); transition:background .2s, transform .2s; }
-  .page-dots button.active::before{ background:var(--blue-deep); transform:scale(1.3); }
-  .start-page-btn{ flex:none; align-self:center; display:flex; align-items:center; gap:5px; padding:3px 12px 2px; border:none; background:none; color:var(--ink-soft); font-family:inherit; font-size:11.5px; cursor:pointer; }
-  .start-page-btn svg{ width:14px; height:14px; flex-shrink:0; opacity:.45; }
-  .start-page-btn.is-start{ color:var(--blue-deep); font-weight:600; cursor:default; }
-  .start-page-btn.is-start svg{ opacity:1; }
-  .diaper-checks{ align-self:end; }
-  .account-email{ margin:0 0 12px; word-break:break-all; }
-  .logout-btn{ width:100%; padding:12px; border-radius:var(--radius-sm); border:1px solid var(--line); background:transparent; color:var(--danger); font-size:14px; font-weight:600; cursor:pointer; }
-  .logout-btn:active{ transform:scale(.99); }
-  .icon-btn.spinning{ animation:spin .8s linear infinite; }
-  .icon-btn:disabled{ cursor:default; }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
-  #pageCenter .card{ transition:opacity .15s; }
-  #pageCenter.day-loading .card:not(.weekly-card){ pointer-events:none; opacity:.6; transition:opacity .2s .15s; }
-  .expand-btn{ margin-left:auto; flex-shrink:0; width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); cursor:pointer; }
-  .expand-btn svg{ width:16px; height:16px; }
-  .expand-btn[aria-expanded="true"]{ background:var(--blue-soft); border-color:var(--blue-soft); color:var(--blue-deep); }
-  .list-summary{ display:block; width:100%; margin:6px 0 2px; padding:7px 11px; border:none; border-radius:10px; background:var(--paper); color:var(--ink-soft); font-family:inherit; font-size:12.5px; text-align:left; cursor:pointer; }
-  .list-summary span{ color:var(--blue-deep); font-weight:600; }
 </style>
 </head>
 <body>
-  <div class="spine" aria-hidden="true"></div>
+  <!-- Simgeler: her yerde <svg class="i"><use href="#i-…"/></svg> ile kullanılır -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false">
+    <symbol id="i-breast" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></g></symbol>
+    <symbol id="i-bottle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3h5M10 3v3.2L8 8.6V19a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V8.6l-2-2.4V3"/><path d="M8 13h8"/></g></symbol>
+    <symbol id="i-diaper" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5h18V9c-3.6.6-5.6 4.1-6 10H9c-.4-5.9-2.4-9.4-6-10z"/><path d="M3 9h18"/></g></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3 4 6 7 6 10.5A6 6 0 0 1 6 13.5C6 10 9 7 12 3z"/></g></symbol>
+    <symbol id="i-poop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="15" width="16" height="5" rx="2.5"/><rect x="6" y="10.5" width="12" height="4.5" rx="2.25"/><rect x="8.5" y="6.5" width="7" height="4" rx="2"/><path d="M12 6.5c0-1.5 1-2.5 2-3"/></g></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></g></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></g></symbol>
+    <symbol id="i-jar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10l-1.2 16H8.2L7 4z"/><path d="M7.6 10h8.8"/></g></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></g></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></g></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4h-4"/></g></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></g></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></g></symbol>
+    <symbol id="i-chev-d" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></g></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></g></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></g></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/></g></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></g></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></g></symbol>
+    <symbol id="i-sprout" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"/><path d="M12 11c0-4 3-6 7-6 0 4-3 6-7 6z"/><path d="M12 14c0-3-2.4-5-6-5 0 3 2.4 5 6 5z"/></g></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3.5l1.7 4.8 4.8 1.7-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7z"/><path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></g></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-7M12 20V5M19 20v-10"/></g></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></g></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 3.5h6v2.5H9zM9 11h6M9 15h4"/></g></symbol>
+    <symbol id="i-flower" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><path d="M12 9.6C10.4 6.8 10.4 4.7 12 3c1.6 1.7 1.6 3.8 0 6.6zM14.4 12c2.8-1.6 4.9-1.6 6.6 0-1.7 1.6-3.8 1.6-6.6 0zM12 14.4c1.6 2.8 1.6 4.9 0 6.6-1.6-1.7-1.6-3.8 0-6.6zM9.6 12C6.8 13.6 4.7 13.6 3 12c1.7-1.6 3.8-1.6 6.6 0z"/></g></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></g></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l5-5 4 3 7-8"/><path d="M15 7h5v5"/></g></symbol>
+    <symbol id="i-syringe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2l4 4"/><path d="M17 7l3-3"/><path d="M19 9L8.7 19.3a2.4 2.4 0 0 1-3.4 0l-.6-.6a2.4 2.4 0 0 1 0-3.4L15 5"/><path d="M9 11l4 4"/><path d="M5 19l-3 3"/><path d="M14 4l6 6"/></g></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></g></symbol>
+    <symbol id="i-cake" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M4 16c2 1.2 4 1.2 6 0s4-1.2 6 0 3 1 4 0"/><path d="M12 12V9"/><path d="M12 6.6c.8-.8.8-1.7 0-2.6-.8.9-.8 1.8 0 2.6z"/></g></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c2.5-3 4.5-3 7 0s4.5 3 7 0 3-1.5 4-1"/><path d="M3 13c2.5-3 4.5-3 7 0s4.5 3 7 0 3-1.5 4-1"/><path d="M3 18c2.5-3 4.5-3 7 0s4.5 3 7 0 3-1.5 4-1"/></g></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></g></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.5-3.8 4.4-5.5 7.5-5.5s6 1.7 7.5 5.5"/></g></symbol>
+    <symbol id="i-stetho" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v2a5 5 0 0 0 10 0v-1"/><circle cx="20" cy="12" r="2"/></g></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.5v.3"/></g></symbol>
+  </svg>
 
   <div id="loadingScreen" class="loading-screen"><img class="splash-art" src="icon-512.png?v=2" alt=""></div>
 
@@ -407,8 +614,8 @@
       <div class="auth-scene"><img src="auth-scene.png" alt="Aslan yavrusu çimenlerde oturuyor"></div>
       <h1>Bebek Günlüğü</h1>
       <p class="sub">Devam etmek için giriş yapın</p>
-      <input type="email" id="emailInput" placeholder="E-posta" autocomplete="email" inputmode="email">
-      <input type="password" id="passwordInput" placeholder="Şifre" autocomplete="current-password">
+      <input type="email" id="emailInput" placeholder="E-posta" autocomplete="email" inputmode="email" aria-label="E-posta">
+      <input type="password" id="passwordInput" placeholder="Şifre" autocomplete="current-password" aria-label="Şifre">
       <button class="btn-primary" id="loginBtn" type="button">Giriş yap</button>
       <button class="link-btn" id="forgotBtn" type="button">Şifremi unuttum</button>
       <p class="auth-error" id="authError" role="alert" aria-live="polite"></p>
@@ -417,85 +624,154 @@
 
   <div id="appScreen" class="app-screen" hidden>
     <header class="topbar">
-      <button class="icon-btn" id="refreshBtn" type="button" aria-label="Yenile" title="Yenile">↻</button>
-      <div class="date-nav">
-        <button id="prevDayBtn" type="button" aria-label="Önceki gün">‹</button>
-        <div class="date-center" id="dateCenter">
-          <div class="date-label" id="dateLabel">—</div>
-          <span class="day-badge" id="dayBadge" style="display:none"></span>
+      <div class="brand">
+        <span class="avatar" aria-hidden="true"><img src="icon-192.png?v=2" alt=""></span>
+        <div class="brand-text">
+          <div class="brand-title">Aslan'ın Günlüğü</div>
+          <div class="brand-sub" id="brandSub">&nbsp;</div>
         </div>
-        <button id="nextDayBtn" type="button" aria-label="Sonraki gün">›</button>
       </div>
-      <button class="icon-btn" id="openSettingsBtn" type="button" aria-label="Ayarlar" title="Ayarlar">⚙</button>
+      <div class="top-actions">
+        <button class="icon-btn" id="themeBtn" type="button" aria-label="Gece moduna geç" title="Gece modu"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg></button>
+        <button class="icon-btn" id="refreshBtn" type="button" aria-label="Yenile" title="Yenile"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg></button>
+        <button class="icon-btn" id="openSettingsBtn" type="button" aria-label="Ayarlar" title="Ayarlar"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg></button>
+      </div>
     </header>
 
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Bölümler">
+      <button class="tab" id="tabDay" role="tab" type="button" aria-selected="true" aria-controls="pageDay">Gün</button>
+      <button class="tab" id="tabWeek" role="tab" type="button" aria-selected="false" aria-controls="pageWeek">Hafta</button>
+      <button class="tab" id="tabGrowth" role="tab" type="button" aria-selected="false" aria-controls="pageGrowth">Gelişim</button>
+    </nav>
+
     <main class="pager" id="pager">
-      <div class="page" id="pageLeft" aria-label="Özet ve bilgi">
-        <section class="card dev-card" data-accent="gold">
-          <h2><span class="badge">🌱</span> Gelişim dönemleri</h2>
-          <div class="chart-empty" id="leapsNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
-          <div id="leapsBody" hidden>
-            <p class="dev-age" id="devAge"></p>
-            <div class="dev-weeks" id="devWeeks" role="group" aria-label="Haftalar"></div>
-            <p class="dev-legend">Noktalı haftalarda bir kontrol ya da gelişim dönemi var.</p>
-            <div id="devPanel"></div>
-            <p class="vaccine-disclaimer dev-disclaimer">Genel bilgilendirme amaçlıdır; her bebek kendi hızında gelişir. Aklınıza takılan bir durumda çocuk doktorunuza danışın.</p>
+      <!-- ============ GÜN ============ -->
+      <div class="page" id="pageDay" role="tabpanel" aria-labelledby="tabDay">
+        <div class="day-nav">
+          <button class="nav-btn" id="prevDayBtn" type="button" aria-label="Önceki gün"><svg class="i" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+          <button class="date-center" id="dateCenter" type="button" aria-label="Takvimi aç">
+            <svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg>
+            <span class="date-label" id="dateLabel">—</span>
+            <span class="day-badge" id="dayBadge" style="display:none"></span>
+          </button>
+          <button class="nav-btn" id="nextDayBtn" type="button" aria-label="Sonraki gün"><svg class="i" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+        </div>
+
+        <div id="liveArea"></div>
+
+        <section class="card ritim-card" aria-labelledby="ritimTitle">
+          <h2 id="ritimTitle"><span class="badge k-sleep"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></span> Günün ritmi</h2>
+          <div class="ritim" id="ritim" role="img" aria-label="Günün ritmi"></div>
+          <div class="legend" aria-hidden="true">
+            <span class="k-sleep sleep-only"><i></i>Uyku</span>
+            <span class="k-feed"><i></i>Emzirme</span>
+            <span class="k-formula"><i></i>Mama</span>
+            <span class="k-diaper"><i></i>Çiş</span>
+            <span class="k-poop"><i></i>Kaka</span>
           </div>
         </section>
 
-        <section class="card" data-accent="gold">
-          <h2><span class="badge">✨</span> Günün bilgisi</h2>
-          <p class="ai-tip-text" id="aiTipText">—</p>
+        <section class="card day-summary-card">
+          <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg></span> Günlük bakış <span class="day-chip" id="daySummaryDay"></span></h2>
+          <div class="day-stats" id="dayStats"></div>
         </section>
 
-        <section class="card" data-accent="blue">
-          <h2><span class="badge">📋</span> Haftalık değerlendirme</h2>
-          <p class="ai-tip-text" id="aiAssessmentText">Henüz değerlendirme oluşturulmadı.</p>
-          <p class="settings-hint" id="aiAssessmentMeta"></p>
-          <button class="add-btn" type="button" id="generateAssessmentBtn">Değerlendirme oluştur</button>
+        <div class="section-head">
+          <h2 class="section-title">Kayıtlar</h2>
+          <div class="view-toggle" role="group" aria-label="Kayıtların görünümü">
+            <button type="button" id="viewAkisBtn" aria-pressed="true">Akış</button>
+            <button type="button" id="viewListBtn" aria-pressed="false">Listeler</button>
+          </div>
+        </div>
+
+        <div id="akisView">
+          <div class="akis" id="akisList"></div>
+          <button type="button" class="list-summary" id="akisMore" hidden></button>
+        </div>
+
+        <div id="listView" hidden>
+          <section class="card">
+            <h2><span class="badge k-feed"><svg class="i" aria-hidden="true"><use href="#i-breast"/></svg></span> Beslenme takibi <button type="button" class="expand-btn" id="feedExpandBtn" aria-controls="feedList"></button></h2>
+            <div id="feedList"></div>
+            <div class="add-btn-row">
+              <button class="add-btn" id="addFeedBtn" type="button">+ Emzirme</button>
+              <button class="add-btn" id="addFormulaBtn" type="button">+ Mama</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2><span class="badge k-diaper"><svg class="i" aria-hidden="true"><use href="#i-diaper"/></svg></span> Tuvalet takibi <button type="button" class="expand-btn" id="diaperExpandBtn" aria-controls="diaperList"></button></h2>
+            <div id="diaperList"></div>
+            <button class="add-btn" id="addDiaperBtn" type="button">+ Tuvalet ekle</button>
+          </section>
+
+          <section class="card">
+            <h2><span class="badge k-sleep"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg></span> Uyku takibi</h2>
+            <div id="sleepList"></div>
+            <button class="add-btn" id="addSleepBtn" type="button">+ Uyku ekle</button>
+          </section>
+        </div>
+
+        <section class="card k-diaper">
+          <h2><span class="badge"><svg class="i" aria-hidden="true"><use href="#i-sprout"/></svg></span> Bebeğin günü</h2>
+          <ul class="routine-list" id="babyRoutineList"></ul>
         </section>
+
+        <section class="card k-pump">
+          <h2><span class="badge"><svg class="i" aria-hidden="true"><use href="#i-flower"/></svg></span> Annenin günü</h2>
+          <ul class="routine-list" id="momRoutineList"></ul>
+        </section>
+
+        <section class="card notes-card">
+          <h2><span class="badge k-neutral"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></span> Notlar</h2>
+          <textarea id="notesInput" placeholder="Bugün nasıl geçti?" aria-label="Notlar"></textarea>
+        </section>
+
+        <div class="sync-status" id="syncStatus"></div>
+        <button type="button" class="start-page-btn" data-page="0"></button>
       </div>
 
-      <div class="page" id="pageCenter" aria-label="Günlük kayıtlar">
-        <section class="card weekly-card" data-accent="blue">
-          <h2><span class="badge">📊</span> Haftalık bakış</h2>
-          <div class="weekly-row">
-            <div class="weekly-label">🍼 Ort. beslenme</div>
+      <!-- ============ HAFTA ============ -->
+      <div class="page" id="pageWeek" role="tabpanel" aria-labelledby="tabWeek">
+        <section class="card weekly-card no-lock">
+          <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-bars"/></svg></span> Haftalık bakış</h2>
+          <div class="weekly-row k-feed">
+            <div class="weekly-label"><i></i>Ort. beslenme</div>
             <div class="weekly-bars" id="feedBars"></div>
             <div class="weekly-value" id="feedVal">–</div>
           </div>
-          <div class="weekly-row">
-            <div class="weekly-label">🤱 Sağ meme</div>
+          <div class="weekly-row k-feed">
+            <div class="weekly-label"><i></i>Sağ meme</div>
             <div class="weekly-bars" id="rightBars"></div>
             <div class="weekly-value" id="rightVal">–</div>
           </div>
-          <div class="weekly-row">
-            <div class="weekly-label">🤱 Sol meme</div>
+          <div class="weekly-row k-feed">
+            <div class="weekly-label"><i></i>Sol meme</div>
             <div class="weekly-bars" id="leftBars"></div>
             <div class="weekly-value" id="leftVal">–</div>
           </div>
-          <div class="weekly-row">
-            <div class="weekly-label">🍼 Ort. mama</div>
+          <div class="weekly-row k-formula">
+            <div class="weekly-label"><i></i>Ort. mama</div>
             <div class="weekly-bars" id="formulaBars"></div>
             <div class="weekly-value" id="formulaVal">–</div>
           </div>
-          <div class="weekly-row">
-            <div class="weekly-label">🫙 Ort. sağılan</div>
+          <div class="weekly-row k-pump">
+            <div class="weekly-label"><i></i>Ort. sağılan</div>
             <div class="weekly-bars" id="pumpedBars"></div>
             <div class="weekly-value" id="pumpedVal">–</div>
           </div>
-          <div class="weekly-row">
-            <div class="weekly-label">💧 Ort. çiş</div>
+          <div class="weekly-row k-diaper">
+            <div class="weekly-label"><i></i>Ort. çiş</div>
             <div class="weekly-bars" id="peeBars"></div>
             <div class="weekly-value" id="peeVal">–</div>
           </div>
-          <div class="weekly-row">
-            <div class="weekly-label">💩 Ort. kaka</div>
+          <div class="weekly-row k-poop">
+            <div class="weekly-label"><i></i>Ort. kaka</div>
             <div class="weekly-bars" id="poopBars"></div>
             <div class="weekly-value" id="poopVal">–</div>
           </div>
-          <div class="weekly-row">
-            <div class="weekly-label">🌙 Ort. uyku</div>
+          <div class="weekly-row k-sleep">
+            <div class="weekly-label"><i></i>Ort. uyku</div>
             <div class="weekly-bars" id="sleepBars"></div>
             <div class="weekly-value" id="sleepVal">–</div>
           </div>
@@ -507,53 +783,36 @@
           <p class="settings-hint weekly-note">Ortalamalar sadece kayıt girilmiş, tamamlanmış günlerden hesaplanır; bugünün soluk çubuğu ortalamaya dahil değil. Emzirme süreleri o taraftaki günlük toplam süre; mama ve sağılan da o günün toplam miktarıdır.</p>
         </section>
 
-        <section class="card day-summary-card" data-accent="gold">
-          <h2><span class="badge">📋</span> Günlük bakış <span class="day-chip" id="daySummaryDay"></span></h2>
-          <div class="day-stats" id="dayStats"></div>
+        <section class="card">
+          <h2><span class="badge k-sleep"><svg class="i" aria-hidden="true"><use href="#i-clipboard"/></svg></span> Haftalık değerlendirme</h2>
+          <p class="ai-tip-text" id="aiAssessmentText">Henüz değerlendirme oluşturulmadı.</p>
+          <p class="settings-hint" id="aiAssessmentMeta"></p>
+          <button class="add-btn" type="button" id="generateAssessmentBtn">Değerlendirme oluştur</button>
         </section>
+        <button type="button" class="start-page-btn" data-page="1"></button>
+      </div>
 
-        <section class="card" data-accent="blue">
-          <h2><span class="badge">🍼</span> Beslenme takibi <button type="button" class="expand-btn" id="feedExpandBtn" aria-controls="feedList"></button></h2>
-          <div id="feedList"></div>
-          <div class="add-btn-row">
-            <button class="add-btn" id="addFeedBtn" type="button">+ Emzirme</button>
-            <button class="add-btn" id="addFormulaBtn" type="button">+ Mama</button>
+      <!-- ============ GELİŞİM ============ -->
+      <div class="page" id="pageGrowth" role="tabpanel" aria-labelledby="tabGrowth">
+        <section class="card dev-card">
+          <h2><span class="badge k-diaper"><svg class="i" aria-hidden="true"><use href="#i-sprout"/></svg></span> Gelişim dönemleri</h2>
+          <div class="chart-empty" id="leapsNoBirthdate">Önce Ayarlar'dan doğum tarihini gir.</div>
+          <div id="leapsBody" hidden>
+            <p class="dev-age" id="devAge"></p>
+            <div class="dev-weeks" id="devWeeks" role="group" aria-label="Haftalar"></div>
+            <p class="dev-legend">Noktalı haftalarda bir kontrol ya da gelişim dönemi var.</p>
+            <div id="devPanel"></div>
+            <p class="vaccine-disclaimer dev-disclaimer">Genel bilgilendirme amaçlıdır; her bebek kendi hızında gelişir. Aklınıza takılan bir durumda çocuk doktorunuza danışın.</p>
           </div>
         </section>
 
-        <section class="card" data-accent="sage">
-          <h2><span class="badge">🧷</span> Tuvalet takibi <button type="button" class="expand-btn" id="diaperExpandBtn" aria-controls="diaperList"></button></h2>
-          <div id="diaperList"></div>
-          <button class="add-btn" id="addDiaperBtn" type="button">+ Tuvalet ekle</button>
+        <section class="card">
+          <h2><span class="badge k-feed"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg></span> Günün bilgisi</h2>
+          <p class="ai-tip-text" id="aiTipText">—</p>
         </section>
 
-        <section class="card" data-accent="gold">
-          <h2><span class="badge">🌙</span> Uyku takibi</h2>
-          <div id="sleepList"></div>
-          <button class="add-btn" id="addSleepBtn" type="button">+ Uyku ekle</button>
-        </section>
-
-        <section class="card" data-accent="sage">
-          <h2><span class="badge">🌱</span> Bebeğin günü</h2>
-          <ul class="routine-list" id="babyRoutineList"></ul>
-        </section>
-
-        <section class="card" data-accent="pink">
-          <h2><span class="badge">🌸</span> Annenin günü</h2>
-          <ul class="routine-list" id="momRoutineList"></ul>
-        </section>
-
-        <section class="card notes-card" data-accent="ink">
-          <h2><span class="badge">✎</span> Notlar</h2>
-          <textarea id="notesInput" placeholder="Bugün nasıl geçti?"></textarea>
-        </section>
-
-        <div class="sync-status" id="syncStatus"></div>
-      </div>
-
-      <div class="page" id="pageRight" aria-label="Takip ve kayıtlar">
-        <section class="card" data-accent="blue">
-          <h2><span class="badge">📈</span> Büyüme takibi</h2>
+        <section class="card">
+          <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-trend"/></svg></span> Büyüme takibi</h2>
           <div class="growth-tabs" id="growthTabs">
             <button type="button" class="growth-tab active" data-metric="weightKg">Kilo</button>
             <button type="button" class="growth-tab" data-metric="heightCm">Boy</button>
@@ -563,44 +822,46 @@
           <div class="growth-latest" id="growthLatest"></div>
           <div id="growthEntryList"></div>
           <div class="growth-add-form" id="growthAddForm" hidden>
-            <div class="field-group"><label>Tarih</label><div><input type="date" id="growthDateInput"></div></div>
+            <div class="field-group"><label for="growthDateInput">Tarih</label><div><input type="date" id="growthDateInput"></div></div>
             <div class="growth-inputs">
-              <div class="mini-group"><label>Kilo (kg)</label><input type="number" step="0.01" min="0" id="growthWeightInput"></div>
-              <div class="mini-group"><label>Boy (cm)</label><input type="number" step="0.1" min="0" id="growthHeightInput"></div>
-              <div class="mini-group"><label>Baş çevresi (cm)</label><input type="number" step="0.1" min="0" id="growthHeadInput"></div>
+              <div class="mini-group"><label for="growthWeightInput">Kilo (kg)</label><input type="number" step="0.01" min="0" id="growthWeightInput"></div>
+              <div class="mini-group"><label for="growthHeightInput">Boy (cm)</label><input type="number" step="0.1" min="0" id="growthHeightInput"></div>
+              <div class="mini-group"><label for="growthHeadInput">Baş çevresi (cm)</label><input type="number" step="0.1" min="0" id="growthHeadInput"></div>
             </div>
             <button type="button" class="btn-primary" id="saveGrowthBtn">Kaydet</button>
           </div>
           <button class="add-btn" id="addGrowthBtn" type="button">+ Ölçüm ekle</button>
         </section>
 
-        <section class="card" data-accent="sage">
-          <h2><span class="badge">💉</span> Aşı takvimi</h2>
+        <section class="card k-diaper">
+          <h2><span class="badge"><svg class="i" aria-hidden="true"><use href="#i-syringe"/></svg></span> Aşı takvimi</h2>
           <p class="vaccine-disclaimer">Bilgilendirme amaçlıdır — kesin program için çocuk doktorunuza ve e-Nabız kaydına bakın.</p>
-          <div class="chart-empty" id="vaccineNoBirthdate">Önce ⚙ Ayarlar'dan doğum tarihini gir.</div>
+          <div class="chart-empty" id="vaccineNoBirthdate">Önce Ayarlar'dan doğum tarihini gir.</div>
           <div id="vaccineBody" hidden>
             <div class="vaccine-summary" id="vaccineSummary"></div>
             <div id="vaccineList"></div>
           </div>
         </section>
 
-        <section class="card" data-accent="sage">
-          <h2><span class="badge">🌟</span> Gelişim aşamaları <span class="milestone-count" id="milestoneCount"></span></h2>
+        <section class="card k-feed">
+          <h2><span class="badge"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></span> Gelişim aşamaları <span class="milestone-count" id="milestoneCount"></span></h2>
           <ul class="routine-list" id="milestoneList"></ul>
         </section>
+        <button type="button" class="start-page-btn" data-page="2"></button>
       </div>
     </main>
 
-    <div class="page-dots" id="pageDots">
-      <button type="button" aria-label="Sol sayfa: özet ve bilgi"></button>
-      <button type="button" class="active" aria-label="Orta sayfa: günlük kayıtlar"></button>
-      <button type="button" aria-label="Sağ sayfa: takip ve kayıtlar"></button>
-    </div>
-    <button type="button" class="start-page-btn" id="startPageBtn"></button>
+    <!-- Hızlı kayıt: süren bir emzirme ya da uyku varsa düğmede süre görünür -->
+    <nav class="dock" id="dock" aria-label="Hızlı kayıt">
+      <button class="dock-btn k-feed" id="dockFeed" type="button" data-k="feed"><span class="dock-ic"><svg class="i" aria-hidden="true"><use href="#i-breast"/></svg></span><span class="dock-label">Emzirme</span></button>
+      <button class="dock-btn k-formula" id="dockFormula" type="button" data-k="formula"><span class="dock-ic"><svg class="i" aria-hidden="true"><use href="#i-bottle"/></svg></span><span class="dock-label">Mama</span></button>
+      <button class="dock-btn k-diaper" id="dockDiaper" type="button" data-k="diaper"><span class="dock-ic"><svg class="i" aria-hidden="true"><use href="#i-diaper"/></svg></span><span class="dock-label">Tuvalet</span></button>
+      <button class="dock-btn k-sleep sleep-only" id="dockSleep" type="button" data-k="sleep"><span class="dock-ic"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg></span><span class="dock-label">Uyku</span></button>
+    </nav>
   </div>
 
   <div id="calendarOverlay" class="calendar-overlay" hidden>
-    <div class="calendar-popup">
+    <div class="calendar-popup" role="dialog" aria-label="Takvim">
       <div class="calendar-head">
         <button id="calPrevMonth" type="button" aria-label="Önceki ay">‹</button>
         <div class="calendar-month-label" id="calMonthLabel">—</div>
@@ -612,77 +873,77 @@
     </div>
   </div>
 
-  <div id="settingsScreen" class="app-screen" hidden>
-    <header class="topbar">
-      <button class="icon-btn" id="closeSettingsBtn" type="button" aria-label="Kapat">‹</button>
-      <div class="date-center"><div class="date-label">Ayarlar</div></div>
-      <div style="width:40px" aria-hidden="true"></div>
+  <div id="settingsScreen" class="settings-screen" hidden>
+    <header class="topbar settings-bar">
+      <button class="icon-btn" id="closeSettingsBtn" type="button" aria-label="Kapat"><svg class="i" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+      <div class="settings-title">Ayarlar</div>
+      <span class="topbar-spacer" aria-hidden="true"></span>
     </header>
-    <main>
-      <section class="card" data-accent="blue">
-        <h2><span class="badge">👶</span> Doğum tarihi</h2>
-        <input type="date" id="birthDateInput">
+    <main class="settings-main">
+      <section class="card">
+        <h2><span class="badge k-pump"><svg class="i" aria-hidden="true"><use href="#i-cake"/></svg></span> Doğum tarihi</h2>
+        <input type="date" id="birthDateInput" aria-label="Doğum tarihi">
         <p class="settings-hint">Aşı takviminin doğru hesaplanması için gerekli.</p>
       </section>
 
-      <section class="card" data-accent="gold">
-        <h2><span class="badge">🎛️</span> Takip seçenekleri</h2>
+      <section class="card">
+        <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg></span> Takip seçenekleri</h2>
         <label class="switch-row" for="sleepTrackingToggle">
           <span class="switch-text">
             <span class="switch-title">Uyku takibi</span>
-            <span class="settings-hint">Kapalıyken uyku kayıt bölümü ve haftalık uyku grafiği gizlenir, yapay zeka da uyku hakkında yorum yapmaz. Önceden girilen uyku kayıtları silinmez; tekrar açınca geri gelir.</span>
+            <span class="settings-hint">Kapalıyken uyku kayıtları, uyku sayacı, ritim şeridindeki uykular ve haftalık uyku grafiği gizlenir, yapay zeka da uyku hakkında yorum yapmaz. Önceden girilen uyku kayıtları silinmez; tekrar açınca geri gelir.</span>
           </span>
           <input type="checkbox" id="sleepTrackingToggle" class="switch-input" checked>
           <span class="switch" aria-hidden="true"></span>
         </label>
       </section>
 
-      <details class="card settings-acc" data-accent="sage" name="ayarListeleri">
+      <details class="card settings-acc" name="ayarListeleri">
         <summary>
-          <h2><span class="badge">🌱</span> Bebeğin günü seçenekleri</h2>
+          <h2><span class="badge k-diaper"><svg class="i" aria-hidden="true"><use href="#i-sprout"/></svg></span> Bebeğin günü seçenekleri</h2>
           <span class="acc-count" id="settingsBabyCount"></span>
           <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
         </summary>
         <div class="acc-body">
           <div class="settings-list" id="settingsBabyList"></div>
           <div class="settings-add-row">
-            <input type="text" id="newBabyItemInput" placeholder="Yeni seçenek…">
+            <input type="text" id="newBabyItemInput" placeholder="Yeni seçenek…" aria-label="Yeni seçenek">
             <button type="button" id="addBabyItemBtn">Ekle</button>
           </div>
         </div>
       </details>
-      <details class="card settings-acc" data-accent="pink" name="ayarListeleri">
+      <details class="card settings-acc" name="ayarListeleri">
         <summary>
-          <h2><span class="badge">🌸</span> Annenin günü seçenekleri</h2>
+          <h2><span class="badge k-pump"><svg class="i" aria-hidden="true"><use href="#i-flower"/></svg></span> Annenin günü seçenekleri</h2>
           <span class="acc-count" id="settingsMomCount"></span>
           <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
         </summary>
         <div class="acc-body">
           <div class="settings-list" id="settingsMomList"></div>
           <div class="settings-add-row">
-            <input type="text" id="newMomItemInput" placeholder="Yeni seçenek…">
+            <input type="text" id="newMomItemInput" placeholder="Yeni seçenek…" aria-label="Yeni seçenek">
             <button type="button" id="addMomItemBtn">Ekle</button>
           </div>
         </div>
       </details>
-      <details class="card settings-acc" data-accent="blue" name="ayarListeleri">
+      <details class="card settings-acc" name="ayarListeleri">
         <summary>
-          <h2><span class="badge">🌟</span> Gelişim aşamaları seçenekleri</h2>
+          <h2><span class="badge k-feed"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></span> Gelişim aşamaları seçenekleri</h2>
           <span class="acc-count" id="settingsMilestoneCount"></span>
           <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
         </summary>
         <div class="acc-body">
           <div class="settings-list" id="settingsMilestoneList"></div>
           <div class="settings-add-row">
-            <input type="text" id="newMilestoneItemInput" placeholder="Yeni aşama…">
+            <input type="text" id="newMilestoneItemInput" placeholder="Yeni aşama…" aria-label="Yeni aşama">
             <button type="button" id="addMilestoneItemBtn">Ekle</button>
           </div>
         </div>
       </details>
 
-      <details class="card settings-acc" data-accent="sage" name="ayarListeleri">
+      <details class="card settings-acc" name="ayarListeleri">
         <summary>
-          <h2><span class="badge">💉</span> Aşı takvimi seçenekleri</h2>
+          <h2><span class="badge k-diaper"><svg class="i" aria-hidden="true"><use href="#i-syringe"/></svg></span> Aşı takvimi seçenekleri</h2>
           <span class="acc-count" id="settingsVaccineCount"></span>
           <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
         </summary>
@@ -690,16 +951,16 @@
           <p class="settings-hint acc-hint">Soldaki sayı, doğumdan kaç ay sonra hatırlatılacağı.</p>
           <div class="settings-list" id="settingsVaccineList"></div>
           <div class="settings-add-row">
-            <input type="number" min="0" id="newVaccineAgeInput" placeholder="Ay" class="settings-age-input">
-            <input type="text" id="newVaccineItemInput" placeholder="Yeni doz…">
+            <input type="number" min="0" id="newVaccineAgeInput" placeholder="Ay" class="settings-age-input" aria-label="Kaçıncı ay">
+            <input type="text" id="newVaccineItemInput" placeholder="Yeni doz…" aria-label="Yeni doz">
             <button type="button" id="addVaccineItemBtn">Ekle</button>
           </div>
         </div>
       </details>
 
-      <details class="card settings-acc" data-accent="gold" name="ayarListeleri">
+      <details class="card settings-acc" name="ayarListeleri">
         <summary>
-          <h2><span class="badge">🌊</span> Gelişim dönemleri seçenekleri</h2>
+          <h2><span class="badge k-sleep"><svg class="i" aria-hidden="true"><use href="#i-wave"/></svg></span> Gelişim dönemleri seçenekleri</h2>
           <span class="acc-count" id="settingsLeapCount"></span>
           <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
         </summary>
@@ -707,27 +968,39 @@
           <p class="settings-hint acc-hint">Soldaki sayı, dönemin başladığı hafta (bebeğin kaçıncı haftası). 1–12. haftalardaki dönemler o haftanın rehber kartında, sonrakiler "3 ay +" bölümünde görünür.</p>
           <div class="settings-list" id="settingsLeapList"></div>
           <div class="settings-add-row">
-            <input type="number" min="0" id="newLeapAgeInput" placeholder="Hafta" class="settings-age-input">
-            <input type="text" id="newLeapItemInput" placeholder="Yeni dönem…">
+            <input type="number" min="0" id="newLeapAgeInput" placeholder="Hafta" class="settings-age-input" aria-label="Kaçıncı hafta">
+            <input type="text" id="newLeapItemInput" placeholder="Yeni dönem…" aria-label="Yeni dönem">
             <button type="button" id="addLeapItemBtn">Ekle</button>
           </div>
         </div>
       </details>
 
-      <section class="card" data-accent="blue">
-        <h2><span class="badge">📦</span> Veri yedeği</h2>
+      <section class="card">
+        <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg></span> Veri yedeği</h2>
         <p class="settings-hint">Tüm kayıtlarını (günlükler, büyüme, aşı, gelişim aşamaları) tek bir dosyada indir. Ayda bir falan almanı öneririm.</p>
         <button class="add-btn" type="button" id="downloadBackupBtn">Yedek indir (.json)</button>
         <p class="settings-hint" id="backupStatus"></p>
       </section>
 
-      <section class="card" data-accent="pink">
-        <h2><span class="badge">👤</span> Hesap</h2>
+      <section class="card">
+        <h2><span class="badge k-neutral"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg></span> Hesap</h2>
         <p class="settings-hint account-email" id="accountEmail"></p>
         <button class="logout-btn" type="button" id="logoutBtn">Çıkış yap</button>
       </section>
     </main>
   </div>
+
+  <!-- Alttan açılan pencere: hızlı kayıt seçenekleri ve kayıt düzenleme -->
+  <dialog id="sheet" class="sheet" aria-labelledby="sheetTitle">
+    <div class="sheet-inner">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <h2 class="sheet-title" id="sheetTitle"></h2>
+        <button type="button" class="sheet-close" id="sheetClose" aria-label="Kapat"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+      <div id="sheetBody"></div>
+    </div>
+  </dialog>
 
   <!-- Silme onayı (Evet/Hayır) -->
   <dialog id="confirmDialog" class="confirm-dialog" aria-labelledby="confirmTitle" aria-describedby="confirmDetail">
@@ -740,7 +1013,7 @@
       </div>
     </div>
   </dialog>
-  <!-- Silindikten sonra birkaç saniye "Geri al" -->
+  <!-- Silindikten / hızlı eklendikten sonra birkaç saniye "Geri al" -->
   <div id="undoToast" class="undo-toast" role="status" aria-live="polite" hidden>
     <span class="undo-text" id="undoText"></span>
     <button type="button" class="undo-btn" id="undoBtn">Geri al</button>
@@ -1035,21 +1308,33 @@ let pendingDaySnapshot = null;     // saat seçici açıkken gelen, sonra uygula
 let dayLoading = false;            // gün verisi henüz yüklenmedi mi
 let lastSeenToday = todayStr();    // uygulamanın en son "bugün" saydığı tarih
 const pager = document.getElementById("pager");
-const pageDots = document.querySelectorAll("#pageDots button");
-const startPageBtn = document.getElementById("startPageBtn");
-const PAGE_NAMES = ["Sol sayfa", "Orta sayfa", "Sağ sayfa"];
-// Ana sayfa (uygulamanın açıldığı sayfa) bu cihaza özel bir tercih: telefonun kendi hafızasında tutulur,
-// her telefon kendi seçimini yapar. Seçim yoksa ya da okunamazsa Orta sayfa.
-const START_PAGE_KEY = "bebekGunlugu.startPage";
+const tabBtns = [...document.querySelectorAll("#tabs .tab")];
+const startPageBtns = [...document.querySelectorAll(".start-page-btn")];
+const PAGE_NAMES = ["Gün", "Hafta", "Gelişim"];
+const DAY_PAGE = 0; // Gün sekmesi: günlük kayıtlar
+// Ana sayfa (uygulamanın açıldığı sekme) bu cihaza özel bir tercih: telefonun kendi hafızasında tutulur,
+// her telefon kendi seçimini yapar. Seçim yoksa ya da okunamazsa Gün.
+// Önceki sürümün ("Sol/Orta/Sağ sayfa") seçimine dokunulmaz; yoksa oradan çevrilir:
+// Orta (günlük kayıtlar) → Gün, Sol (gelişim + bilgi) ve Sağ (büyüme, aşı) → Gelişim.
+const START_TAB_KEY = "bebekGunlugu.startTab";
+const OLD_START_PAGE_KEY = "bebekGunlugu.startPage";
 function readStartPage(){
   try{
-    const raw = localStorage.getItem(START_PAGE_KEY);
+    const raw = localStorage.getItem(START_TAB_KEY);
     const v = raw === null ? NaN : Number(raw);
-    return [0,1,2].includes(v) ? v : 1;
-  }catch(e){ return 1; }
+    if ([0,1,2].includes(v)) return v;
+    const old = localStorage.getItem(OLD_START_PAGE_KEY);
+    return (old === "0" || old === "2") ? 2 : 0;
+  }catch(e){ return 0; }
 }
 let startPageIndex = readStartPage();
-let currentPageIndex = startPageIndex; // 0 = Sol, 1 = Orta, 2 = Sağ
+let currentPageIndex = startPageIndex; // 0 = Gün, 1 = Hafta, 2 = Gelişim
+
+// Son 7 günün belgeleri (Haftalık bakış dinleyicisinden): süren sayaçlar dünün/bugünün
+// kaydını, ritim şeridi de gece yarısını geçen uykuyu buradan okur
+let weekByDate = {};
+const prevDayCache = {};          // daha eski günlerin bir önceki günü (ritim şeridi için, tek seferlik)
+let live = { feed:null, sleep:null }; // şu an süren emzirme / uyku (kayıtlardan hesaplanır)
 
 // Beslenme ve Tuvalet listeleri: varsayılan daraltılmış (sadece son girilen kayıt),
 // kartın sağ üstündeki düğmeyle o günün tüm kayıtları açılır. Tercih bu cihazda saklanır.
@@ -1164,6 +1449,7 @@ onAuthStateChanged(auth, (user) => {
   } else {
     hideUndo();
     finishConfirm(false);
+    closeSheet();
     authScreen.hidden = false;
     appScreen.hidden = true;
     document.getElementById("settingsScreen").hidden = true;
@@ -1184,9 +1470,17 @@ onAuthStateChanged(auth, (user) => {
 const dateLabelEl = document.getElementById("dateLabel");
 const dayBadgeEl = document.getElementById("dayBadge");
 
-document.getElementById("prevDayBtn").addEventListener("click", () => { loadDate(shiftDate(currentDate,-1)); goToPage(1, true); });
-document.getElementById("nextDayBtn").addEventListener("click", () => { loadDate(shiftDate(currentDate,1)); goToPage(1, true); });
+document.getElementById("prevDayBtn").addEventListener("click", () => { loadDate(shiftDate(currentDate,-1)); goToPage(DAY_PAGE, true); });
+document.getElementById("nextDayBtn").addEventListener("click", () => { loadDate(shiftDate(currentDate,1)); goToPage(DAY_PAGE, true); });
 document.getElementById("dateCenter").addEventListener("click", openCalendar);
+
+// Başlık: "Cuma, 16 Ekim" (başka bir yılsa yıl da yazılır)
+const WEEKDAYS = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+function formatDayTitle(dateStr){
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const wd = WEEKDAYS[new Date(y, m-1, d).getDay()];
+  return `${wd}, ${d} ${MONTHS[m-1]}` + (y !== new Date().getFullYear() ? " " + y : "");
+}
 
 /* Gün verisi yardımcıları ------------------------------------------------ */
 const DAY_FIELDS = ["feedings","diapers","sleeps","babyRoutine","momRoutine","notes"];
@@ -1220,11 +1514,14 @@ function stableStringify(v){
 }
 function deepClone(v){ return JSON.parse(JSON.stringify(v)); }
 
-// Orta sayfada bir saat ya da miktar alanı şu an düzenleniyor mu? iOS'ta seçici/
+// Gün sekmesinde bir saat ya da miktar alanı şu an düzenleniyor mu? iOS'ta seçici/
 // klavye açıkken alan odakta kalır; listeyi o sırada yeniden çizmek alanı silip kapatır.
+// Kayıt düzenleme penceresi açıkken de "düzenleniyor" sayılır: diğer telefondan gelen
+// veri pencere kapanınca uygulanır (açık penceredeki kayıt elden kaymasın).
 function isEditingDayField(){
+  if (sheetCtx) return true;
   const el = document.activeElement;
-  return !!(el && el.matches && el.matches('#pageCenter input[type="time"], #pageCenter input[type="number"]'));
+  return !!(el && el.matches && el.matches('#pageDay input[type="time"], #pageDay input[type="number"]'));
 }
 
 // Firebase'den gelen veriyi ekrana uygula (baseDay = düzenlemelerin dayandığı hâl)
@@ -1240,7 +1537,7 @@ function applyPendingDaySnapshot(){
   if (!pendingDaySnapshot || isEditingDayField() || saveTimer) return;
   acceptDaySnapshot(pendingDaySnapshot);
 }
-document.getElementById("pageCenter").addEventListener("focusout", () => {
+document.getElementById("pageDay").addEventListener("focusout", () => {
   setTimeout(applyPendingDaySnapshot, 300);
 });
 
@@ -1256,8 +1553,9 @@ function loadDate(dateStr){
   if (saveTimer) saveNow();
 
   currentDate = dateStr;
-  dateLabelEl.textContent = formatDateLabel(dateStr);
+  dateLabelEl.textContent = formatDayTitle(dateStr);
   updateDayBadge(dateStr);
+  ensurePrevDay(dateStr); // ritim şeridi: gece yarısını geçen uyku bir önceki günün kaydında
 
   if (unsubscribeDay) unsubscribeDay();
   dayData = emptyDay();
@@ -1266,7 +1564,7 @@ function loadDate(dateStr){
   dayLoading = true;
   // Veri gelene kadar giriş alanlarını kilitle: boş görünen sayfaya girilen bir
   // kayıt, birazdan yüklenecek gerçek kayıtların yerine yazılmasın
-  document.getElementById("pageCenter").classList.add("day-loading");
+  document.getElementById("pageDay").classList.add("day-loading");
   render();
   setSyncStatus("Yükleniyor…", false);
 
@@ -1276,9 +1574,10 @@ function loadDate(dateStr){
 
     if (dayLoading){
       dayLoading = false;
-      document.getElementById("pageCenter").classList.remove("day-loading");
+      document.getElementById("pageDay").classList.remove("day-loading");
       setSyncStatus("", false);
       acceptDaySnapshot(incoming);
+      runAfterDayLoad(dateStr);
       return;
     }
     // Ekrandakiyle aynı (ör. kendi kaydımızın Firebase'den geri dönen yankısı):
@@ -1297,7 +1596,7 @@ function loadDate(dateStr){
     acceptDaySnapshot(incoming);
   }, () => {
     dayLoading = false;
-    document.getElementById("pageCenter").classList.remove("day-loading");
+    document.getElementById("pageDay").classList.remove("day-loading");
     setSyncStatus("Bağlantı sorunu — internet bağlantınızı kontrol edin", true);
   });
 }
@@ -1313,7 +1612,12 @@ function startWeeklyStats(){
   unsubscribeWeekly = onSnapshot(q, (snap) => {
     const byDate = {};
     snap.forEach(d => { byDate[d.id] = d.data(); });
+    weekByDate = byDate;
     renderWeeklyStats(byDate, end);
+    // Bugünün/dünün kaydı değişmiş olabilir (diğer telefon bir sayaç başlattı ya da bitirdi)
+    renderLive();
+    renderRitim();
+    renderDaySummary();
   }, () => {});
 }
 
@@ -1521,7 +1825,7 @@ async function renderCalendar(){
     btn.innerHTML = `<span>${d}</span><span class="cal-dot cal-dot-empty"></span>`;
     if (dateStr === today) btn.classList.add("today");
     if (dateStr === currentDate) btn.classList.add("selected");
-    btn.addEventListener("click", () => { loadDate(dateStr); closeCalendar(); goToPage(1, true); });
+    btn.addEventListener("click", () => { loadDate(dateStr); closeCalendar(); goToPage(DAY_PAGE, true); });
     grid.appendChild(btn);
     buttons[dateStr] = btn;
   }
@@ -1766,9 +2070,9 @@ function buildLineChartSVG(points){
     return [x,y];
   });
   const pathD = coords.map(([x,y],i) => (i===0?"M":"L")+x.toFixed(1)+","+y.toFixed(1)).join(" ");
-  const dots = coords.map(([x,y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--blue-deep)"/>`).join("");
+  const dots = coords.map(([x,y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--primary)"/>`).join("");
   return `<svg viewBox="0 0 ${w} ${h}" class="growth-chart">
-    <path d="${pathD}" fill="none" stroke="var(--blue-deep)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${pathD}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}
     <text x="${padL}" y="${h-4}" class="chart-axis-label">${points[0].xLabel}</text>
     <text x="${w-padR}" y="${h-4}" text-anchor="end" class="chart-axis-label">${points[points.length-1].xLabel}</text>
@@ -1859,6 +2163,7 @@ function startProfile(){
     babyProfile = snap.exists() ? snap.data() : { birthDate:null };
     document.getElementById("birthDateInput").value = babyProfile.birthDate || "";
     applySleepTracking();
+    renderBrand();
     renderVaccines();
     renderLeaps();
     renderAiCard();
@@ -1870,13 +2175,16 @@ function startProfile(){
 // durduğu için iki telefonda da aynı anda geçerli olur.
 function sleepTrackingOn(){ return babyProfile.sleepTracking !== false; }
 
-// Kapalıyken: uyku kayıt kartı ve haftalık bakıştaki uyku satırı gizlenir.
-// Veriler silinmez; tekrar açınca olduğu gibi geri gelir.
+// Kapalıyken: uyku kayıt kartı, haftalık bakıştaki uyku satırı, ritim şeridindeki
+// uykular, Akış'taki uyku kayıtları, uyku sayacı, Günlük bakış'taki uyku kutusu ve
+// alttaki Uyku düğmesi gizlenir. Veriler silinmez; tekrar açınca olduğu gibi geri gelir.
 function applySleepTracking(){
   const on = sleepTrackingOn();
+  document.documentElement.classList.toggle("no-sleep", !on);
   document.getElementById("sleepList").closest(".card").hidden = !on;
   document.getElementById("sleepBars").closest(".weekly-row").hidden = !on;
   document.getElementById("sleepTrackingToggle").checked = on;
+  renderDayVisuals();
 }
 document.getElementById("sleepTrackingToggle").addEventListener("change", (e) => {
   babyProfile = { ...babyProfile, sleepTracking: e.target.checked };
@@ -2024,8 +2332,18 @@ function renderLeaps(){
     (sel === "later" ? devLaterHtml(cw, periods) : devWeekHtml(sel, cw, periods)) + reset;
 }
 
+// Rehber kutularının simgeleri (emoji yerine temanın çizgi simgeleri ve renkleri)
+const DEV_ICONS = {
+  "🍼":["i-bottle","k-feed"], "🌙":["i-moon","k-sleep"], "🧷":["i-diaper","k-diaper"],
+  "✨":["i-sparkle","k-primary"], "🩺":["i-stetho","k-diaper"], "🫶":["i-breast","k-pump"],
+  "🌊":["i-wave","k-sleep"], "⏭️":["i-chev-r","k-primary"]
+};
+function devIcon(key){
+  const [id, k] = DEV_ICONS[key] || ["i-sparkle", "k-primary"];
+  return `<span class="ic ${k}"><svg class="i" aria-hidden="true"><use href="#${id}"/></svg></span>`;
+}
 function devBox(cls, icon, label, text){
-  return text ? `<div class="dev-box ${cls}"><span class="ic">${icon}</span><b>${label}:</b> ${text}</div>` : "";
+  return text ? `<div class="dev-box ${cls}">${devIcon(icon)}<div><b>${label}:</b> ${text}</div></div>` : "";
 }
 
 // 1–12. haftalar: örnekteki gibi başlık + Beslenme / Uyku / Bez / Bu hafta ayrıca / Sizin için
@@ -2042,10 +2360,10 @@ function devWeekHtml(w, cw, periods){
   const periodBoxes = periods.map(p => {
     const { title, desc } = splitLabel(p.label);
     if (p.start === w){
-      return `<div class="dev-box period"><span class="ic">🌊</span><b>Gelişim dönemi · ${escapeHtml(title)}${desc ? ":" : ""}</b> ${escapeHtml(desc)}</div>`;
+      return `<div class="dev-box period">${devIcon("🌊")}<div><b>Gelişim dönemi · ${escapeHtml(title)}${desc ? ":" : ""}</b> ${escapeHtml(desc)}</div></div>`;
     }
     if (p.start < w && p.end != null && p.end >= w){
-      return `<div class="dev-box period"><span class="ic">🌊</span><b>Süren gelişim dönemi:</b> ${escapeHtml(title)} (${devSpanText(p)})</div>`;
+      return `<div class="dev-box period">${devIcon("🌊")}<div><b>Süren gelişim dönemi:</b> ${escapeHtml(title)} (${devSpanText(p)})</div></div>`;
     }
     return "";
   }).join("");
@@ -2058,7 +2376,7 @@ function devWeekHtml(w, cw, periods){
     : `<button type="button" data-dev-week="later" data-dev-nav>3 ay + ›</button>`;
 
   return `<div class="dev-hero">
-      <div class="dev-title">${w}. Hafta: ${g.title}&nbsp;${g.emoji}</div>
+      <div class="dev-title">${w}. Hafta: ${g.title}</div>
       <div class="dev-status">${status}</div>
       ${devBox("", "🍼", "Beslenme", g.feeding)}
       ${devBox("", "🌙", "Uyku", g.sleep)}
@@ -2067,7 +2385,7 @@ function devWeekHtml(w, cw, periods){
       ${periodBoxes}
       ${devBox("checkup", "🩺", "Kontrol", g.checkup)}
       ${devBox("you", "🫶", "Sizin için", g.you)}
-      <div class="dev-alert">⚠️ 3 aydan küçük bebekte 38°C ve üzeri ateş, emmeyi reddetme, belirgin halsizlik, nefes almada zorlanma ya da morarma varsa vakit kaybetmeden doktora başvurun.</div>
+      <div class="dev-alert"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span>3 aydan küçük bebekte 38°C ve üzeri ateş, emmeyi reddetme, belirgin halsizlik, nefes almada zorlanma ya da morarma varsa vakit kaybetmeden doktora başvurun.</span></div>
       <div class="dev-nav">${prev}${next}</div>
     </div>`;
 }
@@ -2125,7 +2443,7 @@ function devLaterHtml(cw, periods){
   }).join("");
 
   return hero
-    + `<div class="dev-tl">${rows || `<p class="dev-intro">Henüz dönem yok; ⚙ Ayarlar'dan ekleyebilirsiniz.</p>`}</div>`
+    + `<div class="dev-tl">${rows || `<p class="dev-intro">Henüz dönem yok; Ayarlar'dan ekleyebilirsiniz.</p>`}</div>`
     + `<div class="dev-nav"><button type="button" data-dev-week="${DEV_GUIDE_WEEKS}" data-dev-nav>‹ ${DEV_GUIDE_WEEKS}. hafta</button><span class="spacer"></span></div>`;
 }
 
@@ -2139,7 +2457,7 @@ document.getElementById("leapsBody").addEventListener("click", (e) => {
   renderLeaps();
   // Kartın altındaki bir düğmeyle gelindiyse yeni haftanın başını göster
   if (scrollUp){
-    const page = document.getElementById("pageLeft");
+    const page = document.getElementById("pageGrowth");
     const top = document.getElementById("devWeeks").getBoundingClientRect().top;
     const pageTop = page.getBoundingClientRect().top;
     if (top < pageTop) page.scrollBy({ top: top - pageTop - 12, behavior: "smooth" });
@@ -2179,7 +2497,7 @@ function renderAiCard(){
   if (!WORKER_CONFIGURED){
     tipEl.textContent = "AI özellikleri için README'deki Cloudflare Worker adımlarını tamamla.";
   } else if (!babyProfile.birthDate){
-    tipEl.textContent = "Önce ⚙ Ayarlar'dan doğum tarihini gir.";
+    tipEl.textContent = "Önce Ayarlar'dan doğum tarihini gir.";
   } else if (aiCache.tipDate === todayStr() && aiCache.tipText){
     tipEl.textContent = aiCache.tipText;
   } else {
@@ -2305,10 +2623,10 @@ document.getElementById("generateAssessmentBtn").addEventListener("click", async
 });
 
 /* ========================================================================
-   6i) Sayfalar — Sol / Orta / Sağ. Uygulama seçilen ana sayfayla açılır
-   (varsayılan Orta); yana kaydırınca ya da alttaki noktalara dokununca
-   diğerlerine geçilir. Noktaların altındaki düğme, o an bakılan sayfayı
-   bu cihazın ana sayfası yapar (pati dolu = ana sayfa, soluk = değil).
+   6i) Sekmeler — Gün / Hafta / Gelişim. Uygulama seçilen ana sayfayla açılır
+   (varsayılan Gün); üstteki sekmelere dokununca ya da yana kaydırınca
+   diğerlerine geçilir. Her sekmenin en altındaki düğme o sekmeyi bu
+   cihazın ana sayfası yapar (pati dolu = ana sayfa, soluk = değil).
    ===================================================================== */
 
 const PAW_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor">' +
@@ -2318,29 +2636,37 @@ const PAW_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentCo
   '<ellipse cx="18.8" cy="10.6" rx="2.1" ry="2.7" transform="rotate(24 18.8 10.6)"/>' +
   '<path d="M12 12.4c-2.9 0-6.4 3.7-6.4 6.3 0 1.7 1.3 2.7 2.9 2.7 1.4 0 2.3-.8 3.5-.8s2.1.8 3.5.8c1.6 0 2.9-1 2.9-2.7 0-2.6-3.5-6.3-6.4-6.3z"/>' +
   '</g></svg>';
-function paintStartPageBtn(idx){
-  const isStart = idx === startPageIndex;
-  startPageBtn.classList.toggle("is-start", isStart);
-  startPageBtn.innerHTML = PAW_ICON + "<span>" + (isStart ? "Ana Sayfa" : "Ana Sayfa yap") + "</span>";
-  startPageBtn.setAttribute("aria-disabled", String(isStart));
-  startPageBtn.setAttribute("aria-label", isStart
-    ? PAGE_NAMES[idx] + " uygulamanın ana sayfası"
-    : PAGE_NAMES[idx] + "yı ana sayfa yap");
+function paintStartPageBtns(){
+  startPageBtns.forEach(b => {
+    const idx = Number(b.dataset.page);
+    const isStart = idx === startPageIndex;
+    b.classList.toggle("is-start", isStart);
+    b.innerHTML = PAW_ICON + "<span>" + (isStart ? "Ana Sayfa" : "Ana Sayfa yap") + "</span>";
+    b.setAttribute("aria-disabled", String(isStart));
+    b.setAttribute("aria-label", isStart
+      ? PAGE_NAMES[idx] + " sekmesi uygulamanın ana sayfası"
+      : PAGE_NAMES[idx] + " sekmesini ana sayfa yap");
+  });
 }
 
+// Sekmeleri boyar (adı eski "noktalar"dan kaldı)
 function paintDots(idx){
-  pageDots.forEach((b,i) => b.classList.toggle("active", i === idx));
-  paintStartPageBtn(idx);
+  tabBtns.forEach((b,i) => {
+    b.setAttribute("aria-selected", String(i === idx));
+    b.tabIndex = i === idx ? 0 : -1;
+  });
+  paintStartPageBtns();
 }
 
-startPageBtn.addEventListener("click", () => {
-  if (currentPageIndex === startPageIndex) return;
-  startPageIndex = currentPageIndex;
-  try{ localStorage.setItem(START_PAGE_KEY, String(startPageIndex)); }catch(e){ /* kaydedilemezse bu oturumda yine geçerli */ }
-  paintStartPageBtn(currentPageIndex);
-});
+startPageBtns.forEach(b => b.addEventListener("click", () => {
+  const idx = Number(b.dataset.page);
+  if (idx === startPageIndex) return;
+  startPageIndex = idx;
+  try{ localStorage.setItem(START_TAB_KEY, String(startPageIndex)); }catch(e){ /* kaydedilemezse bu oturumda yine geçerli */ }
+  paintStartPageBtns();
+}));
 
-// Noktalar, kaydırma konumunu takip eder (tek doğru kaynak: scroll)
+// Sekmeler, kaydırma konumunu takip eder (tek doğru kaynak: scroll)
 pager.addEventListener("scroll", () => {
   if (!pager.clientWidth) return;
   currentPageIndex = Math.round(pager.scrollLeft / pager.clientWidth);
@@ -2363,7 +2689,16 @@ function restorePage(){
   paintDots(currentPageIndex);
 }
 
-pageDots.forEach((b,i) => b.addEventListener("click", () => goToPage(i, true)));
+tabBtns.forEach((b,i) => {
+  b.addEventListener("click", () => goToPage(i, true));
+  b.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    const next = (i + (e.key === "ArrowRight" ? 1 : 2)) % 3;
+    goToPage(next, true);
+    tabBtns[next].focus();
+  });
+});
 window.addEventListener("resize", () => { if (!appScreen.hidden) restorePage(); });
 
 /* ========================================================================
@@ -2454,10 +2789,11 @@ function refreshForNewDay(){
   if (!auth.currentUser) return;
 
   const el = document.activeElement;
-  const busy = !!saveTimer || !!(el && el.matches && el.matches("#pageCenter input, #pageCenter textarea"));
+  const busy = !!saveTimer || !!sheetCtx || !!(el && el.matches && el.matches("#pageDay input, #pageDay textarea"));
   if (wasViewingToday && !busy) loadDate(today);   // kayıt girilirken sayfayı elinden çekme
   else updateDayBadge(currentDate);                  // sadece Bugün/Dün rozetini düzelt
 
+  renderBrand();           // "15 günlük · 3. hafta"
   startWeeklyStats();      // son 7 günlük aralığı bugüne kaydır
   renderVaccines();        // gecikti/yaklaşan durumları
   renderLeaps();           // gelişim dönemi durumları
@@ -2476,7 +2812,9 @@ setInterval(() => {
    ===================================================================== */
 function scheduleSave(){
   setSyncStatus("Kaydediliyor…", false);
-  renderDaySummary(); // bu cihazdaki her değişiklik buradan geçer: Günlük bakış anında güncellenir
+  // bu cihazdaki her değişiklik buradan geçer: Günlük bakış, ritim şeridi, Akış ve
+  // sayaçlar anında güncellenir (kaydın Firebase'e gitmesini beklemeden)
+  renderDayVisuals();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 600);
 }
@@ -2574,22 +2912,23 @@ const DELETED_LABEL = {
 };
 const RENDER_LIST = { feedings: () => renderFeedList(), diapers: () => renderDiaperList(), sleeps: () => renderSleepList() };
 
-// Günlük listelerden (beslenme / tuvalet / uyku) bir kaydı onaylatıp sil
+// Günlük listelerden (beslenme / tuvalet / uyku) bir kaydı onaylatıp sil. Silindiyse true döner.
 async function deleteDayRecord(list, idx){
   const rec = dayData[list][idx];
-  if (!rec) return;
+  if (!rec) return false;
   const key = stableStringify(rec);
   const date = currentDate;
-  if (!(await askConfirm(recordSummary(list, rec)))) return;
-  if (currentDate !== date) return; // soru açıkken gün değiştiyse hiçbir şey silme
+  if (!(await askConfirm(recordSummary(list, rec)))) return false;
+  if (currentDate !== date) return false; // soru açıkken gün değiştiyse hiçbir şey silme
   // Soru açıkken diğer telefondan kayıt gelip liste kaymış olabilir: kaydı içeriğinden bul
   const arr = dayData[list];
   const i = (arr[idx] && stableStringify(arr[idx]) === key) ? idx : arr.findIndex(r => stableStringify(r) === key);
-  if (i < 0) return;
+  if (i < 0) return false;
   const removed = arr.splice(i, 1)[0];
   RENDER_LIST[list]();
   scheduleSave();
   offerUndo({ kind:"day", date, list, index:i, record:deepClone(removed), label:DELETED_LABEL[list](removed) });
+  return true;
 }
 
 const UNDO_MS = 10000;
@@ -2619,6 +2958,16 @@ document.getElementById("undoBtn").addEventListener("click", () => {
     setDoc(doc(db, "growth", e.id), e.data).catch(() => setSyncStatus("Geri alınamadı — bağlantını kontrol et", true));
     return;
   }
+  if (e.kind === "added"){
+    // Hızlı eklenen kaydı (tek dokunuşla tuvalet, başlatılan sayaç) geri al: içeriğinden bulup çıkar
+    mutateDayList(e.date, e.list, arr => {
+      const i = arr.findIndex(r => stableStringify(r) === e.key);
+      if (i < 0) return false;
+      arr.splice(i, 1);
+      return true;
+    });
+    return;
+  }
   if (e.date === currentDate && !dayLoading){
     const arr = dayData[e.list];
     arr.splice(Math.min(e.index, arr.length), 0, e.record);
@@ -2639,7 +2988,7 @@ async function restoreToOtherDay(e){
     setDoc(ref, { [e.list]: arr, updatedAt: new Date().toISOString() }, { merge:true })
       .catch(() => setSyncStatus("Geri alınamadı — bağlantını kontrol et", true));
     loadDate(e.date);
-    goToPage(1, true);
+    goToPage(DAY_PAGE, true);
   }catch(err){
     setSyncStatus("Geri alınamadı — bağlantını kontrol et", true);
   }
@@ -2649,14 +2998,29 @@ async function restoreToOtherDay(e){
    8) Render
    ===================================================================== */
 /* Günlük bakış — seçili günün toplamları. Bu cihazdaki her değişiklikte
-   (scheduleSave) ve diğer telefondan gelen her veride (render) yeniden hesaplanır. */
-function computeDayTotals(d){
+   (scheduleSave) ve diğer telefondan gelen her veride (render) yeniden hesaplanır.
+   Süren emzirme / uyku, o ana kadarki süresiyle toplama eklenir. */
+function computeDayTotals(d, dateStr){
   const feedings = d.feedings || [];
   const sum = (k) => feedings.reduce((s, f) => s + (Number(f[k]) || 0), 0);
   const diapers = d.diapers || [];
   const formula = sum("formulaCc"), extra = sum("extraCc");
+  let right = 0, left = 0, sleep = 0;
+  feedings.filter(f => f.type !== "formula").forEach(f => {
+    right += minutesBetween(f.rightStart, f.rightEnd, 180) || 0;
+    left += minutesBetween(f.leftStart, f.leftEnd, 180) || 0;
+  });
+  (d.sleeps || []).forEach(s => { sleep += minutesBetween(s.sleepTime, s.wakeTime, 24*60) || 0; });
+  if (dateStr){
+    const elapsedMin = (s) => Math.max(0, Math.floor((Date.now() - s.startMs) / 60000));
+    if (live.feed && live.feed.date === dateStr){
+      if (live.feed.side === "right") right += elapsedMin(live.feed); else left += elapsedMin(live.feed);
+    }
+    if (live.sleep && live.sleep.date === dateStr) sleep += elapsedMin(live.sleep);
+  }
   return { formula, extra, intake: formula + extra, pumped: sum("pumpedCc"),
-           pee: diapers.filter(x => x.pee).length, poop: diapers.filter(x => x.poop).length };
+           pee: diapers.filter(x => x.pee).length, poop: diapers.filter(x => x.poop).length,
+           meals: feedings.length, right, left, breast: right + left, sleep };
 }
 function dayChipText(dateStr){
   if (dateStr === todayStr()) return "Bugün";
@@ -2664,28 +3028,52 @@ function dayChipText(dateStr){
   const [, m, d] = dateStr.split("-").map(Number);
   return d + " " + MONTHS[m-1];
 }
+// "1 sa 25 dk" / "45 dk" (HTML: sayılar büyük, birimler küçük)
+function durHtml(mins){
+  if (!mins) return "0";
+  const h = Math.floor(mins / 60), m = mins % 60;
+  if (!h) return `${m}<small>dk</small>`;
+  return `${h}<small>sa</small>` + (m ? ` ${m}<small>dk</small>` : "");
+}
+function durText(mins){
+  const h = Math.floor(mins / 60), m = mins % 60;
+  if (!h) return m + " dk";
+  return h + " sa" + (m ? " " + m + " dk" : "");
+}
 function renderDaySummary(){
   const box = document.getElementById("dayStats");
   if (!box) return;
-  const t = computeDayTotals(dayData);
-  const tile = (label, value, unit, extraClass = "", sub = "") =>
-    `<div class="day-stat${value ? "" : " zero"}${extraClass}">` +
-      `<div class="day-stat-label">${label}</div>` +
-      `<div class="day-stat-val">${value}${unit ? `<small>${unit}</small>` : ""}</div>` +
+  const t = computeDayTotals(dayData, currentDate);
+  const tile = (label, value, valueHtml, k, extraClass = "", sub = "") =>
+    `<div class="day-stat ${k}${value ? "" : " zero"}${extraClass}">` +
+      `<div class="day-stat-label"><i aria-hidden="true"></i>${label}</div>` +
+      `<div class="day-stat-val">${valueHtml}</div>` +
       (sub ? `<div class="day-stat-sub">${sub}</div>` : "") +
     `</div>`;
+  const cc = (v) => `${v}<small>cc</small>`;
   box.innerHTML =
-    tile("🍼 Mama", t.formula, "cc") +
-    tile("🥛 Ek süt", t.extra, "cc") +
-    tile("Toplam", t.intake, "cc", " total", "mama + ek süt") +
-    tile("🫙 Sağılan", t.pumped, "cc") +
-    tile("💧 Çiş", t.pee, "") +
-    tile("💩 Kaka", t.poop, "");
+    tile("Öğün", t.meals, String(t.meals), "k-feed") +
+    tile("Emzirme", t.breast, `${t.breast}<small>dk</small>`, "k-feed", "", t.breast ? `sağ ${t.right} · sol ${t.left}` : "") +
+    tile("Uyku", t.sleep, durHtml(t.sleep), "k-sleep", " sleep-only") +
+    tile("Mama", t.formula, cc(t.formula), "k-formula") +
+    tile("Ek süt", t.extra, cc(t.extra), "k-feed") +
+    tile("Toplam", t.intake, cc(t.intake), "k-primary", " total", "mama + ek süt") +
+    tile("Sağılan", t.pumped, cc(t.pumped), "k-pump") +
+    tile("Çiş", t.pee, String(t.pee), "k-diaper") +
+    tile("Kaka", t.poop, String(t.poop), "k-poop");
   document.getElementById("daySummaryDay").textContent = dayChipText(currentDate);
 }
 
-function render(){
+// Gün sekmesindeki hesaplanan görünümler (toplamlar, ritim şeridi, Akış, sayaçlar)
+function renderDayVisuals(){
+  renderLive();          // önce: diğerleri süren kaydı buradan okur
   renderDaySummary();
+  renderRitim();
+  renderAkis();
+}
+
+function render(){
+  renderDayVisuals();
   renderFeedList();
   renderDiaperList();
   renderSleepList();
@@ -2763,6 +3151,10 @@ function bindTimeInputs(row, getRec){
       const field = inp.dataset.field;
       if ((rec[field] || "") === inp.value) return;
       rec[field] = inp.value;
+      // Sayaçla başlatılan kayıtta saniyeli başlangıç da tutulur; başlangıç saati elle
+      // değişince o artık geçerli değil
+      const atKey = field === "sleepTime" ? "sleepStartAt" : (/Start$/.test(field) ? field + "At" : null);
+      if (atKey && atKey in rec) delete rec[atKey];
       scheduleSave();
     };
     inp.addEventListener("input", sync);
@@ -2777,6 +3169,97 @@ function bindTimeInputs(row, getRec){
   });
 }
 
+// Bir kaydın düzenleme alanları — Listeler görünümündeki satırlar ve kayıt
+// düzenleme penceresi aynı alanları kullanır (saatler ⊗ ile temizlenir, miktarlar
+// +/− ya da yazarak). getRec() o anki kaydı döndürür; her değişiklik hemen kaydedilir.
+function buildEditor(list, getRec, opts = {}){
+  const r = getRec();
+  const row = document.createElement("div");
+  row.className = "entry-row" + (opts.inSheet ? " in-sheet" : "");
+  if (list === "feedings" && r.type === "formula"){
+    // Sadece mama verilen öğün: saat + miktar
+    row.classList.add("formula-row");
+    row.innerHTML = `
+      <div class="field-group">
+        <label>Mama · saat</label>
+        <div>${timeFieldHtml("time", r.time, "Mama saati")}</div>
+      </div>
+      <div class="mini-group formula-amount">
+        <label>Mama (cc)</label>
+        ${stepperHtml("formulaCc", r.formulaCc, 5, "Mama")}
+      </div>`;
+  } else if (list === "feedings"){
+    // Emzirme öğünü (istenirse aynı öğünde mama da işlenir). Her meme kendi
+    // satırında: başlangıç – bitiş, her saatin yanında ⊗ ile temizleme.
+    const side = (label, startField, endField) => `
+        <span class="breast-label">${label}</span>
+        <div class="time-range">
+          ${timeFieldHtml(startField, r[startField], label + " başlangıç saati")}
+          <span class="range-dash" aria-hidden="true">–</span>
+          ${timeFieldHtml(endField, r[endField], label + " bitiş saati")}
+        </div>`;
+    row.innerHTML = `
+      <div class="breast-times">
+        ${side("Sağ meme", "rightStart", "rightEnd")}
+        ${side("Sol meme", "leftStart", "leftEnd")}
+      </div>
+      <div class="feed-row-extra">
+        <div class="mini-group"><label>Mama (cc)</label>${stepperHtml("formulaCc", r.formulaCc, 5, "Mama")}</div>
+        <div class="mini-group"><label>Ek süt (cc)</label>${stepperHtml("extraCc", r.extraCc, 5, "Ek süt")}</div>
+        <div class="mini-group"><label>Sağılan (cc)</label>${stepperHtml("pumpedCc", r.pumpedCc, 5, "Sağılan")}</div>
+      </div>`;
+  } else if (list === "diapers"){
+    row.innerHTML = `
+      <div class="field-group"><label>Saat</label><div>${timeFieldHtml("time", r.time, "Tuvalet saati")}</div></div>
+      <div class="mini-group diaper-checks">
+        <label>&nbsp;</label>
+        <div class="check-pair">
+          <label class="check-pill k-diaper ${r.pee?"on":""}"><input type="checkbox" data-field="pee" ${r.pee?"checked":""}> Çiş</label>
+          <label class="check-pill k-poop ${r.poop?"on":""}"><input type="checkbox" data-field="poop" ${r.poop?"checked":""}> Kaka</label>
+        </div>
+      </div>`;
+  } else {
+    row.innerHTML = `
+      <div class="field-group"><label>Uyudu</label><div>${timeFieldHtml("sleepTime", r.sleepTime, "Uyuma saati")}</div></div>
+      <div class="field-group"><label>Uyandı</label><div>${timeFieldHtml("wakeTime", r.wakeTime, "Uyanma saati")}</div></div>`;
+  }
+  if (opts.onDelete){
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "row-delete";
+    del.textContent = "Bu kaydı sil";
+    del.addEventListener("click", opts.onDelete);
+    row.appendChild(del);
+  }
+  bindTimeInputs(row, getRec);
+  row.querySelectorAll(".stepper").forEach(st => {
+    const field = st.dataset.field;
+    const step = Number(st.dataset.step) || 5;
+    const inp = st.querySelector("input");
+    const setVal = (v) => {
+      const rec = getRec();
+      if (!rec) return;
+      const n = Math.max(0, Math.round(Number(v) || 0));
+      rec[field] = n;
+      inp.value = n;
+      scheduleSave();
+    };
+    st.querySelector(".inc").addEventListener("click", () => setVal((getRec()[field]||0) + step));
+    st.querySelector(".dec").addEventListener("click", () => setVal((getRec()[field]||0) - step));
+    inp.addEventListener("change", () => setVal(inp.value));
+  });
+  row.querySelectorAll('.check-pill input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener("change", () => {
+      const rec = getRec();
+      if (!rec) return;
+      rec[cb.dataset.field] = cb.checked;
+      cb.closest(".check-pill").classList.toggle("on", cb.checked);
+      scheduleSave();
+    });
+  });
+  return row;
+}
+
 function renderFeedList(){
   const wrap = document.getElementById("feedList");
   wrap.innerHTML = "";
@@ -2784,63 +3267,7 @@ function renderFeedList(){
   paintExpandBtn("feed");
   if (!listExpanded.feed && total > 1) wrap.appendChild(listSummaryEl("feed", total, "öğünün"));
   visibleIndices(total, listExpanded.feed).forEach(idx => {
-    const f = dayData.feedings[idx];
-    const row = document.createElement("div");
-    row.className = "entry-row";
-    if (f.type === "formula"){
-      // Sadece mama verilen öğün: saat + miktar
-      row.classList.add("formula-row");
-      row.innerHTML = `
-        <div class="field-group">
-          <label>Mama · saat</label>
-          <div>${timeFieldHtml("time", f.time, "Mama saati")}</div>
-        </div>
-        <div class="mini-group formula-amount">
-          <label>Mama (cc)</label>
-          ${stepperHtml("formulaCc", f.formulaCc, 5, "Mama")}
-        </div>
-        <button type="button" class="row-delete">Bu kaydı sil</button>
-      `;
-    } else {
-      // Emzirme öğünü (istenirse aynı öğünde mama da işlenir). Her meme kendi
-      // satırında: başlangıç – bitiş, her saatin yanında ⊗ ile temizleme.
-      const side = (label, startField, endField) => `
-          <span class="breast-label">${label}</span>
-          <div class="time-range">
-            ${timeFieldHtml(startField, f[startField], label + " başlangıç saati")}
-            <span class="range-dash" aria-hidden="true">–</span>
-            ${timeFieldHtml(endField, f[endField], label + " bitiş saati")}
-          </div>`;
-      row.innerHTML = `
-        <div class="breast-times">
-          ${side("Sağ meme", "rightStart", "rightEnd")}
-          ${side("Sol meme", "leftStart", "leftEnd")}
-        </div>
-        <div class="feed-row-extra">
-          <div class="mini-group"><label>Mama (cc)</label>${stepperHtml("formulaCc", f.formulaCc, 5, "Mama")}</div>
-          <div class="mini-group"><label>Ek süt (cc)</label>${stepperHtml("extraCc", f.extraCc, 5, "Ek süt")}</div>
-          <div class="mini-group"><label>Sağılan (cc)</label>${stepperHtml("pumpedCc", f.pumpedCc, 5, "Sağılan")}</div>
-        </div>
-        <button type="button" class="row-delete">Bu kaydı sil</button>
-      `;
-    }
-    bindTimeInputs(row, () => dayData.feedings[idx]);
-    row.querySelectorAll(".stepper").forEach(st => {
-      const field = st.dataset.field;
-      const step = Number(st.dataset.step) || 5;
-      const inp = st.querySelector("input");
-      const setVal = (v) => {
-        const n = Math.max(0, Math.round(Number(v) || 0));
-        dayData.feedings[idx][field] = n;
-        inp.value = n;
-        scheduleSave();
-      };
-      st.querySelector(".inc").addEventListener("click", () => setVal((dayData.feedings[idx][field]||0) + step));
-      st.querySelector(".dec").addEventListener("click", () => setVal((dayData.feedings[idx][field]||0) - step));
-      inp.addEventListener("change", () => setVal(inp.value));
-    });
-    row.querySelector(".row-delete").addEventListener("click", () => deleteDayRecord("feedings", idx));
-    wrap.appendChild(row);
+    wrap.appendChild(buildEditor("feedings", () => dayData.feedings[idx], { onDelete: () => deleteDayRecord("feedings", idx) }));
   });
 }
 
@@ -2865,30 +3292,7 @@ function renderDiaperList(){
   paintExpandBtn("diaper");
   if (!listExpanded.diaper && total > 1) wrap.appendChild(listSummaryEl("diaper", total, "kaydın"));
   visibleIndices(total, listExpanded.diaper).forEach(idx => {
-    const dp = dayData.diapers[idx];
-    const row = document.createElement("div");
-    row.className = "entry-row";
-    row.innerHTML = `
-      <div class="field-group"><label>Saat</label><div>${timeFieldHtml("time", dp.time, "Tuvalet saati")}</div></div>
-      <div class="mini-group diaper-checks">
-        <label>&nbsp;</label>
-        <div class="check-pair">
-          <label class="check-pill ${dp.pee?"on":""}"><input type="checkbox" data-field="pee" ${dp.pee?"checked":""}> Çiş</label>
-          <label class="check-pill ${dp.poop?"on":""}"><input type="checkbox" data-field="poop" ${dp.poop?"checked":""}> Kaka</label>
-        </div>
-      </div>
-      <button type="button" class="row-delete">Bu kaydı sil</button>
-    `;
-    bindTimeInputs(row, () => dayData.diapers[idx]);
-    row.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      cb.addEventListener("change", () => {
-        dayData.diapers[idx][cb.dataset.field] = cb.checked;
-        cb.closest(".check-pill").classList.toggle("on", cb.checked);
-        scheduleSave();
-      });
-    });
-    row.querySelector(".row-delete").addEventListener("click", () => deleteDayRecord("diapers", idx));
-    wrap.appendChild(row);
+    wrap.appendChild(buildEditor("diapers", () => dayData.diapers[idx], { onDelete: () => deleteDayRecord("diapers", idx) }));
   });
 }
 
@@ -2905,16 +3309,7 @@ function renderSleepList(){
   const wrap = document.getElementById("sleepList");
   wrap.innerHTML = "";
   dayData.sleeps.forEach((s, idx) => {
-    const row = document.createElement("div");
-    row.className = "entry-row";
-    row.innerHTML = `
-      <div class="field-group"><label>Uyudu</label><div>${timeFieldHtml("sleepTime", s.sleepTime, "Uyuma saati")}</div></div>
-      <div class="field-group"><label>Uyandı</label><div>${timeFieldHtml("wakeTime", s.wakeTime, "Uyanma saati")}</div></div>
-      <button type="button" class="row-delete">Bu kaydı sil</button>
-    `;
-    bindTimeInputs(row, () => dayData.sleeps[idx]);
-    row.querySelector(".row-delete").addEventListener("click", () => deleteDayRecord("sleeps", idx));
-    wrap.appendChild(row);
+    wrap.appendChild(buildEditor("sleeps", () => dayData.sleeps[idx], { onDelete: () => deleteDayRecord("sleeps", idx) }));
   });
 }
 document.getElementById("addSleepBtn").addEventListener("click", () => {
@@ -2947,6 +3342,671 @@ document.getElementById("notesInput").addEventListener("input", (e) => {
   dayData.notes = e.target.value;
   scheduleSave();
 });
+
+/* ========================================================================
+   8b) Gündüz / Gece görünümü — bu telefona özel, sadece düğmeyle değişir
+   (saate göre kendiliğinden geçmez). Seçim telefonun hafızasında durur.
+   ===================================================================== */
+const THEME_KEY = "bebekGunlugu.theme";
+const themeBtn = document.getElementById("themeBtn");
+function currentTheme(){ return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
+function applyTheme(t){
+  const dark = t === "dark";
+  if (dark) document.documentElement.setAttribute("data-theme", "dark");
+  else document.documentElement.removeAttribute("data-theme");
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", dark ? "#0B0E1A" : "#F4F6FA");
+  themeBtn.innerHTML = `<svg class="i" aria-hidden="true"><use href="#${dark ? "i-sun" : "i-moon"}"/></svg>`;
+  themeBtn.setAttribute("aria-label", dark ? "Gündüz moduna geç" : "Gece moduna geç");
+  themeBtn.title = dark ? "Gündüz modu" : "Gece modu";
+}
+themeBtn.addEventListener("click", () => {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){ /* kaydedilemezse bu oturumda yine geçerli */ }
+});
+applyTheme(currentTheme());
+
+// Üst çubuktaki yaş satırı: "15 günlük · 3. hafta"
+function renderBrand(){
+  const el = document.getElementById("brandSub");
+  const days = babyAgeDays();
+  if (days == null){ el.textContent = "Doğum tarihini Ayarlar'dan gir"; return; }
+  if (days < 0){ el.textContent = `Doğuma ${-days} gün var`; return; }
+  const w = Math.floor(days / 7) + 1;
+  if (days === 0) el.textContent = "Bugün doğdu · 1. hafta";
+  else if (w <= DEV_GUIDE_WEEKS) el.textContent = `${days} günlük · ${w}. hafta`;
+  else el.textContent = `${Math.floor(days / 7)} haftalık · ${monthsBetween(babyProfile.birthDate, todayStr())} aylık`;
+}
+
+/* ========================================================================
+   8c) Yardımcılar: saat ↔ dakika, bir günün kaydı (ekrandaki ya da son 7 gün)
+   ===================================================================== */
+function hmToMin(t){
+  if (!t || typeof t !== "string") return null;
+  const [h, m] = t.split(":").map(Number);
+  return (Number.isNaN(h) || Number.isNaN(m)) ? null : h*60 + m;
+}
+function minToHm(m){ return String(Math.floor(m/60)).padStart(2, "0") + ":" + String(m%60).padStart(2, "0"); }
+function nowMinutes(){ const d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+function pct(m){ return (Math.max(0, Math.min(1440, m)) / 14.4).toFixed(3) + "%"; }
+function dayDocFor(date){
+  if (date === currentDate && !dayLoading) return dayData;
+  if (weekByDate[date]) return normalizeDay(weekByDate[date]);
+  if (prevDayCache[date]) return normalizeDay(prevDayCache[date]);
+  return null;
+}
+// 7 günden eski bir gün açıldığında, gece yarısını geçen uykusu için bir önceki günü bir kez oku
+async function ensurePrevDay(dateStr){
+  const p = shiftDate(dateStr, -1);
+  if (p >= shiftDate(todayStr(), -6) || p in prevDayCache) return; // son 7 gün zaten canlı geliyor
+  prevDayCache[p] = null;
+  try{
+    const snap = await getDoc(doc(db, "days", p));
+    prevDayCache[p] = snap.exists() ? snap.data() : {};
+    if (currentDate === dateStr) renderRitim();
+  }catch(e){ delete prevDayCache[p]; }
+}
+function isBlankRecord(list, r){
+  if (!r) return true;
+  if (list === "feedings" && r.type === "formula") return !r.time && !Number(r.formulaCc);
+  if (list === "feedings") return !r.rightStart && !r.rightEnd && !r.leftStart && !r.leftEnd &&
+    !Number(r.extraCc) && !Number(r.pumpedCc) && !Number(r.formulaCc);
+  if (list === "diapers") return !r.time && !r.pee && !r.poop;
+  return !r.sleepTime && !r.wakeTime;
+}
+
+// Bir günün listesinde değişiklik: o gün ekrandaysa yerel veride (anında görünür,
+// her zamanki kayıt yoluyla gider); değilse doğrudan o günün belgesinde
+// (oku-değiştir-yaz) — ör. dün gece başlayıp bu sabah biten uyku.
+// fn(arr) false dönerse hiçbir şey yazılmaz.
+async function mutateDayList(date, list, fn){
+  if (date === currentDate && !dayLoading){
+    if (fn(dayData[list]) === false) return false;
+    render();
+    scheduleSave();
+    return true;
+  }
+  try{
+    const ref = doc(db, "days", date);
+    const snap = await getDoc(ref);
+    const day = snap.exists() ? normalizeDay(snap.data()) : emptyDay();
+    const arr = day[list];
+    if (fn(arr) === false) return false;
+    await setDoc(ref, { [list]: arr, updatedAt: new Date().toISOString() }, { merge:true });
+    return true;
+  }catch(e){
+    setSyncStatus("Kaydedilemedi — bağlantını kontrol et", true);
+    return false;
+  }
+}
+// Kaydı içeriğinden bulup değiştirir (bu arada diğer telefondan gelen kayıtlar sırayı kaydırmış olabilir)
+function mutateRecord(date, list, key, fn){
+  return mutateDayList(date, list, arr => {
+    const r = arr.find(x => stableStringify(x) === key);
+    if (!r) return false;
+    return fn(r) !== false;
+  });
+}
+// Yeni kayıt ekler; istenirse birkaç saniye "Geri al" sunar
+async function addRecord(date, list, rec, undoLabel){
+  const key = stableStringify(rec);
+  const ok = await mutateDayList(date, list, arr => { arr.push(rec); });
+  if (ok && undoLabel) offerUndo({ kind:"added", date, list, key, label:undoLabel });
+  return ok;
+}
+
+/* ========================================================================
+   8d) Süren emzirme / uyku — sayaç ayrı bir yerde tutulmaz: başlangıcı girilmiş,
+   bitişi boş kayıt "sürüyor" demektir (eskiden "+ Emzirme"nin açtığı kayıt gibi).
+   Süre başlangıç saatinden hesaplanır; iki telefonda da aynı görünür, uygulama
+   kapanıp açılsa da kaybolmaz. Sayaçla başlatılan kayıtta saniyeli başlangıç da
+   tutulur (rightStartAt / leftStartAt / sleepStartAt); bitince silinir.
+   ===================================================================== */
+const FEED_LIVE_MAX_MIN = 180;      // 3 saatten eski, bitişi boş emzirme "sürüyor" sayılmaz
+const SLEEP_LIVE_MAX_MIN = 16 * 60; // uyku için 16 saat
+const SIDE_NAME = { right:"Sağ", left:"Sol" };
+function startMsOf(date, hm, atMs){
+  const t = hmToMin(hm);
+  if (t == null) return null;
+  const [y, m, d] = date.split("-").map(Number);
+  const base = new Date(y, m-1, d, Math.floor(t/60), t%60).getTime();
+  return (typeof atMs === "number" && atMs >= base && atMs < base + 60000) ? atMs : base;
+}
+function findLiveSessions(){
+  const now = Date.now(), today = todayStr();
+  let feed = null, sleep = null;
+  [today, shiftDate(today, -1)].forEach(date => {
+    const d = dayDocFor(date);
+    if (!d) return;
+    (d.feedings || []).forEach((f, idx) => {
+      if (f.type === "formula") return;
+      ["right", "left"].forEach(side => {
+        if (!f[side + "Start"] || f[side + "End"]) return;
+        const st = startMsOf(date, f[side + "Start"], f[side + "StartAt"]);
+        if (st == null) return;
+        const el = now - st;
+        if (el < -60000 || el > FEED_LIVE_MAX_MIN * 60000) return;
+        if (!feed || st > feed.startMs) feed = { kind:"feed", list:"feedings", date, idx, rec:f, side, startMs:st, key:stableStringify(f) };
+      });
+    });
+    if (sleepTrackingOn()) (d.sleeps || []).forEach((s, idx) => {
+      if (!s.sleepTime || s.wakeTime) return;
+      const st = startMsOf(date, s.sleepTime, s.sleepStartAt);
+      if (st == null) return;
+      const el = now - st;
+      if (el < -60000 || el > SLEEP_LIVE_MAX_MIN * 60000) return;
+      if (!sleep || st > sleep.startMs) sleep = { kind:"sleep", list:"sleeps", date, idx, rec:s, startMs:st, key:stableStringify(s) };
+    });
+  });
+  return { feed, sleep };
+}
+function fmtElapsed(ms){
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const p2 = (n) => String(n).padStart(2, "0");
+  return h ? `${h}:${p2(m)}:${p2(sec)}` : `${p2(m)}:${p2(sec)}`;
+}
+
+function renderLive(){
+  live = findLiveSessions();
+  const area = document.getElementById("liveArea");
+  if (!area) return;
+  let html = "";
+  if (live.feed){
+    const s = live.feed, f = s.rec;
+    const sideBtn = (side) => {
+      if (side === s.side){
+        return `<button type="button" class="side-btn active" disabled aria-current="true"><b>${SIDE_NAME[side]}</b><small>Şu an · <span data-live-timer="feed">00:00</span></small></button>`;
+      }
+      if (f[side + "Start"] && f[side + "End"]){
+        const m = minutesBetween(f[side + "Start"], f[side + "End"], 180);
+        return `<button type="button" class="side-btn done" disabled><b>${SIDE_NAME[side]}</b><small>${m != null ? m + " dk · " : ""}tamam</small></button>`;
+      }
+      return `<button type="button" class="side-btn" data-act="switch"><b>${SIDE_NAME[side]}</b><small>Bu tarafa geç</small></button>`;
+    };
+    html += `<section class="live-card k-feed" aria-label="Süren emzirme">
+        <div class="live-head"><span class="live-tag"><i></i>Emzirme sürüyor</span><button type="button" class="live-edit" data-act="edit-feed">Elle düzelt</button></div>
+        <div class="live-timer" data-live-timer="feed">00:00</div>
+        <div class="live-sub">${SIDE_NAME[s.side]} meme · başlangıç ${f[s.side + "Start"]}${s.date !== todayStr() ? " (dün)" : ""}</div>
+        <div class="side-grid">${sideBtn("right")}${sideBtn("left")}</div>
+        <div class="live-actions"><button type="button" class="btn btn-strong" data-act="finish-feed"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Bitir</button></div>
+      </section>`;
+  }
+  if (live.sleep){
+    const s = live.sleep;
+    html += `<section class="live-card k-sleep" aria-label="Süren uyku">
+        <div class="live-head"><span class="live-tag"><i></i>Uyuyor</span><button type="button" class="live-edit" data-act="edit-sleep">Elle düzelt</button></div>
+        <div class="live-timer" data-live-timer="sleep">00:00</div>
+        <div class="live-sub">Uyudu: ${s.rec.sleepTime}${s.date !== todayStr() ? " (dün)" : ""}</div>
+        <div class="live-actions"><button type="button" class="btn btn-strong" data-act="wake"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg>Uyandı</button></div>
+      </section>`;
+  }
+  area.innerHTML = html;
+  paintDock();
+  tickLive();
+}
+function paintDock(){
+  const fb = document.getElementById("dockFeed"), sb = document.getElementById("dockSleep");
+  fb.classList.toggle("running", !!live.feed);
+  sb.classList.toggle("running", !!live.sleep);
+  if (!live.feed) fb.querySelector(".dock-label").textContent = "Emzirme";
+  if (!live.sleep) sb.querySelector(".dock-label").textContent = "Uyku";
+  fb.setAttribute("aria-label", live.feed ? "Emzirme sürüyor — sayaca git" : "Emzirme");
+  sb.setAttribute("aria-label", live.sleep ? "Uyku sürüyor — sayaca git" : "Uyku");
+}
+// Saniyede bir: sadece süre yazıları güncellenir (kart yeniden çizilmez)
+function tickLive(){
+  const now = Date.now();
+  if (live.feed){
+    const t = fmtElapsed(now - live.feed.startMs);
+    document.querySelectorAll('[data-live-timer="feed"]').forEach(el => { el.textContent = t; });
+    document.querySelector("#dockFeed .dock-label").textContent = t;
+  }
+  if (live.sleep){
+    const t = fmtElapsed(now - live.sleep.startMs);
+    document.querySelectorAll('[data-live-timer="sleep"]').forEach(el => { el.textContent = t; });
+    document.querySelector("#dockSleep .dock-label").textContent = t;
+  }
+}
+
+document.getElementById("liveArea").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-act]");
+  if (b && !b.disabled) liveAction(b.dataset.act);
+});
+async function liveAction(act){
+  const L = findLiveSessions();
+  const t = nowTimeStr(), at = Date.now();
+  if (act === "finish-feed" && L.feed){
+    const s = L.feed;
+    await mutateRecord(s.date, "feedings", s.key, r => { r[s.side + "End"] = t; delete r[s.side + "StartAt"]; });
+  } else if (act === "switch" && L.feed){
+    // Bu taraf şimdi biter, diğer taraf şimdi başlar (her taraf bir öğünde bir kez)
+    const s = L.feed, other = s.side === "right" ? "left" : "right";
+    await mutateRecord(s.date, "feedings", s.key, r => {
+      if (r[other + "Start"] && r[other + "End"]) return false;
+      r[s.side + "End"] = t; delete r[s.side + "StartAt"];
+      r[other + "Start"] = t; r[other + "End"] = ""; r[other + "StartAt"] = at;
+    });
+  } else if (act === "wake" && L.sleep){
+    const s = L.sleep;
+    await mutateRecord(s.date, "sleeps", s.key, r => { r.wakeTime = t; delete r.sleepStartAt; });
+  } else if (act === "edit-feed" && L.feed){
+    openRecordOnDate(L.feed.date, "feedings", L.feed.key);
+  } else if (act === "edit-sleep" && L.sleep){
+    openRecordOnDate(L.sleep.date, "sleeps", L.sleep.key);
+  }
+  renderLive();
+}
+function showLive(){
+  goToPage(DAY_PAGE, true);
+  document.getElementById("pageDay").scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// Başka bir günün kaydını düzenlemek için önce o güne geç, veri gelince pencereyi aç
+let afterDayLoad = null;
+function runAfterDayLoad(dateStr){
+  const job = afterDayLoad;
+  afterDayLoad = null;
+  if (job && job.date === dateStr) job.fn();
+}
+function openRecordOnDate(date, list, key){
+  const open = () => {
+    const rec = dayData[list].find(r => stableStringify(r) === key);
+    if (rec) openEditSheet(list, rec);
+  };
+  if (date === currentDate && !dayLoading){ open(); return; }
+  afterDayLoad = { date, fn: open };
+  loadDate(date);
+  goToPage(DAY_PAGE, true);
+}
+
+/* ========================================================================
+   8e) Günün ritmi — seçili günün 24 saatlik şeridi: üstte emzirme/mama,
+   ortada uyku blokları, altta çiş/kaka noktaları; bugünse "şimdi" çizgisi
+   ===================================================================== */
+function renderRitim(){
+  const box = document.getElementById("ritim");
+  if (!box) return;
+  const D = currentDate, isToday = D === todayStr();
+  const nm = isToday ? nowMinutes() : null;
+  const d = dayData;
+  const sleepOn = sleepTrackingOn();
+  const feedSegs = [], formulaTicks = [], sleepSegs = [], dots = [];
+  (d.feedings || []).forEach(f => {
+    if (f.type === "formula"){ const t = hmToMin(f.time); if (t != null) formulaTicks.push(t); return; }
+    ["right", "left"].forEach(side => {
+      const a = hmToMin(f[side + "Start"]);
+      if (a == null) return;
+      let b = hmToMin(f[side + "End"]);
+      if (b == null) b = (isToday && nm >= a && nm - a <= FEED_LIVE_MAX_MIN) ? nm : a; // sürüyor: şimdiye kadar
+      else if (b < a) b = 1440;                                                           // gece yarısını geçti
+      feedSegs.push([a, b]);
+    });
+  });
+  if (isToday && live.feed && live.feed.date !== D) feedSegs.push([0, nm]); // dün başlayıp süren emzirme
+  if (sleepOn){
+    (d.sleeps || []).forEach(s => {
+      const a = hmToMin(s.sleepTime);
+      if (a == null) return;
+      let b = hmToMin(s.wakeTime), liveSeg = false;
+      if (b == null){
+        if (isToday && nm >= a && nm - a <= SLEEP_LIVE_MAX_MIN){ b = nm; liveSeg = true; } else return;
+      } else if (b < a) b = 1440;
+      sleepSegs.push([a, b, liveSeg]);
+    });
+    // Önceki günün gece yarısını geçen uykusunun bu güne düşen kısmı
+    const prev = dayDocFor(shiftDate(D, -1));
+    ((prev && prev.sleeps) || []).forEach(s => {
+      const a = hmToMin(s.sleepTime), b = hmToMin(s.wakeTime);
+      if (a != null && b != null && b < a) sleepSegs.push([0, b, false]);
+    });
+    if (isToday && live.sleep && live.sleep.date !== D) sleepSegs.push([0, nm, true]);
+  }
+  (d.diapers || []).forEach(x => {
+    const t = hmToMin(x.time);
+    if (t != null && (x.pee || x.poop)) dots.push([t, !!x.poop]);
+  });
+  const seg = (a, b) => `left:${pct(a)};width:${pct(Math.max(0, b - a))}`;
+  box.innerHTML =
+    `<div class="ritim-lane ritim-feed">` +
+      feedSegs.map(([a, b]) => `<span style="${seg(a, b)}"></span>`).join("") +
+      formulaTicks.map(t => `<span class="formula" style="left:${pct(t)}"></span>`).join("") +
+    `</div>` +
+    `<div class="ritim-lane ritim-track">` +
+      (isToday ? `<div class="future" style="left:${pct(nm)}"></div>` : "") +
+      sleepSegs.map(([a, b, l]) => `<span class="${l ? "live" : ""}" style="${seg(a, b)}"></span>`).join("") +
+    `</div>` +
+    `<div class="ritim-lane ritim-diaper">` +
+      dots.map(([t, poop]) => `<span class="${poop ? "poop" : ""}" style="left:${pct(t)}"></span>`).join("") +
+    `</div>` +
+    (isToday ? `<div class="ritim-now" style="left:${pct(nm)}"></div><b class="ritim-nowlabel" style="left:clamp(22px, ${pct(nm)}, calc(100% - 22px))">${nowTimeStr()}</b>` : "") +
+    `<div class="ritim-hours"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>`;
+  box.setAttribute("aria-label", `Günün ritmi: ${(d.feedings || []).length} beslenme, ${dots.length} tuvalet` + (sleepOn ? `, ${sleepSegs.length} uyku` : ""));
+}
+
+/* ========================================================================
+   8f) Kayıtlar — Akış (günün tüm kayıtları saat sırasıyla, en yeni üstte;
+   dokununca düzenleme penceresi) ya da Listeler (önceki görünüm: Beslenme /
+   Tuvalet / Uyku kartları). Seçim bu telefonda saklanır.
+   ===================================================================== */
+const DAY_VIEW_KEY = "bebekGunlugu.dayView";
+let dayView = (() => { try{ return localStorage.getItem(DAY_VIEW_KEY) === "liste" ? "liste" : "akis"; }catch(e){ return "akis"; } })();
+function applyDayView(){
+  document.getElementById("akisView").hidden = dayView !== "akis";
+  document.getElementById("listView").hidden = dayView !== "liste";
+  document.getElementById("viewAkisBtn").setAttribute("aria-pressed", String(dayView === "akis"));
+  document.getElementById("viewListBtn").setAttribute("aria-pressed", String(dayView === "liste"));
+}
+function setDayView(v){
+  dayView = v;
+  try{ localStorage.setItem(DAY_VIEW_KEY, v); }catch(e){ /* bu oturumda yine geçerli */ }
+  applyDayView();
+  if (v === "liste"){ renderFeedList(); renderDiaperList(); renderSleepList(); } else renderAkis();
+}
+document.getElementById("viewAkisBtn").addEventListener("click", () => setDayView("akis"));
+document.getElementById("viewListBtn").addEventListener("click", () => setDayView("liste"));
+applyDayView();
+
+const AKIS_LIMIT = 8;
+let akisExpanded = readListExpanded("akis");
+function akisEntries(d){
+  const items = [];
+  (d.feedings || []).forEach((f, idx) => {
+    if (f.type === "formula"){ items.push({ list:"feedings", idx, rec:f, kind:"formula", t:hmToMin(f.time) }); return; }
+    const starts = [hmToMin(f.rightStart), hmToMin(f.leftStart)].filter(v => v != null);
+    items.push({ list:"feedings", idx, rec:f, kind:"breast", t: starts.length ? Math.min(...starts) : null });
+  });
+  (d.diapers || []).forEach((x, idx) => items.push({ list:"diapers", idx, rec:x, kind:"diaper", t:hmToMin(x.time) }));
+  if (sleepTrackingOn()) (d.sleeps || []).forEach((s, idx) => items.push({ list:"sleeps", idx, rec:s, kind:"sleep", t:hmToMin(s.sleepTime) }));
+  // En yeni üstte; saati girilmemiş kayıtlar en altta
+  return items.sort((a, b) => (b.t ?? -1) - (a.t ?? -1));
+}
+function akisItemHtml(it){
+  const r = it.rec;
+  const isLive = (it.list === "feedings" && live.feed && live.feed.rec === r) || (it.list === "sleeps" && live.sleep && live.sleep.rec === r);
+  let k, title, detail = "", right = "";
+  if (it.kind === "breast"){
+    k = "k-feed"; title = "Emzirme";
+    const parts = [];
+    ["right", "left"].forEach(side => {
+      const st = r[side + "Start"], en = r[side + "End"];
+      if (!st && !en) return;
+      const m = minutesBetween(st, en, 180);
+      const liveSide = isLive && live.feed.side === side;
+      parts.push(SIDE_NAME[side] + " " + (liveSide ? "sürüyor" : (m != null ? m + " dk" : (st && !en ? "bitiş yok" : "?"))));
+    });
+    if (Number(r.formulaCc) > 0) parts.push("mama " + r.formulaCc + " cc");
+    if (Number(r.extraCc) > 0) parts.push("ek süt " + r.extraCc + " cc");
+    if (Number(r.pumpedCc) > 0) parts.push("sağılan " + r.pumpedCc + " cc");
+    detail = parts.join(" · ");
+    const total = (minutesBetween(r.rightStart, r.rightEnd, 180) || 0) + (minutesBetween(r.leftStart, r.leftEnd, 180) || 0);
+    right = isLive ? `<span class="chip">sürüyor</span>` : (total ? `<span class="akis-val">${total} dk</span>` : "");
+  } else if (it.kind === "formula"){
+    k = "k-formula"; title = "Mama"; detail = "Biberon";
+    right = `<span class="akis-val">${Number(r.formulaCc) || 0} cc</span>`;
+  } else if (it.kind === "diaper"){
+    k = r.poop ? "k-poop" : "k-diaper"; title = "Tuvalet";
+    const what = [r.pee && "Çiş", r.poop && "Kaka"].filter(Boolean).join(" + ");
+    if (what) right = `<span class="chip">${what}</span>`; else detail = "işaretlenmemiş";
+  } else {
+    k = "k-sleep"; title = isLive ? "Uyuyor" : "Uyku";
+    detail = rangeText(r.sleepTime, r.wakeTime);
+    const m = minutesBetween(r.sleepTime, r.wakeTime, 24*60);
+    right = isLive ? `<span class="chip">sürüyor</span>` : (m != null ? `<span class="akis-val">${durText(m)}</span>` : "");
+  }
+  if (isBlankRecord(it.list, r)) detail = "Boş kayıt — dokunup doldur";
+  const time = it.t != null ? `<span class="akis-time">${minToHm(it.t)}</span>` : `<span class="akis-time none">saatsiz</span>`;
+  return `<button type="button" class="akis-item ${k}${isLive ? " live" : ""}" data-list="${it.list}" data-idx="${it.idx}">` +
+      time + `<span class="akis-node" aria-hidden="true"><i></i></span>` +
+      `<span class="akis-card"><span class="akis-main"><span class="akis-title">${title}</span>` +
+      (detail ? `<span class="akis-detail">${escapeHtml(detail)}</span>` : "") + `</span>${right}</span>` +
+    `</button>`;
+}
+function renderAkis(){
+  const list = document.getElementById("akisList");
+  if (!list) return;
+  const more = document.getElementById("akisMore");
+  const items = akisEntries(dayData);
+  if (!items.length){
+    list.innerHTML = dayLoading ? "" :
+      `<div class="akis-empty">${currentDate === todayStr() ? "Bugün için henüz kayıt yok." : "Bu gün için kayıt yok."}<br>Alttaki düğmelerden ekleyebilirsin.</div>`;
+    more.hidden = true;
+    return;
+  }
+  const shown = akisExpanded ? items : items.slice(0, AKIS_LIMIT);
+  list.innerHTML = shown.map(akisItemHtml).join("");
+  if (items.length > AKIS_LIMIT){
+    more.hidden = false;
+    more.innerHTML = akisExpanded ? `<span>Daha az göster</span>` : `${items.length} kaydın ${AKIS_LIMIT}'i gösteriliyor · <span>Tümünü göster</span>`;
+  } else {
+    more.hidden = true;
+  }
+}
+document.getElementById("akisList").addEventListener("click", (e) => {
+  const b = e.target.closest(".akis-item");
+  if (!b || dayLoading) return;
+  const rec = dayData[b.dataset.list] && dayData[b.dataset.list][Number(b.dataset.idx)];
+  if (rec) openEditSheet(b.dataset.list, rec);
+});
+document.getElementById("akisMore").addEventListener("click", () => {
+  akisExpanded = !akisExpanded;
+  try{ localStorage.setItem(LIST_EXPAND_KEY + "akis", akisExpanded ? "1" : "0"); }catch(e){ /* bu oturumda yine geçerli */ }
+  renderAkis();
+});
+
+/* ========================================================================
+   8g) Alttan açılan pencere: kayıt düzenleme ve hızlı kayıt seçenekleri
+   ===================================================================== */
+const sheetEl = document.getElementById("sheet");
+const sheetBody = document.getElementById("sheetBody");
+let sheetCtx = null;
+function openSheet(title, content, ctx = {}){
+  if (sheetCtx) closeSheet();
+  sheetCtx = ctx;
+  document.getElementById("sheetTitle").textContent = title;
+  sheetBody.innerHTML = "";
+  sheetBody.appendChild(content);
+  if (typeof sheetEl.showModal === "function"){ if (!sheetEl.open) sheetEl.showModal(); }
+  else sheetEl.setAttribute("open", "");
+  sheetEl.querySelector(".sheet-inner").scrollTop = 0;
+}
+function closeSheet(){
+  if (!sheetCtx) return;
+  const ae = document.activeElement;
+  if (ae && sheetEl.contains(ae) && ae.blur) ae.blur(); // açık saat seçicisindeki değer önce kaydolsun
+  const ctx = sheetCtx;
+  sheetCtx = null;
+  if (sheetEl.open){ if (typeof sheetEl.close === "function") sheetEl.close(); else sheetEl.removeAttribute("open"); }
+  if (ctx.onClose) ctx.onClose();
+  renderFeedList(); renderDiaperList(); renderSleepList(); // Listeler görünümü de güncel kalsın
+  renderDayVisuals();
+  setTimeout(applyPendingDaySnapshot, 60); // pencere açıkken diğer telefondan gelen veri
+}
+sheetEl.addEventListener("cancel", (e) => { e.preventDefault(); closeSheet(); });
+sheetEl.addEventListener("click", (e) => { if (e.target === sheetEl) closeSheet(); }); // karartılmış alana dokunmak
+document.getElementById("sheetClose").addEventListener("click", closeSheet);
+
+function sheetTitleFor(base){ return currentDate === todayStr() ? base : base + " · " + dayChipText(currentDate); }
+function recordTitle(list, r){ return list === "feedings" ? (r.type === "formula" ? "Mama" : "Emzirme") : list === "diapers" ? "Tuvalet" : "Uyku"; }
+function removeRecord(list, rec){
+  const i = dayData[list].indexOf(rec);
+  if (i < 0) return;
+  dayData[list].splice(i, 1);
+  scheduleSave();
+}
+
+// Bir kaydı düzenleme penceresinde aç (Akış'tan, sayaçtaki "Elle düzelt"ten ya da yeni kayıt)
+function openEditSheet(list, rec, opts = {}){
+  if (!rec) return;
+  const wrap = document.createElement("div");
+  wrap.appendChild(buildEditor(list, () => rec, { inSheet:true }));
+  if (opts.note){
+    const p = document.createElement("p");
+    p.className = "sheet-note";
+    p.textContent = opts.note;
+    wrap.appendChild(p);
+  }
+  const actions = document.createElement("div");
+  actions.className = "sheet-actions";
+  actions.innerHTML = opts.isNew
+    ? `<button type="button" class="btn btn-soft" data-a="cancel">Vazgeç</button><button type="button" class="btn btn-strong" data-a="ok">Kaydet</button>`
+    : `<button type="button" class="btn btn-danger-soft" data-a="delete"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg>Sil</button><button type="button" class="btn btn-strong" data-a="ok">Tamam</button>`;
+  actions.addEventListener("click", async (e) => {
+    const a = e.target.closest("[data-a]");
+    if (!a) return;
+    if (a.dataset.a === "ok") closeSheet();
+    else if (a.dataset.a === "cancel"){ removeRecord(list, rec); closeSheet(); }
+    else if (a.dataset.a === "delete"){
+      const idx = dayData[list].indexOf(rec);
+      if (idx < 0){ closeSheet(); return; }
+      if (await deleteDayRecord(list, idx)) closeSheet();
+    }
+  });
+  wrap.appendChild(actions);
+  openSheet(sheetTitleFor(recordTitle(list, rec)), wrap, {
+    // Yeni açılıp hiçbir şey girilmeden kapatılan kayıt saklanmaz
+    onClose: () => { if (opts.isNew && isBlankRecord(list, rec)) removeRecord(list, rec); }
+  });
+}
+// Elle giriş: kaydı ekranda açık güne ekleyip düzenleme penceresinde aç
+function openNewRecord(list, rec, opts = {}){
+  if (dayLoading) return;
+  dayData[list].push(rec);
+  if (isBlankRecord(list, rec)) renderDayVisuals(); else scheduleSave();
+  openEditSheet(list, rec, { ...opts, isNew:true });
+}
+
+function choiceBtn(k, icon, title, sub, act, extra = ""){
+  return `<button type="button" class="choice ${k} ${extra}" data-a="${act}"><span class="ci"><svg class="i" aria-hidden="true"><use href="#${icon}"/></svg></span><span><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}</span></button>`;
+}
+function pastDayNote(){
+  return `<p class="sheet-note">${dayChipText(currentDate)} için ekliyorsun. Sayaç ve tek dokunuşla kayıt sadece bugün için; geçmiş bir güne saatleri elle girebilirsin.</p>`;
+}
+const MANUAL_BTN = (label) => `<button type="button" class="btn-link" data-a="manual"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg>${label}</button>`;
+
+function openFeedSheet(){
+  const isToday = currentDate === todayStr();
+  const el = document.createElement("div");
+  el.innerHTML = (isToday
+      ? `<div class="choice-grid">${choiceBtn("k-feed", "i-play", "Sağ", "memeden başlat", "start-right")}${choiceBtn("k-feed", "i-play", "Sol", "memeden başlat", "start-left")}</div>
+         <p class="sheet-note">Sayaç hemen başlar. Diğer tarafa geçmek ve bitirmek için Gün sekmesinin en üstündeki kartı kullan; sayaç iki telefonda da görünür.</p>`
+      : pastDayNote())
+    + MANUAL_BTN("Saatleri elle gir");
+  el.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-a]");
+    if (!a) return;
+    if (a.dataset.a === "manual"){
+      closeSheet();
+      openNewRecord("feedings", { rightStart:"", rightEnd:"", leftStart:"", leftEnd:"", extraCc:0, pumpedCc:0 });
+    } else {
+      startFeed(a.dataset.a === "start-right" ? "right" : "left");
+    }
+  });
+  openSheet(sheetTitleFor("Emzirme"), el);
+}
+async function startFeed(side){
+  closeSheet();
+  // Bu arada diğer telefon emzirme başlattıysa ikinci bir sayaç açma, ona götür
+  if (findLiveSessions().feed){ renderLive(); showLive(); return; }
+  const rec = { rightStart:"", rightEnd:"", leftStart:"", leftEnd:"", extraCc:0, pumpedCc:0 };
+  rec[side + "Start"] = nowTimeStr();
+  rec[side + "StartAt"] = Date.now();
+  await addRecord(todayStr(), "feedings", rec, SIDE_NAME[side] + " memeden emzirme başladı");
+  renderLive();
+  showLive();
+}
+function openFormulaSheet(){
+  if (dayLoading) return;
+  const isToday = currentDate === todayStr();
+  // Yeni mama öğünü, o gün en son verilen mama miktarıyla başlar (çoğu öğün aynı)
+  const last = [...dayData.feedings].reverse().find(f => Number(f.formulaCc) > 0);
+  openNewRecord("feedings", { type:"formula", time: isToday ? nowTimeStr() : "", formulaCc: last ? Number(last.formulaCc) : 0 },
+    { note: isToday ? "Saat şimdi olarak, miktar en son verilen mamadan geldi; gerekirse değiştir." : "" });
+}
+function openDiaperSheet(){
+  const isToday = currentDate === todayStr();
+  const el = document.createElement("div");
+  el.innerHTML = (isToday
+      ? `<div class="choice-grid three">${choiceBtn("k-diaper", "i-drop", "Çiş", "", "pee")}${choiceBtn("k-poop", "i-poop", "Kaka", "", "poop")}${choiceBtn("k-diaper", "i-check", "İkisi", "çiş + kaka", "both")}</div>
+         <p class="sheet-note">Dokunduğun an şimdiki saatle kaydedilir.</p>`
+      : pastDayNote())
+    + MANUAL_BTN("Saati elle gir");
+  el.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-a]");
+    if (!a) return;
+    if (a.dataset.a === "manual"){
+      closeSheet();
+      openNewRecord("diapers", { time: isToday ? nowTimeStr() : "", pee:false, poop:false });
+      return;
+    }
+    const pee = a.dataset.a !== "poop", poop = a.dataset.a !== "pee";
+    closeSheet();
+    addRecord(todayStr(), "diapers", { time: nowTimeStr(), pee, poop }, "Tuvalet eklendi · " + [pee && "Çiş", poop && "Kaka"].filter(Boolean).join(" + "));
+  });
+  openSheet(sheetTitleFor("Tuvalet"), el);
+}
+function openSleepSheet(){
+  const isToday = currentDate === todayStr();
+  const el = document.createElement("div");
+  el.innerHTML = (isToday
+      ? `<div class="choice-grid">${choiceBtn("k-sleep", "i-moon", "Uyudu", "sayacı şimdi başlat", "sleep-now", "wide")}</div>
+         <p class="sheet-note">Uyanınca Gün sekmesinin en üstündeki karttan "Uyandı"ya dokun.</p>`
+      : pastDayNote())
+    + MANUAL_BTN("Saatleri elle gir");
+  el.addEventListener("click", async (e) => {
+    const a = e.target.closest("[data-a]");
+    if (!a) return;
+    if (a.dataset.a === "manual"){
+      closeSheet();
+      openNewRecord("sleeps", { sleepTime:"", wakeTime:"" });
+      return;
+    }
+    closeSheet();
+    if (findLiveSessions().sleep){ renderLive(); showLive(); return; } // diğer telefon zaten başlatmış
+    await addRecord(todayStr(), "sleeps", { sleepTime: nowTimeStr(), wakeTime:"", sleepStartAt: Date.now() }, "Uyku başladı");
+    renderLive();
+    showLive();
+  });
+  openSheet(sheetTitleFor("Uyku"), el);
+}
+
+// Yazı yazılırken (klavye açık) alttaki şerit gizlenir
+document.getElementById("appScreen").addEventListener("focusin", (e) => {
+  if (e.target.matches && e.target.matches("input:not([type=checkbox]), textarea")) appScreen.classList.add("typing");
+});
+document.getElementById("appScreen").addEventListener("focusout", () => {
+  setTimeout(() => {
+    const el = document.activeElement;
+    if (!(el && appScreen.contains(el) && el.matches && el.matches("input:not([type=checkbox]), textarea"))) appScreen.classList.remove("typing");
+  }, 0);
+});
+
+// Alttaki şerit: süren bir emzirme/uyku varsa düğme sayaca götürür
+document.getElementById("dock").addEventListener("click", (e) => {
+  const b = e.target.closest(".dock-btn");
+  if (!b) return;
+  const k = b.dataset.k;
+  if ((k === "feed" && live.feed) || (k === "sleep" && live.sleep)){ showLive(); return; }
+  if (k === "feed") openFeedSheet();
+  else if (k === "formula") openFormulaSheet();
+  else if (k === "diaper") openDiaperSheet();
+  else if (k === "sleep") openSleepSheet();
+});
+paintDock();
+
+// Saniyede bir sayaçlar, dakikada bir "şimdi" çizgisi ve süreler
+let lastMinuteTick = -1;
+setInterval(() => {
+  if (document.visibilityState !== "visible" || appScreen.hidden) return;
+  tickLive();
+  const m = nowMinutes();
+  if (m === lastMinuteTick) return;
+  lastMinuteTick = m;
+  renderLive();
+  renderRitim();
+  if (live.feed || live.sleep){ renderDaySummary(); renderAkis(); }
+}, 1000);
 
 /* ========================================================================
    9) Service worker (uygulama kabuğunu önbelleğe alır)

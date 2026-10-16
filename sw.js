@@ -3,7 +3,8 @@
 // weak connection. It never touches Firebase requests — those always go
 // straight to the network so your data stays live and accurate.
 // v3: yeni uygulama simgesi — eski önbellek (eski simge ve manifest) silinir
-const CACHE_NAME = "bebek-gunlugu-shell-v3";
+// v4: yeni tema (Gündüz / Gece) — kabuk yeniden önbelleğe alınır
+const CACHE_NAME = "bebek-gunlugu-shell-v4";
 const SHELL_FILES = [
   "./",
   "./index.html",
