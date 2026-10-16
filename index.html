@@ -241,6 +241,16 @@
   .calendar-grid button.selected .cal-dot{ background:#fff; }
   .calendar-close{ width:100%; margin-top:12px; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--line); background:transparent; color:var(--ink-soft); font-size:14px; cursor:pointer; }
 
+  /* Ayarlar: uzun seçenek listeleri başlığa dokununca açılır/kapanır (biri açılınca diğeri kapanır) */
+  .settings-acc > summary{ list-style:none; display:flex; align-items:center; gap:8px; min-height:44px; margin:-6px 0; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  .settings-acc > summary::-webkit-details-marker{ display:none; }
+  .settings-acc > summary h2{ flex:1; min-width:0; margin:0; }
+  .settings-acc > summary:focus-visible{ outline:2px solid var(--blue-deep); outline-offset:4px; border-radius:10px; }
+  .acc-count{ flex-shrink:0; font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  .acc-chevron{ flex-shrink:0; width:30px; height:30px; border-radius:50%; background:var(--paper); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; transition:transform .2s ease; }
+  .settings-acc[open] .acc-chevron{ transform:rotate(180deg); }
+  .settings-acc .acc-body{ margin-top:16px; }
+  .settings-acc .acc-hint{ margin:0 0 10px; }
   .settings-list{ display:flex; flex-direction:column; gap:8px; }
   .settings-item{ display:flex; gap:8px; align-items:center; }
   .settings-item-label{ flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff; color:var(--ink); min-width:0; }
@@ -627,52 +637,82 @@
         </label>
       </section>
 
-      <section class="card" data-accent="sage">
-        <h2><span class="badge">🌱</span> Bebeğin günü seçenekleri</h2>
-        <div class="settings-list" id="settingsBabyList"></div>
-        <div class="settings-add-row">
-          <input type="text" id="newBabyItemInput" placeholder="Yeni seçenek…">
-          <button type="button" id="addBabyItemBtn">Ekle</button>
+      <details class="card settings-acc" data-accent="sage" name="ayarListeleri">
+        <summary>
+          <h2><span class="badge">🌱</span> Bebeğin günü seçenekleri</h2>
+          <span class="acc-count" id="settingsBabyCount"></span>
+          <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+        </summary>
+        <div class="acc-body">
+          <div class="settings-list" id="settingsBabyList"></div>
+          <div class="settings-add-row">
+            <input type="text" id="newBabyItemInput" placeholder="Yeni seçenek…">
+            <button type="button" id="addBabyItemBtn">Ekle</button>
+          </div>
         </div>
-      </section>
-      <section class="card" data-accent="pink">
-        <h2><span class="badge">🌸</span> Annenin günü seçenekleri</h2>
-        <div class="settings-list" id="settingsMomList"></div>
-        <div class="settings-add-row">
-          <input type="text" id="newMomItemInput" placeholder="Yeni seçenek…">
-          <button type="button" id="addMomItemBtn">Ekle</button>
+      </details>
+      <details class="card settings-acc" data-accent="pink" name="ayarListeleri">
+        <summary>
+          <h2><span class="badge">🌸</span> Annenin günü seçenekleri</h2>
+          <span class="acc-count" id="settingsMomCount"></span>
+          <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+        </summary>
+        <div class="acc-body">
+          <div class="settings-list" id="settingsMomList"></div>
+          <div class="settings-add-row">
+            <input type="text" id="newMomItemInput" placeholder="Yeni seçenek…">
+            <button type="button" id="addMomItemBtn">Ekle</button>
+          </div>
         </div>
-      </section>
-      <section class="card" data-accent="blue">
-        <h2><span class="badge">🌟</span> Gelişim aşamaları seçenekleri</h2>
-        <div class="settings-list" id="settingsMilestoneList"></div>
-        <div class="settings-add-row">
-          <input type="text" id="newMilestoneItemInput" placeholder="Yeni aşama…">
-          <button type="button" id="addMilestoneItemBtn">Ekle</button>
+      </details>
+      <details class="card settings-acc" data-accent="blue" name="ayarListeleri">
+        <summary>
+          <h2><span class="badge">🌟</span> Gelişim aşamaları seçenekleri</h2>
+          <span class="acc-count" id="settingsMilestoneCount"></span>
+          <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+        </summary>
+        <div class="acc-body">
+          <div class="settings-list" id="settingsMilestoneList"></div>
+          <div class="settings-add-row">
+            <input type="text" id="newMilestoneItemInput" placeholder="Yeni aşama…">
+            <button type="button" id="addMilestoneItemBtn">Ekle</button>
+          </div>
         </div>
-      </section>
+      </details>
 
-      <section class="card" data-accent="sage">
-        <h2><span class="badge">💉</span> Aşı takvimi seçenekleri</h2>
-        <p class="settings-hint">Soldaki sayı, doğumdan kaç ay sonra hatırlatılacağı.</p>
-        <div class="settings-list" id="settingsVaccineList"></div>
-        <div class="settings-add-row">
-          <input type="number" min="0" id="newVaccineAgeInput" placeholder="Ay" class="settings-age-input">
-          <input type="text" id="newVaccineItemInput" placeholder="Yeni doz…">
-          <button type="button" id="addVaccineItemBtn">Ekle</button>
+      <details class="card settings-acc" data-accent="sage" name="ayarListeleri">
+        <summary>
+          <h2><span class="badge">💉</span> Aşı takvimi seçenekleri</h2>
+          <span class="acc-count" id="settingsVaccineCount"></span>
+          <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+        </summary>
+        <div class="acc-body">
+          <p class="settings-hint acc-hint">Soldaki sayı, doğumdan kaç ay sonra hatırlatılacağı.</p>
+          <div class="settings-list" id="settingsVaccineList"></div>
+          <div class="settings-add-row">
+            <input type="number" min="0" id="newVaccineAgeInput" placeholder="Ay" class="settings-age-input">
+            <input type="text" id="newVaccineItemInput" placeholder="Yeni doz…">
+            <button type="button" id="addVaccineItemBtn">Ekle</button>
+          </div>
         </div>
-      </section>
+      </details>
 
-      <section class="card" data-accent="gold">
-        <h2><span class="badge">🌊</span> Gelişim dönemleri seçenekleri</h2>
-        <p class="settings-hint">Soldaki sayı, dönemin başladığı hafta (bebeğin kaçıncı haftası). 1–12. haftalardaki dönemler o haftanın rehber kartında, sonrakiler "3 ay +" bölümünde görünür.</p>
-        <div class="settings-list" id="settingsLeapList"></div>
-        <div class="settings-add-row">
-          <input type="number" min="0" id="newLeapAgeInput" placeholder="Hafta" class="settings-age-input">
-          <input type="text" id="newLeapItemInput" placeholder="Yeni dönem…">
-          <button type="button" id="addLeapItemBtn">Ekle</button>
+      <details class="card settings-acc" data-accent="gold" name="ayarListeleri">
+        <summary>
+          <h2><span class="badge">🌊</span> Gelişim dönemleri seçenekleri</h2>
+          <span class="acc-count" id="settingsLeapCount"></span>
+          <span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+        </summary>
+        <div class="acc-body">
+          <p class="settings-hint acc-hint">Soldaki sayı, dönemin başladığı hafta (bebeğin kaçıncı haftası). 1–12. haftalardaki dönemler o haftanın rehber kartında, sonrakiler "3 ay +" bölümünde görünür.</p>
+          <div class="settings-list" id="settingsLeapList"></div>
+          <div class="settings-add-row">
+            <input type="number" min="0" id="newLeapAgeInput" placeholder="Hafta" class="settings-age-input">
+            <input type="text" id="newLeapItemInput" placeholder="Yeni dönem…">
+            <button type="button" id="addLeapItemBtn">Ekle</button>
+          </div>
         </div>
-      </section>
+      </details>
 
       <section class="card" data-accent="blue">
         <h2><span class="badge">📦</span> Veri yedeği</h2>
@@ -1611,11 +1651,15 @@ function renderSettingsLists(){
   renderSettingsList("settingsLeapList", "leaps");
 }
 
+// Kapalı başlıkta listede kaç öğe olduğu yazar ("12 seçenek", "20 doz"…)
+const SETTINGS_COUNT_NOUN = { babyRoutine:"seçenek", momRoutine:"seçenek", milestones:"aşama", vaccines:"doz", leaps:"dönem" };
 function renderSettingsList(elId, configKey){
   const wrap = document.getElementById(elId);
   wrap.innerHTML = "";
   const ageField = AGE_FIELD_BY_KEY[configKey];
   const list = checklistConfig[configKey];
+  const countEl = document.getElementById(elId.replace(/List$/, "Count"));
+  if (countEl) countEl.textContent = list.length + " " + SETTINGS_COUNT_NOUN[configKey];
   list.forEach((item, idx) => {
     const row = document.createElement("div");
     row.className = "settings-item";
