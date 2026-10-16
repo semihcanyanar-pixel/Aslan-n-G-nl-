@@ -4,6 +4,39 @@ Notebook'taki günlük emzirme/uyku/rutin sayfasının web app hâli. iPhone'da
 ana ekrana eklenip native app gibi açılır, veriler Firebase'de saklanır —
 telefon değişse, sekme kapansa da kaybolmaz.
 
+## Son değişiklikler (v5) — aşağıdaki eski anlatımla çelişen yerde bu geçerli
+
+- **Görünüm düğmesi üç durumlu:** Gündüz (güneş) → Pastel (palet) → Gece (ay).
+  Gündüz aynı; Pastel'de düzen aynı, kartlar ve kutucuklar pastel renklerde;
+  Gece bir tık daha açık, daha az boğuk. Seçim her telefonda ayrı saklanır.
+- **Sekmeler: Gün / Hafta / Gelişim / Aşı.** Aşı takvimi kendi sekmesinde,
+  başında sıradaki aşı yazar.
+- **Gün sekmesinin sırası:** Günün bilgisi (AI, Gelişim'den buraya taşındı) →
+  gün başlığı → Günlük bakış (önceki sürümdeki gibi emojili kutucuklar) →
+  emzirme kartı / uyku sayacı → Günün ritmi → Akış | Kayıtlar (eski adı
+  "Listeler"; Akış daraltılmışken son 5 kayıt) → Bebeğin günü / Annenin günü
+  (yan yana iki kare, dokununca açılır) → Notlar.
+- **Alt şerit: Beslenme / Tuvalet / Uyku** (pastel). Beslenme → Emzirme, Mama,
+  Sağılan. Uyku takibi kapalıysa Uyku düğmesi soluk durur, dokununca uyarı verir.
+- **Emzirme kartı:** Sağ ya da Sol'a dokununca o taraf başlar (kutu sarı),
+  kutunun sağ altındaki "Bitir" o tarafı durdurur; diğer tarafa dokununca o
+  başlar. Mama / Ek süt kartta girilir, emzirme **Kaydet**'e basınca kaydedilir.
+  Kaydet'e kadar kayıt "taslak"tır (`draft: true`): iki telefonda da kartta
+  görünür, uygulama kapansa da kaybolmaz ama Akış'ta ve toplamlarda yer almaz.
+  × ile iptal edilir ("Geri al" ile döner). 3 saat hiç dokunulmayan taslak
+  kendiliğinden normal kayıt sayılır. "Elle gir / Elle düzelt" her zaman var.
+- **Mama / Sağılan / elle giriş penceresi:** kayıt sadece **Kaydet**'e basınca
+  eklenir (×, Vazgeç ya da dışarı dokunmak hiçbir şey kaydetmez). Mama 0 cc ile
+  gelir; 0 cc ya da işaretsiz tuvalet kaydedilmez, uyarı verir.
+- **Sağılan süt** ayrı kayıt olarak girilebilir (`type: "pumped"`); öğün
+  sayısına girmez, Günlük bakış ve haftalık ortalamadaki Sağılan'a eklenir.
+  (Eski sürüme dönülürse bu kayıtlar saatsiz emzirme satırı gibi görünür.)
+- **Bir Bakışta** (üstteki kutucuklu düğme): bugünün özeti tek ekranda — son
+  beslenme ve sıradaki taraf + Başlat, uyku (Uyudu/Uyandı), bez (+Çiş/+Kaka),
+  Mama/Ek süt/Toplam + Sağılan, gelişim haftası, güncel kilo, sıradaki aşı.
+- Başlıkta artık "Aslan" yazıyor (dört düğme sığsın diye); dar ekranda küçük
+  simge gizlenir. Service worker önbelleği `v5`.
+
 ## Bu sürümde neler var
 
 Ana ekranın üstünde **Gün / Hafta / Gelişim** sekmeleri var; sekmeye dokunarak
