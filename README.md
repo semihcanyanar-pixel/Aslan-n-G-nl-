@@ -4,6 +4,17 @@ Notebook'taki günlük emzirme/uyku/rutin sayfasının web app hâli. iPhone'da
 ana ekrana eklenip native app gibi açılır, veriler Firebase'de saklanır —
 telefon değişse, sekme kapansa da kaybolmaz.
 
+## Son değişiklikler (v6)
+
+- Pastel görünüm yenilendi (**Lila**): zemin hafif lila, kartlar beyaz, renk
+  sadece kutucuklarda, alt şeritte ve mor düğmelerde; Uyku kutucuğu koyu lila.
+- Gün sekmesinde gün başlığı (◀ tarih ▶) en üstte, Günün bilgisi onun altında.
+- Akış ile Bebeğin/Annenin günü kareleri arasında boşluk.
+- Büyüme takibi: grafiğin altında en son ölçüm; öncekiler "Önceki ölçümler"
+  başlığına dokununca (ok) açılır.
+- Gelişim aşamaları da kare sistemine geçti: kaç tanesi işaretli, sıradaki,
+  ilerleme çubuğu; dokununca liste açılır. Service worker önbelleği `v6`.
+
 ## Son değişiklikler (v5) — aşağıdaki eski anlatımla çelişen yerde bu geçerli
 
 - **Görünüm düğmesi üç durumlu:** Gündüz (güneş) → Pastel (palet) → Gece (ay).

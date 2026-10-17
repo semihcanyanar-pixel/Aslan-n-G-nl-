@@ -18,7 +18,7 @@
       var t = localStorage.getItem("bebekGunlugu.theme");
       if (t === "dark" || t === "pastel"){
         document.documentElement.setAttribute("data-theme", t);
-        document.querySelector('meta[name="theme-color"]').setAttribute("content", t === "dark" ? "#161B2E" : "#FBFAF7");
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", t === "dark" ? "#161B2E" : "#F4F1FB");
       }
     }catch(e){}
   })();
@@ -80,33 +80,27 @@
     --shadow-lg:0 18px 40px rgba(0,0,0,.45);
     color-scheme:dark;
   }
-  /* Pastel: Gündüz'ün düzeni aynen; kartlar ve kutular yumuşak pastel renklerde */
+  /* Pastel (Lila): Gündüz'ün düzeni aynen; zemin hafif lila, kartlar beyaz, renk
+     sadece kutucuklarda, şeritte ve düğmelerde (canlı pastel tonlar, mor düğmeler) */
   :root[data-theme="pastel"]{
-    --bg:#FBFAF7; --surface:#FFFFFF; --surface-2:#F4F1EB; --surface-3:#EDE9E1;
-    --line:#E6E1D8; --line-soft:#EEEAE3;
-    --ink:#1C1B1F; --ink-2:#5F5C66; --ink-3:#96929C;
-    --primary:#3A5FC8; --primary-soft:#DCEBFB;
-    --strong:#1C1B1F; --strong-ink:#FFFFFF;
+    --bg:#F4F1FB; --surface:#FFFFFF; --surface-2:#F3EFFB; --surface-3:#E9E3F7;
+    --line:#E3DCF3; --line-soft:#EDE8F8;
+    --ink:#251F3A; --ink-2:#6A6385; --ink-3:#9C96B3;
+    --primary:#6B4FD8; --primary-soft:#E9E2FF;
+    --strong:#5A43C2; --strong-ink:#FFFFFF;
     --tab-on:#FFFFFF;
-    --feed:#F6C64E; --feed-soft:#FFF0C2; --feed-ink:#7A5800;
-    --formula:#F2995F; --formula-soft:#FFE0D2; --formula-ink:#963F14;
-    --diaper:#46BC8A; --diaper-soft:#D8F2E4; --diaper-ink:#0E6B4B;
-    --poop:#BE8C5A; --poop-soft:#F2E5D6; --poop-ink:#76491F;
-    --sleep:#8C7AEE; --sleep-soft:#E6E1FA; --sleep-ink:#4B3FB8;
-    --pump:#E9799E; --pump-soft:#FBE1EA; --pump-ink:#A0244C;
-    --dock:#FFFFFF; --dock-line:#ECE8E1;
-    --toast-bg:#1C1B1F; --toast-ink:#FBFAF7; --toast-accent:#F6C64E;
-    --backdrop:rgba(28,27,31,.36);
-    --shadow:0 6px 18px rgba(28,27,31,.04);
+    --feed:#FFC94D; --feed-soft:#FFEDB3; --feed-ink:#7A5600;
+    --formula:#FF9F7A; --formula-soft:#FFDCCD; --formula-ink:#963F14;
+    --diaper:#3FC497; --diaper-soft:#C9F1DF; --diaper-ink:#0B6747;
+    --poop:#C99263; --poop-soft:#F2DFCB; --poop-ink:#76491F;
+    --sleep:#7A63F2; --sleep-soft:#C7BAFF; --sleep-ink:#3B2A9E;
+    --pump:#F27EAA; --pump-soft:#FFD3E4; --pump-ink:#A0244C;
+    --dock:#FFFFFF; --dock-line:#E3DCF3;
+    --toast-bg:#251F3A; --toast-ink:#F4F1FB; --toast-accent:#FFC94D;
+    --backdrop:rgba(37,31,58,.38);
+    --shadow:0 6px 18px rgba(60,40,120,.06);
   }
-  /* Kartların pastel tonu: sadece Pastel görünümde boyanır (Gündüz ve Gece'de etkisiz) */
-  [data-tone="butter"]{ --tone:#FFF0C2; } [data-tone="mint"]{ --tone:#D8F2E4; } [data-tone="lavender"]{ --tone:#E6E1FA; }
-  [data-tone="peach"]{ --tone:#FFE0D2; } [data-tone="sky"]{ --tone:#DCEBFB; } [data-tone="pink"]{ --tone:#FBE1EA; } [data-tone="sand"]{ --tone:#F1EEE8; }
-  :root[data-theme="pastel"] [data-tone]{
-    background:var(--tone); border-color:transparent; box-shadow:none;
-    --surface-2:rgba(255,255,255,.62); --surface-3:rgba(255,255,255,.5); --line:rgba(28,27,31,.12); --line-soft:rgba(28,27,31,.08);
-  }
-  :root[data-theme="pastel"] [data-tone] .badge{ background:rgba(255,255,255,.72); }
+  /* Kartlardaki data-tone ileride başka bir görünüm için duruyor; şimdilik hiçbir görünümde boyanmıyor */
   /* Kayıt türlerinin renkleri (rozet, nokta, çubuk, sayaç) */
   .k-feed{ --c:var(--feed); --c-soft:var(--feed-soft); --c-ink:var(--feed-ink); --on-c:#2A1A00; }
   .k-formula{ --c:var(--formula); --c-soft:var(--formula-soft); --c-ink:var(--formula-ink); --on-c:#2B1200; }
@@ -179,7 +173,7 @@
   @keyframes spin{ to{ transform:rotate(360deg); } }
   /* Görünüm düğmesi o anki görünümü gösterir: güneş → pastel paleti → ay */
   #themeBtn{ color:#D9930B; }
-  :root[data-theme="pastel"] #themeBtn{ color:#C2557A; background:#FFF6F0; }
+  :root[data-theme="pastel"] #themeBtn{ color:#6B4FD8; background:#F3EFFB; }
   :root[data-theme="dark"] #themeBtn{ color:#F3D58B; }
   #glanceBtn{ color:var(--primary); }
 
@@ -212,11 +206,8 @@
 
   /* ===== Emzirme kartı (Sağ/Sol sayaç + Mama/Ek süt + Kaydet) ve süren uyku ===== */
   .live-card{ position:relative; overflow:hidden; border-radius:24px; padding:16px; margin-bottom:12px; background:var(--surface); border:1.5px solid var(--c); box-shadow:var(--shadow); }
-  :root[data-theme="pastel"] .live-card{ background:var(--c-soft); border-color:transparent; box-shadow:none;
-    --surface-2:rgba(255,255,255,.62); --line:rgba(28,27,31,.12); --line-soft:rgba(28,27,31,.08); }
   .live-head{ display:flex; align-items:center; gap:4px; }
   .live-tag{ display:inline-flex; align-items:center; gap:8px; height:30px; margin-right:auto; padding:0 12px; border-radius:999px; background:var(--c-soft); color:var(--c-ink); font-size:13px; font-weight:600; white-space:nowrap; }
-  :root[data-theme="pastel"] .live-tag{ background:rgba(255,255,255,.72); }
   .live-tag i{ width:8px; height:8px; border-radius:50%; background:var(--c); animation:live-pulse 1.6s ease-in-out infinite; }
   .live-tag.idle i{ animation:none; opacity:.55; }
   @keyframes live-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
@@ -247,7 +238,6 @@
   .side-stop .i{ width:13px; height:13px; }
   .side-stop:active{ transform:scale(.96); }
   .side-hint{ position:absolute; top:10px; right:10px; font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; background:var(--c-soft); color:var(--c-ink); pointer-events:none; }
-  :root[data-theme="pastel"] .side-hint{ background:var(--feed); color:#3D2F00; }
   .feed-amounts{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; margin-top:12px; }
   .live-actions{ display:flex; gap:10px; margin-top:12px; }
   .btn-strong:disabled{ opacity:.4; cursor:default; transform:none; }
@@ -284,7 +274,6 @@
 
   /* ===== Günlük bakış: seçili günün toplamları — önceki sürümdeki gibi emojili kutucuklar ===== */
   .day-chip{ margin-left:auto; font-family:var(--font-ui); font-size:11.5px; font-weight:600; color:var(--primary); background:var(--primary-soft); padding:3px 10px; border-radius:999px; white-space:nowrap; }
-  :root[data-theme="pastel"] .day-chip{ background:#DCEBFB; color:#1F4E86; }
   .day-stats{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
   .day-stat{ min-width:0; padding:10px 6px 9px; border-radius:16px; background:var(--surface-2); text-align:center; }
   .day-stat-label{ font-size:12.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -295,7 +284,7 @@
   .day-stat.total{ background:var(--primary-soft); }
   .day-stat.zero .day-stat-val{ opacity:.4; }
   :root[data-theme="pastel"] .day-stat{ background:var(--c-soft); }
-  :root[data-theme="pastel"] .day-stat.total{ background:#DCEBFB; }
+  :root[data-theme="pastel"] .day-stat.total{ background:var(--primary-soft); }
   html.no-sleep .day-stat.breast{ grid-column:span 2; }
 
   /* ===== Günün bilgisi (Gün sekmesinin en üstünde, sade) ===== */
@@ -310,6 +299,7 @@
   .view-toggle button{ flex:1; height:38px; padding:0 13px; border:none; border-radius:11px; background:transparent; color:var(--ink-2); font-size:14px; font-weight:500; cursor:pointer; }
   .view-toggle button[aria-pressed="true"]{ background:var(--tab-on); color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(15,27,45,.1); }
   .akis{ display:flex; flex-direction:column; gap:8px; }
+  #akisView{ margin-bottom:14px; }
   .akis-item{ display:grid; grid-template-columns:46px 20px minmax(0, 1fr); align-items:center; column-gap:6px; width:100%; padding:0; border:none; background:none; text-align:left; cursor:pointer; }
   .akis-time{ font-family:var(--font-display); font-weight:600; font-size:15px; font-variant-numeric:tabular-nums; }
   .akis-time.none{ font-family:var(--font-ui); font-size:12px; font-weight:500; color:var(--ink-2); }
@@ -320,8 +310,6 @@
   .akis-item:only-child .akis-node::before{ display:none; }
   .akis-node i{ position:relative; width:12px; height:12px; border-radius:50%; background:var(--c); box-shadow:0 0 0 4px var(--bg); }
   .akis-card{ display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:60px; padding:9px 12px 9px 14px; border-radius:17px; background:var(--surface); border:1px solid var(--line-soft); box-shadow:var(--shadow); }
-  :root[data-theme="pastel"] .akis-card{ background:var(--c-soft); border-color:transparent; box-shadow:none; }
-  :root[data-theme="pastel"] .akis-card .chip{ background:rgba(255,255,255,.72); }
   .akis-item:active .akis-card{ transform:scale(.99); }
   .akis-item.live .akis-card{ border:1.5px solid var(--c); }
   .akis-main{ display:block; min-width:0; }
@@ -428,6 +416,8 @@
   .routine-tiles.has-open .rt-next{ grid-area:next; align-self:start; margin:0; }
   .routine-tiles.has-open .rt-count{ grid-area:count; font-size:21px; }
   .routine-tiles.has-open .rt-bar{ display:none; }
+  .routine-tiles.single .rt-head{ grid-template-areas:"badge title count chev" "badge next count chev" "bar bar bar bar"; row-gap:3px; }
+  .routine-tiles.single .rt-bar{ display:block; grid-area:bar; margin-top:6px; }
   .notes-card textarea{ width:100%; min-height:100px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px; color:var(--ink); resize:vertical; background:var(--surface-2); line-height:1.5; }
   .sync-status{ text-align:center; font-size:12px; color:var(--ink-2); padding:8px 0 4px; min-height:18px; }
   .start-page-btn{ display:flex; align-items:center; gap:7px; margin:10px auto 0; height:40px; padding:0 15px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); font-size:12.5px; font-weight:500; cursor:pointer; }
@@ -599,6 +589,11 @@
   .growth-latest{ text-align:center; font-size:13px; color:var(--ink-2); margin:8px 0 4px; }
   .growth-list-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:44px; border-bottom:1px solid var(--line-soft); font-size:13.5px; }
   .growth-list-row:last-child{ border-bottom:none; }
+  .growth-history > summary{ list-style:none; display:flex; align-items:center; gap:8px; min-height:48px; border-top:1px solid var(--line-soft); cursor:pointer; font-size:13.5px; font-weight:600; color:var(--ink-2); -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  .growth-history > summary::-webkit-details-marker{ display:none; }
+  .growth-history > summary > span:first-child{ flex:1; }
+  .growth-history[open] .acc-chevron{ transform:rotate(180deg); }
+  .growth-history[open] > summary{ border-bottom:1px solid var(--line-soft); }
   .growth-list-row .row-delete-inline{ border:none; background:none; color:var(--danger); font-size:12.5px; padding:10px 2px; cursor:pointer; flex-shrink:0; }
   .growth-add-form{ background:var(--surface-2); border-radius:var(--radius-sm); padding:14px; margin-top:10px; }
   .growth-add-form input[type="date"], .growth-inputs input[type="number"]{ height:44px; border:1px solid var(--line); border-radius:12px; padding:0 10px; background:var(--surface); color:var(--ink); }
@@ -627,7 +622,6 @@
   /* Aşı sekmesinin başında sıradaki aşı */
   .vaccine-next{ display:flex; align-items:center; gap:12px; margin-bottom:12px; padding:12px 14px; border-radius:16px; background:var(--surface-2); }
   .vaccine-next .ic{ width:40px; height:40px; flex:none; border-radius:12px; display:flex; align-items:center; justify-content:center; background:var(--diaper-soft); color:var(--diaper-ink); }
-  :root[data-theme="pastel"] .vaccine-next .ic{ background:rgba(255,255,255,.75); }
   .vaccine-next .ic .i{ width:19px; height:19px; }
   .vaccine-next-label{ font-size:12px; color:var(--ink-2); }
   .vaccine-next-title{ margin-top:1px; font-size:14.5px; font-weight:700; line-height:1.35; }
@@ -684,9 +678,9 @@
 
   /* ===== Bir Bakışta: tam ekran özet sayfası (pastel kutular) ===== */
   .glance-screen{ max-width:560px; margin:0 auto; }
-  html.glance-open:not([data-theme="dark"]), html.glance-open:not([data-theme="dark"]) body{ background:#FBFAF7; }
+  html.glance-open:not([data-theme]), html.glance-open:not([data-theme]) body{ background:#FBFAF7; }
   .glance-bar{ position:sticky; top:0; z-index:5; background:var(--bg); justify-content:flex-start; gap:12px; }
-  html.glance-open:not([data-theme="dark"]) .glance-bar{ background:#FBFAF7; }
+  html.glance-open:not([data-theme]) .glance-bar{ background:#FBFAF7; }
   .glance-head{ flex:1; min-width:0; }
   .glance-title{ font-family:var(--font-display); font-weight:600; font-size:21px; line-height:1.15; letter-spacing:-.3px; }
   .glance-sub{ margin-top:1px; font-size:12.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -831,11 +825,6 @@
     <main class="pager" id="pager">
       <!-- ============ GÜN ============ -->
       <div class="page" id="pageDay" role="tabpanel" aria-labelledby="tabDay">
-        <section class="card ai-tip-card no-lock" data-tone="peach" aria-labelledby="aiTipTitle">
-          <h2 id="aiTipTitle"><span class="badge k-feed"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg></span> Günün bilgisi</h2>
-          <p class="ai-tip-text" id="aiTipText">—</p>
-        </section>
-
         <div class="day-nav">
           <button class="nav-btn" id="prevDayBtn" type="button" aria-label="Önceki gün"><svg class="i" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
           <button class="date-center" id="dateCenter" type="button" aria-label="Takvimi aç">
@@ -845,6 +834,11 @@
           </button>
           <button class="nav-btn" id="nextDayBtn" type="button" aria-label="Sonraki gün"><svg class="i" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
         </div>
+
+        <section class="card ai-tip-card no-lock" data-tone="peach" aria-labelledby="aiTipTitle">
+          <h2 id="aiTipTitle"><span class="badge k-feed"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg></span> Günün bilgisi</h2>
+          <p class="ai-tip-text" id="aiTipText">—</p>
+        </section>
 
         <section class="card day-summary-card">
           <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg></span> Günlük bakış <span class="day-chip" id="daySummaryDay"></span></h2>
@@ -1032,10 +1026,18 @@
           <button class="add-btn" id="addGrowthBtn" type="button">+ Ölçüm ekle</button>
         </section>
 
-        <section class="card k-feed" data-tone="butter">
-          <h2><span class="badge"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></span> Gelişim aşamaları <span class="milestone-count" id="milestoneCount"></span></h2>
-          <ul class="routine-list" id="milestoneList"></ul>
-        </section>
+        <div class="routine-tiles has-open single">
+          <section class="card routine-tile k-feed" data-tone="butter" id="milestoneTile" aria-label="Gelişim aşamaları">
+            <button type="button" class="rt-head" data-rt="milestone" aria-expanded="false" aria-controls="milestoneList">
+              <span class="rt-top"><span class="badge"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></span><span class="rt-chev" aria-hidden="true"><svg class="i"><use href="#i-chev-d"/></svg></span></span>
+              <span class="rt-title">Gelişim aşamaları</span>
+              <span class="rt-count" id="milestoneCount">0<small>/0</small></span>
+              <span class="rt-bar" aria-hidden="true"><i id="milestoneBar"></i></span>
+              <span class="rt-next" id="milestoneNext"></span>
+            </button>
+            <ul class="routine-list" id="milestoneList"></ul>
+          </section>
+        </div>
         <button type="button" class="start-page-btn" data-page="2"></button>
       </div>
 
@@ -2013,8 +2015,21 @@ function renderMilestones(){
     li.addEventListener("click", (e) => { if (e.target !== cb){ cb.checked = !cb.checked; toggle(); } });
     ul.appendChild(li);
   });
-  document.getElementById("milestoneCount").textContent = doneCount + "/" + checklistConfig.milestones.length;
+  const total = checklistConfig.milestones.length;
+  document.getElementById("milestoneCount").innerHTML = `${doneCount}<small>/${total}</small>`;
+  document.getElementById("milestoneBar").style.width = (total ? Math.round(doneCount / total * 100) : 0) + "%";
+  const next = checklistConfig.milestones.find(m => !milestoneState[m.key]);
+  document.getElementById("milestoneNext").textContent = !total ? "Liste boş" : next ? "Sırada: " + next.label : "Hepsi tamam";
+  const tile = document.getElementById("milestoneTile");
+  tile.classList.toggle("open", milestoneOpen);
+  tile.querySelector(".rt-head").setAttribute("aria-expanded", String(milestoneOpen));
 }
+let milestoneOpen = false;
+document.getElementById("milestoneTile").addEventListener("click", (e) => {
+  if (!e.target.closest(".rt-head")) return;
+  milestoneOpen = !milestoneOpen;
+  renderMilestones();
+});
 
 /* ========================================================================
    6d) Takvim — ay görünümü, bir tarihe dokununca o günü açar
@@ -2350,9 +2365,12 @@ function renderGrowth(){
   renderGlance();
 }
 
+// Grafiğin altında en son ölçüm; öncekiler Ayarlar'daki gibi oklu bir başlıkla açılır
+let growthHistoryOpen = false;
 function renderGrowthList(){
   const wrap = document.getElementById("growthEntryList");
   wrap.innerHTML = "";
+  const rows = [];
   [...growthEntries].reverse().forEach(e => {
     const parts = [];
     if (e.weightKg!=null && e.weightKg!=="") parts.push(e.weightKg+" kg");
@@ -2368,8 +2386,21 @@ function renderGrowthList(){
       deleteDoc(doc(db,"growth",id)).catch(() => setSyncStatus("Silinemedi — bağlantını kontrol et", true));
       offerUndo({ kind:"growth", id, data, label:"Ölçüm silindi" });
     });
-    wrap.appendChild(row);
+    rows.push(row);
   });
+  if (!rows.length) return;
+  wrap.appendChild(rows[0]);
+  if (rows.length < 2) return;
+  const acc = document.createElement("details");
+  acc.className = "growth-history";
+  acc.open = growthHistoryOpen;
+  acc.innerHTML = `<summary><span>Önceki ölçümler</span><span class="acc-count">${rows.length - 1} ölçüm</span>` +
+    `<span class="acc-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></summary>`;
+  const body = document.createElement("div");
+  rows.slice(1).forEach(r => body.appendChild(r));
+  acc.appendChild(body);
+  acc.addEventListener("toggle", () => { growthHistoryOpen = acc.open; });
+  wrap.appendChild(acc);
 }
 
 function setGrowthMetric(metric){
@@ -3725,7 +3756,7 @@ const THEME_KEY = "bebekGunlugu.theme";
 const THEMES = ["light", "pastel", "dark"];
 const THEME_INFO = {
   light:  { icon:"i-sun",     name:"Gündüz", color:"#F4F6FA" },
-  pastel: { icon:"i-palette", name:"Pastel", color:"#FBFAF7" },
+  pastel: { icon:"i-palette", name:"Pastel", color:"#F4F1FB" },
   dark:   { icon:"i-moon",    name:"Gece",   color:"#161B2E" }
 };
 const themeBtn = document.getElementById("themeBtn");
