@@ -4,7 +4,7 @@
 // straight to the network so your data stays live and accurate.
 // v3: yeni uygulama simgesi — eski önbellek (eski simge ve manifest) silinir
 // v4: yeni tema (Gündüz / Gece) — kabuk yeniden önbelleğe alınır
-const CACHE_NAME = "bebek-gunlugu-shell-v8";
+const CACHE_NAME = "bebek-gunlugu-shell-v11";
 const SHELL_FILES = [
   "./",
   "./index.html",

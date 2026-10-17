@@ -205,6 +205,7 @@
   .section-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:18px 2px 10px; }
   .settings-hint{ font-size:12.5px; line-height:1.45; color:var(--ink-2); margin:8px 0 0; }
   .ai-tip-text{ font-size:14.5px; line-height:1.6; color:var(--ink); margin:0; }
+  #aiAssessmentText{ white-space:pre-line; }
 
   /* Gün gezinme: ‹ Cuma, 16 Ekim · Bugün › */
   .day-nav{ display:flex; align-items:center; gap:8px; margin:2px 0 12px; }
@@ -2879,20 +2880,56 @@ function explainAiError(data){
   return "Worker adresini ve GEMINI_API_KEY'i kontrol et.";
 }
 
+// Günün bilgisi her gün sırayla farklı bir konudan gelir (iki telefonda da aynı konu);
+// son günlerin bilgileri de gönderilir ki aynı şeyler tekrar edilmesin.
+const TIP_TOPICS = [
+  "görme: renkleri, kontrastı ve yüzleri nasıl algıladığı",
+  "işitme ve seslere tepkisi; anne sesini tanıma",
+  "koku ve tat duyusu",
+  "dokunma, ten tene temas ve masajın etkileri",
+  "yenidoğan refleksleri (arama, emme, yakalama, Moro vb.) ve neye yaradıkları",
+  "uyku döngüleri, aktif/sessiz uyku ve uykuda çıkardığı sesler",
+  "anne sütünün az bilinen özellikleri (gün içinde değişen içeriği, ön süt/son süt vb.)",
+  "sindirim, gaz ve geğirme ile ilgili az bilinen bilgiler",
+  "ağlama türleri ve bebeğin kullandığı erken işaretler (açlık, yorgunluk, fazla uyaran)",
+  "beyin gelişimi ve sinaps oluşumu",
+  "dil öncesi iletişim: göz teması, taklit, sırayla 'konuşma'",
+  "motor gelişim ve yüzüstü zamanı",
+  "bu yaşa uygun basit oyun ve etkileşim fikirleri",
+  "bebek vücudu hakkında şaşırtıcı gerçekler (kemikler, fontaneller, kalp atışı, nefes)",
+  "cilt, tırnak ve saç bakımıyla ilgili az bilinen ayrıntılar",
+  "bağlanma ve güven duygusunun gelişimi",
+  "babanın / ikinci ebeveynin bebekle bağ kurma yolları",
+  "ebeveynin kendi iyiliği: uyku, paylaşım, küçük molalar",
+  "mevsime göre bebek bakımı (giydirme, oda ısısı, hava)",
+  "güvenli ortam: uyku alanı, taşıma, ev içi küçük önlemler",
+  "farklı kültürlerden ilginç bebek bakımı gelenekleri ve arkasındaki bilgi",
+  "bebeğin zaman ve rutin algısı; tekrarın önemi"
+];
+function tipTopicFor(dateStr){
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dayNo = Math.floor(Date.UTC(y, m-1, d) / 86400000);
+  return TIP_TOPICS[((dayNo % TIP_TOPICS.length) + TIP_TOPICS.length) % TIP_TOPICS.length];
+}
 async function maybeGenerateDailyTip(){
   if (!WORKER_CONFIGURED || !babyProfile.birthDate) return;
   if (aiCache.tipDate === todayStr()) return;
   if (tipRequestInFlight) return;
   tipRequestInFlight = true;
   try{
-    const ageMonths = monthsBetween(babyProfile.birthDate, todayStr());
-    let { ok, data } = await callWorker({ mode:"dailyTip", ageMonths });
+    const today = todayStr();
+    const ageMonths = monthsBetween(babyProfile.birthDate, today);
+    const ageDays = babyAgeDays();
+    const history = Array.isArray(aiCache.tipHistory) ? aiCache.tipHistory : (aiCache.tipText ? [aiCache.tipText] : []);
+    const payload = { mode:"dailyTip", ageMonths, ageDays, ageWeeks: ageDays != null && ageDays >= 0 ? Math.floor(ageDays / 7) + 1 : null,
+                      topic: tipTopicFor(today), recentTips: history.slice(-7) };
+    let { ok, data } = await callWorker(payload);
     if (!ok && data && data.status >= 500){
       await new Promise(r => setTimeout(r, 2000));
-      ({ ok, data } = await callWorker({ mode:"dailyTip", ageMonths }));
+      ({ ok, data } = await callWorker(payload));
     }
     if (ok && data && data.text){
-      await setDoc(doc(db,"meta","aiCache"), { tipDate:todayStr(), tipText:data.text }, { merge:true });
+      await setDoc(doc(db,"meta","aiCache"), { tipDate:today, tipText:data.text, tipHistory:[...history, data.text].slice(-10) }, { merge:true });
     } else {
       document.getElementById("aiTipText").textContent = "Bilgi kartı alınamadı" + (data && data.error ? " (" + data.error + (data.status?" "+data.status:"") + ")" : "") + ". " + explainAiError(data);
     }
@@ -2929,6 +2966,59 @@ function summarizeWeek(byDate, endDateStr){
   return summary;
 }
 
+// Ayrıntılı haftalık rapor: her günün Günlük bakış tablosu ve Akış'ı (saat saat kayıtlar),
+// haftanın ortalamaları ve son ölçümler. Yapay zeka günler arası farkları buradan görür
+// (ör. "Çarşamba öğün sayısı haftanın geri kalanından az").
+function buildWeekReport(byDate, endDateStr){
+  const sleepOn = sleepTrackingOn();
+  const gunler = [];
+  for (let i = 6; i >= 0; i--){
+    const date = shiftDate(endDateStr, -i);
+    const raw = byDate[date];
+    const d = raw ? normalizeDay(raw) : emptyDay();
+    const t = computeDayTotals(d, null);
+    const [y, m, dd] = date.split("-").map(Number);
+    const gun = {
+      tarih: date, gun: WEEKDAYS[new Date(y, m-1, dd).getDay()],
+      durum: date === endDateStr ? "bugün — gün henüz bitmedi, eksik sayılmaz" : (raw && dayHasContent(raw) ? "tamamlandı" : "kayıt girilmemiş"),
+      ogunSayisi: t.meals, emzirmeDk: { sag: t.right, sol: t.left, toplam: t.breast },
+      mamaCc: t.formula, ekSutCc: t.extra, toplamSutCc: t.intake, sagilanCc: t.pumped, cis: t.pee, kaka: t.poop
+    };
+    if (sleepOn) gun.uykuDk = t.sleep;
+    // Akış: o günün kayıtları saat sırasıyla (eskiden yeniye)
+    gun.akis = akisEntries(d).reverse().map(it => {
+      const r = it.rec, saat = it.t != null ? minToHm(it.t % 1440) : "saatsiz";
+      if (it.kind === "formula") return `${saat} mama ${Number(r.formulaCc) || 0} cc`;
+      if (it.kind === "pumped") return `${saat} süt sağıldı ${Number(r.pumpedCc) || 0} cc`;
+      if (it.kind === "diaper") return `${saat} bez: ` + ([r.pee && "çiş", r.poop && "kaka"].filter(Boolean).join(" + ") || "işaretsiz");
+      if (it.kind === "sleep"){ const mm = minutesBetween(r.sleepTime, r.wakeTime, 24*60); return `${saat} uyku` + (mm != null ? ` ${mm} dk` : " (bitişi girilmemiş)"); }
+      const parts = [];
+      ["right", "left"].forEach(sd => { if (r[sd + "Start"]) { const mm = minutesBetween(r[sd + "Start"], r[sd + "End"], 180); parts.push(`${SIDE_NAME[sd].toLowerCase()} ${mm != null ? mm + " dk" : "?"}`); } });
+      if (Number(r.formulaCc) > 0) parts.push(`mama ${r.formulaCc} cc`);
+      if (Number(r.extraCc) > 0) parts.push(`ek süt ${r.extraCc} cc`);
+      if (Number(r.pumpedCc) > 0) parts.push(`sağılan ${r.pumpedCc} cc`);
+      if (feedEndMin(r) != null) parts.unshift("başlangıç " + feedStartHm(r));
+      return `${saat} emzirme` + (feedEndMin(r) != null ? " bitti" : "") + (parts.length ? " (" + parts.join(", ") + ")" : "");
+    });
+    gunler.push(gun);
+  }
+  // Büyüme: haftadan önceki son ölçüm de (karşılaştırma için) ve bu haftaki ölçümler
+  const weekStart = shiftDate(endDateStr, -6);
+  const olcum = e => { const o = { tarih: e.date }; if (e.weightKg != null && e.weightKg !== "") o.kiloKg = Number(e.weightKg);
+    if (e.heightCm != null && e.heightCm !== "") o.boyCm = Number(e.heightCm); if (e.headCm != null && e.headCm !== "") o.basCevresiCm = Number(e.headCm); return o; };
+  const before = growthEntries.filter(e => e.date < weekStart).slice(-2);
+  const inWeek = growthEntries.filter(e => e.date >= weekStart && e.date <= endDateStr);
+  const report = {
+    bebekYasi: babyProfile.birthDate ? ageText() : undefined,
+    haftalikOrtalamalar: summarizeWeek(byDate, endDateStr),
+    gunler,
+    buyumeOlcumleri: [...before, ...inWeek].map(olcum)
+  };
+  if (!sleepOn) report.uykuTakibi = "kapalı — uyku hakkında hiçbir yorum, değerlendirme ya da öneri yapma";
+  if (!report.bebekYasi) delete report.bebekYasi;
+  return report;
+}
+
 document.getElementById("generateAssessmentBtn").addEventListener("click", async () => {
   if (!WORKER_CONFIGURED){
     document.getElementById("aiAssessmentText").textContent = "AI özellikleri için README'deki Cloudflare Worker adımlarını tamamla.";
@@ -2950,10 +3040,18 @@ document.getElementById("generateAssessmentBtn").addEventListener("click", async
       return;
     }
 
-    let { ok, data } = await callWorker({ mode:"assessment", summary });
+    const report = buildWeekReport(byDate, end);
+    // Yeni worker "weeklyReport" ile gün gün ayrıntılı değerlendirir; worker henüz
+    // güncellenmediyse eski "assessment" moduna aynı ayrıntılı veri gönderilir
+    const ask = async () => {
+      let r = await callWorker({ mode:"weeklyReport", report });
+      if (!r.ok && r.data && r.data.error === "unknown mode") r = await callWorker({ mode:"assessment", summary: report });
+      return r;
+    };
+    let { ok, data } = await ask();
     if (!ok && data && data.status >= 500){
       await new Promise(r => setTimeout(r, 2000));
-      ({ ok, data } = await callWorker({ mode:"assessment", summary }));
+      ({ ok, data } = await ask());
     }
     if (ok && data && data.text){
       await setDoc(doc(db,"meta","aiCache"), { assessmentDate:todayStr(), assessmentText:data.text }, { merge:true });
@@ -4391,7 +4489,9 @@ function akisEntries(d){
     if (f.type === "formula"){ items.push({ list:"feedings", idx, rec:f, kind:"formula", t:hmToMin(f.time) }); return; }
     if (f.type === "pumped"){ items.push({ list:"feedings", idx, rec:f, kind:"pumped", t:hmToMin(f.time) }); return; }
     const starts = [hmToMin(f.rightStart), hmToMin(f.leftStart)].filter(v => v != null);
-    items.push({ list:"feedings", idx, rec:f, kind:"breast", t: starts.length ? Math.min(...starts) : null });
+    // Emzirme bittiği dakikayla yazılır (süren / bitişi olmayan emzirme başlangıcıyla)
+    const end = feedEndMin(f);
+    items.push({ list:"feedings", idx, rec:f, kind:"breast", t: end != null ? end : (starts.length ? Math.min(...starts) : null) });
   });
   (d.diapers || []).forEach((x, idx) => items.push({ list:"diapers", idx, rec:x, kind:"diaper", t:hmToMin(x.time) }));
   if (sleepTrackingOn()) (d.sleeps || []).forEach((s, idx) => items.push({ list:"sleeps", idx, rec:s, kind:"sleep", t:hmToMin(s.sleepTime) }));
@@ -4415,6 +4515,8 @@ function akisItemHtml(it){
     if (Number(r.formulaCc) > 0) parts.push("mama " + r.formulaCc + " cc");
     if (Number(r.extraCc) > 0) parts.push("ek süt " + r.extraCc + " cc");
     if (Number(r.pumpedCc) > 0) parts.push("sağılan " + r.pumpedCc + " cc");
+    const st0 = feedStartHm(r);
+    if (st0 && feedEndMin(r) != null && !isLive) parts.unshift("başlangıç " + st0);
     detail = parts.join(" · ");
     const total = (minutesBetween(r.rightStart, r.rightEnd, 180) || 0) + (minutesBetween(r.leftStart, r.leftEnd, 180) || 0);
     right = isLive ? `<span class="chip">sürüyor</span>` : (total ? `<span class="akis-val">${total} dk</span>` : "");
@@ -4435,7 +4537,7 @@ function akisItemHtml(it){
     right = isLive ? `<span class="chip">sürüyor</span>` : (m != null ? `<span class="akis-val">${durText(m)}</span>` : "");
   }
   if (isBlankRecord(it.list, r)) detail = "Boş kayıt — dokunup doldur";
-  const time = it.t != null ? `<span class="akis-time">${minToHm(it.t)}</span>` : `<span class="akis-time none">saatsiz</span>`;
+  const time = it.t != null ? `<span class="akis-time">${minToHm(it.t % 1440)}</span>` : `<span class="akis-time none">saatsiz</span>`;
   return `<button type="button" class="akis-item ${k}${isLive ? " live" : ""}" data-list="${it.list}" data-idx="${it.idx}">` +
       time + `<span class="akis-node" aria-hidden="true"><i></i></span>` +
       `<span class="akis-card"><span class="akis-main"><span class="akis-title">${title}</span>` +
@@ -4759,6 +4861,20 @@ function agoText(ms){
   return (h ? h + " sa " : "") + (m || !h ? m + " dk " : "") + "önce";
 }
 function hmOfMs(ms){ const d = new Date(ms); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+// Emzirmenin bittiği an: biten tarafların en geç bitişi (dk; gece yarısını geçtiyse 1440 üstü).
+// Bitmiş tarafı yoksa null.
+function feedEndMin(f){
+  let best = null;
+  const st0 = hmToMin(feedStartHm(f));
+  ["right", "left"].forEach(s => {
+    const a = hmToMin(f[s + "Start"]), e = hmToMin(f[s + "End"]);
+    if (a == null || e == null) return;
+    let end = e;
+    if (end < a || (st0 != null && end < st0 && st0 - end > 720)) end += 1440;
+    if (best == null || end > best) best = end;
+  });
+  return best;
+}
 // Bir beslenme kaydının başladığı saat (emzirmede ilk başlanan taraf)
 function feedStartHm(f){
   if (f.type === "formula" || f.type === "pumped") return f.time || null;
@@ -4787,6 +4903,24 @@ function latestOf(list, getHm, filter){
   return best;
 }
 // En son uyanma anı (gece yarısını geçen uykunun uyanışı ertesi gündür)
+// Son beslenmenin bittiği an: emzirmede biten son tarafın bitişi, mamada saati
+function lastFeedEnd(){
+  const today = todayStr(), now = Date.now();
+  let best = null;
+  [shiftDate(today, -1), today].forEach(date => {
+    savedFeedings(dayDocFor(date)).forEach(f => {
+      if (isPumpRec(f)) return;
+      let min;
+      if (isFormulaRec(f)) min = hmToMin(f.time);
+      else { min = feedEndMin(f); if (min == null) min = hmToMin(feedStartHm(f)); }
+      if (min == null) return;
+      const ms = startMsOf(date, minToHm(min % 1440)) + (min >= 1440 ? 86400000 : 0);
+      if (ms > now + 60000) return;
+      if (!best || ms > best.ms) best = { ms, date, rec:f };
+    });
+  });
+  return best;
+}
 function lastWakeMs(){
   const today = todayStr(), now = Date.now();
   let best = null;
@@ -4810,7 +4944,8 @@ function feedDetailText(f){
   ["right", "left"].forEach(s => { if (f[s + "Start"]) parts.push(SIDE_NAME[s] + " " + (f[s + "End"] ? sideDoneText(sideMinutes(f, s)) : "bitiş yok")); });
   if (Number(f.formulaCc) > 0) parts.push("mama " + f.formulaCc + " cc");
   if (Number(f.extraCc) > 0) parts.push("ek süt " + f.extraCc + " cc");
-  return feedStartHm(f) + (parts.length ? " · " + parts.join(", ") : "");
+  const end = feedEndMin(f);
+  return feedStartHm(f) + (end != null ? "–" + minToHm(end % 1440) : "") + (parts.length ? " · " + parts.join(", ") : "");
 }
 function devGlanceInfo(){
   const days = babyAgeDays();
@@ -4860,7 +4995,7 @@ function renderGlance(){
         <div class="g-row"><span class="g-hint"></span><button type="button" class="g-btn" data-g="feed">Karta git${chev}</button></div>
       </section>`;
   } else {
-    const lf = latestOf("feedings", feedStartHm, x => !isPumpRec(x));
+    const lf = lastFeedEnd();
     const sug = suggestNextSide();
     html += `<section class="g-tile wide g-butter" aria-label="Son beslenme">
         <div class="g-head"><span class="g-name">${ic("i-breast")}Son beslenme</span><span class="g-chip">Bugün ${tot.meals} öğün</span></div>

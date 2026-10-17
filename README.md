@@ -4,6 +4,25 @@ Notebook'taki günlük emzirme/uyku/rutin sayfasının web app hâli. iPhone'da
 ana ekrana eklenip native app gibi açılır, veriler Firebase'de saklanır —
 telefon değişse, sekme kapansa da kaybolmaz.
 
+## Son değişiklikler (v11)
+
+- **Emzirme bittiği dakikayla:** Akış'ta emzirmeler bittikleri saatle yazılır ve
+  sıralanır (başlangıç saati kaydın altında). Bir Bakışta'daki "son beslenme … önce"
+  emzirmenin bittiği andan hesaplanır (mamada mamanın saati).
+- **Günün bilgisi her gün farklı:** her gün sırayla 22 konudan biri seçilir (duyular,
+  refleksler, anne sütü, uyku döngüleri, bebek vücudu hakkında şaşırtıcı gerçekler,
+  kültürlerden gelenekler…); son günlerin bilgileri de gönderilir, tekrar etmesin ve
+  az bilinen, somut bilgiler versin diye. Bunun için de worker.js güncellendi.
+- **Haftalık değerlendirme artık gün gün:** yapay zekaya son 7 günün her birinin
+  Günlük bakış tablosu (öğün, emzirme sağ/sol, mama, ek süt, toplam, sağılan,
+  çiş, kaka, açıksa uyku), Akış'ı (saat saat kayıtlar), haftalık ortalamalar ve
+  kilo/boy ölçümleri (haftadan önceki son ölçümler dahil) gidiyor. Değerlendirme
+  kısa bir özet + günlere göre farkları anlatan maddeler halinde geliyor.
+- Bunun için **worker.js güncellendi** (yeni `weeklyReport` modu). Cloudflare'de
+  Workers & Pages → aslaningunlugu → Edit code → worker.js içeriğini yapıştır →
+  Deploy. Worker güncellenmeden de çalışır (eski moda aynı veriyi gönderir) ama
+  o zaman cevap eski kısa formatta kalır. Service worker önbelleği `v11`.
+
 ## Son değişiklikler (v8)
 
 - Pastel görünüm kaldırıldı, yerine **Sade** geldi: Gündüz → Sade → Gece.
