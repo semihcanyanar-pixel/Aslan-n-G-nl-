@@ -299,7 +299,21 @@
   .view-toggle button{ flex:1; height:38px; padding:0 13px; border:none; border-radius:11px; background:transparent; color:var(--ink-2); font-size:14px; font-weight:500; cursor:pointer; }
   .view-toggle button[aria-pressed="true"]{ background:var(--tab-on); color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(15,27,45,.1); }
   .akis{ display:flex; flex-direction:column; gap:8px; }
-  #akisView{ margin-bottom:14px; }
+  /* Akış kendi kartında: seçici kartın başlığı, kayıtlar ince çizgili satırlar (kutu içinde kutu olmasın) */
+  #pageDay .section-head.framed{ margin:0; padding:14px 14px 4px; background:var(--surface); border:1px solid var(--line-soft); border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; box-shadow:var(--shadow); }
+  #akisView{ margin:0 0 12px; padding:6px 14px 10px; background:var(--surface); border:1px solid var(--line-soft); border-top:none; border-radius:0 0 var(--radius) var(--radius); box-shadow:var(--shadow); }
+  #akisView .akis{ gap:0; }
+  #akisView .akis-card{ background:none; border:none; border-bottom:1px solid var(--line-soft); box-shadow:none; border-radius:0; padding:10px 2px 10px 6px; min-height:58px; }
+  #akisView .akis-item:last-child .akis-card{ border-bottom:none; }
+  #akisView .akis-item.live .akis-card{ background:var(--c-soft); border:none; border-radius:12px; }
+  :root[data-theme="pastel"] #akisView .akis-item.live.k-sleep .akis-card{ background:#E9E3FF; }
+  #akisView .akis-node::before{ top:0; bottom:0; }
+  #akisView .akis-item:first-child .akis-node::before{ top:50%; }
+  #akisView .akis-item:last-child .akis-node::before{ bottom:50%; }
+  #akisView .akis-item:only-child .akis-node::before{ display:none; }
+  #akisView .akis-node i{ box-shadow:0 0 0 4px var(--surface); }
+  #akisView .list-summary{ margin:6px 0 0; }
+  #akisView .akis-empty{ margin:6px 0 4px; }
   .akis-item{ display:grid; grid-template-columns:46px 20px minmax(0, 1fr); align-items:center; column-gap:6px; width:100%; padding:0; border:none; background:none; text-align:left; cursor:pointer; }
   .akis-time{ font-family:var(--font-display); font-weight:600; font-size:15px; font-variant-numeric:tabular-nums; }
   .akis-time.none{ font-family:var(--font-ui); font-size:12px; font-weight:500; color:var(--ink-2); }
@@ -4344,6 +4358,7 @@ let dayView = (() => { try{ return localStorage.getItem(DAY_VIEW_KEY) === "liste
 function applyDayView(){
   document.getElementById("akisView").hidden = dayView !== "akis";
   document.getElementById("listView").hidden = dayView !== "liste";
+  document.querySelector("#pageDay .section-head").classList.toggle("framed", dayView === "akis");
   document.getElementById("viewAkisBtn").setAttribute("aria-pressed", String(dayView === "akis"));
   document.getElementById("viewListBtn").setAttribute("aria-pressed", String(dayView === "liste"));
 }

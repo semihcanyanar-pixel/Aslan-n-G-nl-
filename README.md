@@ -4,6 +4,12 @@ Notebook'taki günlük emzirme/uyku/rutin sayfasının web app hâli. iPhone'da
 ana ekrana eklenip native app gibi açılır, veriler Firebase'de saklanır —
 telefon değişse, sekme kapansa da kaybolmaz.
 
+## Son değişiklikler (v7)
+
+- Akış artık kendi kartında: "Akış | Kayıtlar" seçicisi kartın başlığında,
+  kayıtlar ince çizgilerle ayrılmış satırlar. Kayıtlar görünümündeki kartlar
+  aynen duruyor. Service worker önbelleği `v7`.
+
 ## Son değişiklikler (v6)
 
 - Pastel görünüm yenilendi (**Lila**): zemin hafif lila, kartlar beyaz, renk
