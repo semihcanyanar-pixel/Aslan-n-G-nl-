@@ -4,6 +4,14 @@ Notebook'taki günlük emzirme/uyku/rutin sayfasının web app hâli. iPhone'da
 ana ekrana eklenip native app gibi açılır, veriler Firebase'de saklanır —
 telefon değişse, sekme kapansa da kaybolmaz.
 
+## Son değişiklikler (v8)
+
+- Pastel görünüm kaldırıldı, yerine **Sade** geldi: Gündüz → Sade → Gece.
+  Sade'de zemin gri-beyaz, kartlar beyaz, vurgular siyah; renk sadece ince
+  çizgilerde, noktalarda ve simgelerde. Günlük bakış kutucukları emojisiz,
+  üstlerinde türünün renginde çizgi var. Pastel'i seçmiş telefon kendiliğinden
+  Sade'ye geçer. Service worker önbelleği `v8`.
+
 ## Son değişiklikler (v7)
 
 - Akış artık kendi kartında: "Akış | Kayıtlar" seçicisi kartın başlığında,

@@ -11,14 +11,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#F4F6FA">
 <script>
-  // Görünüm (Gündüz / Pastel / Gece) bu telefonda saklanır ve sayfa çizilmeden önce
+  // Görünüm (Gündüz / Sade / Gece) bu telefonda saklanır ve sayfa çizilmeden önce
   // uygulanır (açılışta bir an yanlış renk görünmesin). Sadece düğmeyle değişir, saate göre değil.
   (function(){
     try{
       var t = localStorage.getItem("bebekGunlugu.theme");
-      if (t === "dark" || t === "pastel"){
+      if (t === "pastel"){ t = "sade"; localStorage.setItem("bebekGunlugu.theme", t); } // eski Pastel seçimi Sade'ye geçer
+      if (t === "dark" || t === "sade"){
         document.documentElement.setAttribute("data-theme", t);
-        document.querySelector('meta[name="theme-color"]').setAttribute("content", t === "dark" ? "#161B2E" : "#F4F1FB");
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", t === "dark" ? "#161B2E" : "#F2F2F0");
       }
     }catch(e){}
   })();
@@ -33,7 +34,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-  /* ===== Renkler: Gündüz (Günün ritmi) — html[data-theme=pastel] Pastel, html[data-theme=dark] Gece (Ay ışığı) ===== */
+  /* ===== Renkler: Gündüz (Günün ritmi) — html[data-theme=sade] Sade, html[data-theme=dark] Gece (Ay ışığı) ===== */
   :root{
     --bg:#F4F6FA; --surface:#FFFFFF; --surface-2:#F1F4F9; --surface-3:#E6EAF1;
     --line:#E2E7EF; --line-soft:#EBEFF5;
@@ -80,26 +81,36 @@
     --shadow-lg:0 18px 40px rgba(0,0,0,.45);
     color-scheme:dark;
   }
-  /* Pastel (Lila): Gündüz'ün düzeni aynen; zemin hafif lila, kartlar beyaz, renk
-     sadece kutucuklarda, şeritte ve düğmelerde (canlı pastel tonlar, mor düğmeler) */
-  :root[data-theme="pastel"]{
-    --bg:#F4F1FB; --surface:#FFFFFF; --surface-2:#F3EFFB; --surface-3:#E9E3F7;
-    --line:#E3DCF3; --line-soft:#EDE8F8;
-    --ink:#251F3A; --ink-2:#6A6385; --ink-3:#9C96B3;
-    --primary:#6B4FD8; --primary-soft:#E9E2FF;
-    --strong:#5A43C2; --strong-ink:#FFFFFF;
+  /* Sade: neredeyse renksiz — gri-beyaz zemin, beyaz kartlar, siyah vurgular. Kategori
+     renkleri sadece ince çizgilerde, noktalarda ve simgelerde kalır */
+  :root[data-theme="sade"]{
+    --bg:#F2F2F0; --surface:#FFFFFF; --surface-2:#F4F4F2; --surface-3:#E7E7E4;
+    --line:#E1E1DD; --line-soft:#ECECE9;
+    --ink:#1D1D1B; --ink-2:#6B6B66; --ink-3:#9C9C96;
+    --primary:#1D1D1B; --primary-soft:#EDEDEA;
+    --strong:#1D1D1B; --strong-ink:#FFFFFF;
     --tab-on:#FFFFFF;
-    --feed:#FFC94D; --feed-soft:#FFEDB3; --feed-ink:#7A5600;
-    --formula:#FF9F7A; --formula-soft:#FFDCCD; --formula-ink:#963F14;
-    --diaper:#3FC497; --diaper-soft:#C9F1DF; --diaper-ink:#0B6747;
-    --poop:#C99263; --poop-soft:#F2DFCB; --poop-ink:#76491F;
-    --sleep:#7A63F2; --sleep-soft:#C7BAFF; --sleep-ink:#3B2A9E;
-    --pump:#F27EAA; --pump-soft:#FFD3E4; --pump-ink:#A0244C;
-    --dock:#FFFFFF; --dock-line:#E3DCF3;
-    --toast-bg:#251F3A; --toast-ink:#F4F1FB; --toast-accent:#FFC94D;
-    --backdrop:rgba(37,31,58,.38);
-    --shadow:0 6px 18px rgba(60,40,120,.06);
+    --feed:#E8A33A; --feed-soft:#F4F4F2; --feed-ink:#7A5600;
+    --formula:#E07E55; --formula-soft:#F4F4F2; --formula-ink:#963F14;
+    --diaper:#3DA37F; --diaper-soft:#F4F4F2; --diaper-ink:#0B6747;
+    --poop:#A97A55; --poop-soft:#F4F4F2; --poop-ink:#76491F;
+    --sleep:#7A6AD8; --sleep-soft:#F4F4F2; --sleep-ink:#4637B5;
+    --pump:#D9708F; --pump-soft:#F4F4F2; --pump-ink:#A0244C;
+    --dock:#FFFFFF; --dock-line:#E1E1DD;
+    --toast-bg:#1D1D1B; --toast-ink:#F2F2F0; --toast-accent:#E8A33A;
+    --backdrop:rgba(20,20,18,.36);
+    --shadow:0 4px 14px rgba(0,0,0,.05);
   }
+  :root[data-theme="sade"] .k-diaper, :root[data-theme="sade"] .k-poop, :root[data-theme="sade"] .k-sleep,
+  :root[data-theme="sade"] .k-pump, :root[data-theme="sade"] .k-primary{ --on-c:#FFFFFF; }
+  /* Günlük bakış: emojisiz, kutucuğun üstünde türünün renginde ince çizgi */
+  :root[data-theme="sade"] .day-stat{ border-top:3px solid var(--c); }
+  :root[data-theme="sade"] .day-stat-label .em{ display:none; }
+  /* Emzirme kartında süren taraf siyah */
+  :root[data-theme="sade"] .side-box.active{ background:#1D1D1B; border-color:#1D1D1B; color:#FFFFFF; }
+  /* Alt şerit ve Bir Bakışta: renkli zeminler yerine nötr, renk sadece simgede */
+  :root[data-theme="sade"] .dock-btn{ --dk-bg:#F4F4F2; --dk-ink:#1D1D1B; --dk-chip:#FFFFFF; }
+  :root[data-theme="sade"] .g-tile{ --g-c:#FFFFFF; --g-sub:#6B6B66; --g-chip:#F4F4F2; --g-btn-soft:#F4F4F2; border:1px solid #ECECE9; }
   /* Kartlardaki data-tone ileride başka bir görünüm için duruyor; şimdilik hiçbir görünümde boyanmıyor */
   /* Kayıt türlerinin renkleri (rozet, nokta, çubuk, sayaç) */
   .k-feed{ --c:var(--feed); --c-soft:var(--feed-soft); --c-ink:var(--feed-ink); --on-c:#2A1A00; }
@@ -171,9 +182,9 @@
   .icon-btn:disabled{ cursor:default; }
   .icon-btn.spinning .i{ animation:spin .8s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
-  /* Görünüm düğmesi o anki görünümü gösterir: güneş → pastel paleti → ay */
+  /* Görünüm düğmesi o anki görünümü gösterir: güneş → sade (yarım daire) → ay */
   #themeBtn{ color:#D9930B; }
-  :root[data-theme="pastel"] #themeBtn{ color:#6B4FD8; background:#F3EFFB; }
+  :root[data-theme="sade"] #themeBtn{ color:#1D1D1B; background:#EDEDEA; }
   :root[data-theme="dark"] #themeBtn{ color:#F3D58B; }
   #glanceBtn{ color:var(--primary); }
 
@@ -283,8 +294,7 @@
   .day-stat-sub{ margin-top:1px; font-size:10.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .day-stat.total{ background:var(--primary-soft); }
   .day-stat.zero .day-stat-val{ opacity:.4; }
-  :root[data-theme="pastel"] .day-stat{ background:var(--c-soft); }
-  :root[data-theme="pastel"] .day-stat.total{ background:var(--primary-soft); }
+
   html.no-sleep .day-stat.breast{ grid-column:span 2; }
 
   /* ===== Günün bilgisi (Gün sekmesinin en üstünde, sade) ===== */
@@ -306,7 +316,6 @@
   #akisView .akis-card{ background:none; border:none; border-bottom:1px solid var(--line-soft); box-shadow:none; border-radius:0; padding:10px 2px 10px 6px; min-height:58px; }
   #akisView .akis-item:last-child .akis-card{ border-bottom:none; }
   #akisView .akis-item.live .akis-card{ background:var(--c-soft); border:none; border-radius:12px; }
-  :root[data-theme="pastel"] #akisView .akis-item.live.k-sleep .akis-card{ background:#E9E3FF; }
   #akisView .akis-node::before{ top:0; bottom:0; }
   #akisView .akis-item:first-child .akis-node::before{ top:50%; }
   #akisView .akis-item:last-child .akis-node::before{ bottom:50%; }
@@ -793,6 +802,7 @@
     <symbol id="i-stetho" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v2a5 5 0 0 0 10 0v-1"/><circle cx="20" cy="12" r="2"/></g></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.5v.3"/></g></symbol>
     <symbol id="i-palette" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2c-5 0-9 3.7-9 8.6s4 8.9 8.8 8.9c1.2 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6h2.1c3 0 4.9-2.1 4.9-4.9 0-3.9-4-6.9-9.2-6.9z"/></g><g fill="currentColor"><circle cx="7.6" cy="11.4" r="1.3"/><circle cx="10.2" cy="7.5" r="1.3"/><circle cx="14.6" cy="7.4" r="1.3"/><circle cx="17.3" cy="10.9" r="1.3"/></g></symbol>
+    <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
     <symbol id="i-bento" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="3.5" width="9" height="10" rx="2.4"/><rect x="14.5" y="3.5" width="6" height="6" rx="2"/><rect x="14.5" y="11.5" width="6" height="9" rx="2"/><rect x="3.5" y="15.5" width="9" height="5" rx="2"/></g></symbol>
     <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5.5" y="5.5" width="13" height="13" rx="3" fill="currentColor"/></symbol>
   </svg>
@@ -823,7 +833,7 @@
       </div>
       <div class="top-actions">
         <button class="icon-btn" id="glanceBtn" type="button" aria-label="Bir Bakışta" title="Bir Bakışta"><svg class="i" aria-hidden="true"><use href="#i-bento"/></svg></button>
-        <button class="icon-btn" id="themeBtn" type="button" aria-label="Görünüm: Gündüz. Pastel görünüme geç" title="Gündüz görünüm"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg></button>
+        <button class="icon-btn" id="themeBtn" type="button" aria-label="Görünüm: Gündüz. Sade görünüme geç" title="Gündüz görünüm"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg></button>
         <button class="icon-btn" id="refreshBtn" type="button" aria-label="Yenile" title="Yenile"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg></button>
         <button class="icon-btn" id="openSettingsBtn" type="button" aria-label="Ayarlar" title="Ayarlar"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg></button>
       </div>
@@ -3762,15 +3772,15 @@ document.getElementById("notesInput").addEventListener("input", (e) => {
 });
 
 /* ========================================================================
-   8b) Görünüm: Gündüz → Pastel → Gece — bu telefona özel, sadece düğmeyle değişir
+   8b) Görünüm: Gündüz → Sade → Gece — bu telefona özel, sadece düğmeyle değişir
    (saate göre kendiliğinden geçmez). Seçim telefonun hafızasında durur.
-   Düğmede o anki görünümün simgesi durur: güneş, pastel paleti, ay.
+   Düğmede o anki görünümün simgesi durur: güneş, yarım daire, ay.
    ===================================================================== */
 const THEME_KEY = "bebekGunlugu.theme";
-const THEMES = ["light", "pastel", "dark"];
+const THEMES = ["light", "sade", "dark"];
 const THEME_INFO = {
   light:  { icon:"i-sun",     name:"Gündüz", color:"#F4F6FA" },
-  pastel: { icon:"i-palette", name:"Pastel", color:"#F4F1FB" },
+  sade:   { icon:"i-contrast", name:"Sade",   color:"#F2F2F0" },
   dark:   { icon:"i-moon",    name:"Gece",   color:"#161B2E" }
 };
 const themeBtn = document.getElementById("themeBtn");
