@@ -3573,6 +3573,13 @@ function stepperHtml(field, value, step, name){
 }
 
 // Daraltılmış görünüm: sadece son girilen kayıt (dizinin sonu = en son eklenen)
+// Kayıtlar listesi saat sırasına göre gösterilir (sonradan girilen erken saatli kayıt da yerine oturur).
+// Dizinin kendisi değişmez; yalnızca gösterim sırası. Saati boş kayıtlar eklenme sırasıyla sonda kalır.
+function timeOrder(idxs, getHm){
+  return idxs.map((i, k) => ({ i, k, m: hmToMin(getHm(i)) }))
+    .sort((a, b) => (a.m == null) - (b.m == null) || (a.m ?? 0) - (b.m ?? 0) || a.k - b.k)
+    .map(o => o.i);
+}
 function visibleIndices(len, expanded){
   if (expanded || len <= 1) return Array.from({ length: len }, (_, i) => i);
   return [len - 1];
@@ -3755,7 +3762,8 @@ function renderFeedList(){
   const wrap = document.getElementById("feedList");
   wrap.innerHTML = "";
   // Kaydet'e basılmamış emzirme (taslak) burada da görünmez; kartta durur
-  const idxs = dayData.feedings.map((f, i) => i).filter(i => !isFreshDraft(dayData.feedings[i]));
+  const idxs = timeOrder(dayData.feedings.map((f, i) => i).filter(i => !isFreshDraft(dayData.feedings[i])),
+                         i => feedStartHm(dayData.feedings[i]));
   const total = idxs.length;
   paintExpandBtn("feed");
   if (!listExpanded.feed && total > 1) wrap.appendChild(listSummaryEl("feed", total, "kaydın"));
@@ -3788,9 +3796,11 @@ function renderDiaperList(){
   const wrap = document.getElementById("diaperList");
   wrap.innerHTML = "";
   const total = dayData.diapers.length;
+  const order = timeOrder(dayData.diapers.map((d, i) => i), i => dayData.diapers[i].time);
   paintExpandBtn("diaper");
   if (!listExpanded.diaper && total > 1) wrap.appendChild(listSummaryEl("diaper", total, "kaydın"));
-  visibleIndices(total, listExpanded.diaper).forEach(idx => {
+  visibleIndices(total, listExpanded.diaper).forEach(k => {
+    const idx = order[k];
     wrap.appendChild(buildEditor("diapers", () => dayData.diapers[idx], { onDelete: () => deleteDayRecord("diapers", idx) }));
   });
 }
@@ -3807,7 +3817,7 @@ document.getElementById("addDiaperBtn").addEventListener("click", () => {
 function renderSleepList(){
   const wrap = document.getElementById("sleepList");
   wrap.innerHTML = "";
-  dayData.sleeps.forEach((s, idx) => {
+  timeOrder(dayData.sleeps.map((s, i) => i), i => dayData.sleeps[i].sleepTime).forEach(idx => {
     wrap.appendChild(buildEditor("sleeps", () => dayData.sleeps[idx], { onDelete: () => deleteDayRecord("sleeps", idx) }));
   });
 }
