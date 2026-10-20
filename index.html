@@ -1296,7 +1296,8 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
-  getFirestore, doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, collection, query, where, documentId, waitForPendingWrites
+  getFirestore, doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, collection, query, where, documentId, waitForPendingWrites,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 /* ========================================================================
@@ -1549,6 +1550,8 @@ let aiCache = {};
 let unsubscribeAiCache = null;
 let tipRequestInFlight = false;
 let saveTimer = null;
+let savesInFlight = 0;             // Firebase'e gitmekte olan kayıt sayısı
+let saveChain = Promise.resolve(); // kayıtlar sırayla gider
 let baseDay = emptyDay();          // ekrandaki günün dayandığı, Firebase'den gelen son hâl
 let pendingDaySnapshot = null;     // saat seçici açıkken gelen, sonra uygulanacak yeni veri
 let dayLoading = false;            // gün verisi henüz yüklenmedi mi
@@ -1809,7 +1812,7 @@ function acceptDaySnapshot(incoming){
 
 // Saat seçici kapanınca, o sırada beklettiğimiz yeni veriyi uygula
 function applyPendingDaySnapshot(){
-  if (!pendingDaySnapshot || isEditingDayField() || saveTimer) return;
+  if (!pendingDaySnapshot || isEditingDayField() || saveTimer || savesInFlight) return;
   acceptDaySnapshot(pendingDaySnapshot);
 }
 document.getElementById("pageDay").addEventListener("focusout", () => {
@@ -1864,7 +1867,7 @@ function loadDate(dateStr){
     }
     // Gerçekten yeni veri (ör. diğer telefondan) geldi ama şu an saat seçiliyor
     // ya da gönderilmeyi bekleyen bir değişiklik var: sonra uygula
-    if (isEditingDayField() || saveTimer){
+    if (isEditingDayField() || saveTimer || savesInFlight){
       pendingDaySnapshot = incoming;
       return;
     }
@@ -3263,26 +3266,126 @@ function scheduleSave(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 600);
 }
+/* İki telefon aynı anda kayıt girdiğinde biri diğerininkini silmesin diye listenin
+   tamamı yazılmaz: bu telefonda yapılan değişiklik ("şu kaydı ekledim / sildim /
+   değiştirdim") hesaplanır ve Firebase'deki EN GÜNCEL hâlin üzerine bir transaction
+   içinde uygulanır. (Eskiden, ör. Sağılan penceresi açıkken diğer telefonda başlatılan
+   emzirme, Kaydet'e basılınca eski listeyle ezilip siliniyordu.) */
+const LIST_FIELDS = ["feedings","diapers","sleeps"];
+function diffList(base, local){
+  const key = stableStringify;
+  const baseLeft = base.map((r, i) => ({ r, i, k: key(r) }));
+  const localLeft = [];
+  local.forEach((r, i) => {
+    const k = key(r);
+    const j = baseLeft.findIndex(x => x.k === k);
+    if (j >= 0) baseLeft.splice(j, 1); else localLeft.push({ r, i, prev: i > 0 ? local[i - 1] : null });
+  });
+  const pairs = [], removed = [];
+  baseLeft.forEach(b => {
+    // Değiştirilen kayıt: aynı taslak (emzirme kartı) ya da listede aynı yerde duran kayıt
+    const j = localLeft.findIndex(a => (b.r.draftId && a.r.draftId === b.r.draftId) || a.i === b.i);
+    if (j >= 0) pairs.push([b.r, localLeft.splice(j, 1)[0].r]);
+    else removed.push(b.r);
+  });
+  // eklenen kayıt, bu telefonda hangi kaydın arkasındaysa sunucuda da oraya girer (ör. Geri al)
+  return { pairs, removed, added: localLeft.map(a => ({ r: a.r, prev: a.prev, first: a.i === 0 })) };
+}
+function findServerRec(arr, r){
+  const k = stableStringify(r);
+  let i = arr.findIndex(x => stableStringify(x) === k);
+  if (i < 0 && r.draftId) i = arr.findIndex(x => x.draftId === r.draftId);
+  return i;
+}
+function applyListDiff(arr, d){
+  d.pairs.forEach(([oldR, newR]) => {
+    const i = findServerRec(arr, oldR);
+    if (i >= 0) arr[i] = deepClone(newR);
+    else if (!oldR.draftId) arr.push(deepClone(newR)); // diğer telefonda da değişmiş: bu telefondaki hâl kalsın
+    // taslak başka telefonda kaydedilmiş/iptal edilmişse tekrar yazılmaz
+  });
+  d.removed.forEach(r => { const i = findServerRec(arr, r); if (i >= 0) arr.splice(i, 1); });
+  d.added.forEach(({ r, prev, first }) => {
+    if (r.draftId && arr.some(x => x.draftId === r.draftId)) return;
+    const at = first ? 0 : (prev ? findServerRec(arr, prev) + 1 : 0);
+    if (at > 0 || first) arr.splice(at, 0, deepClone(r)); else arr.push(deepClone(r));
+  });
+  return arr;
+}
+function diffObj(base, local){
+  const set = {}, del = [];
+  new Set([...Object.keys(base || {}), ...Object.keys(local || {})]).forEach(k => {
+    if (stableStringify(base[k]) === stableStringify(local[k])) return;
+    if (local[k] === undefined) del.push(k); else set[k] = deepClone(local[k]);
+  });
+  return { set, del };
+}
+function computeDayOps(){
+  const ops = {};
+  DAY_FIELDS.forEach(k => {
+    if (stableStringify(dayData[k]) === stableStringify(baseDay[k])) return;
+    if (LIST_FIELDS.includes(k)) ops[k] = { list: diffList(baseDay[k], dayData[k]) };
+    else if (k === "notes") ops[k] = { value: dayData[k] };
+    else ops[k] = { obj: diffObj(baseDay[k], dayData[k]) };
+  });
+  return ops;
+}
+function applyDayOps(server, ops){
+  const out = {};
+  Object.entries(ops).forEach(([k, op]) => {
+    if (op.list) out[k] = applyListDiff(deepClone(server[k] || []), op.list);
+    else if ("value" in op) out[k] = op.value;
+    else {
+      const o = { ...(server[k] || {}) };
+      Object.assign(o, deepClone(op.obj.set));
+      op.obj.del.forEach(x => delete o[x]);
+      out[k] = o;
+    }
+  });
+  return out;
+}
 async function saveNow(){
   clearTimeout(saveTimer);
   saveTimer = null;
-  // Sadece bu cihazda gerçekten değişen bölümleri yaz (merge): diğer telefondan
-  // aynı anda başka bir bölüme girilen kayıt böylece ezilmez
-  const changes = {};
-  DAY_FIELDS.forEach(k => {
-    if (stableStringify(dayData[k]) !== stableStringify(baseDay[k])) changes[k] = deepClone(dayData[k]);
-  });
-  if (!Object.keys(changes).length){
+  // Değişiklik şimdi hesaplanır (gün değiştirilse bile doğru güne, doğru değişiklik gider)
+  const date = currentDate;
+  const ops = computeDayOps();
+  if (!Object.keys(ops).length){
     setSyncStatus("Kaydedildi ✓", false);
     applyPendingDaySnapshot();
     return;
   }
-  changes.updatedAt = new Date().toISOString();
+  const localCopy = {};
+  Object.keys(ops).forEach(k => { localCopy[k] = deepClone(dayData[k]); });
+  // Bu değişiklik artık "gönderildi" sayılır: sonraki kayıt sadece yeni değişiklikleri taşır
+  Object.assign(baseDay, deepClone(localCopy));
+  savesInFlight++;
+  const job = saveChain.then(() => writeDayOps(date, ops, localCopy));
+  saveChain = job.catch(() => {});
+  return job;
+}
+async function writeDayOps(date, ops, localCopy){
+  const ref = doc(db, "days", date);
   try{
-    await setDoc(doc(db,"days",currentDate), changes, { merge:true });
+    if (navigator.onLine === false) throw new Error("offline");
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const server = snap.exists() ? normalizeDay(snap.data()) : emptyDay();
+      tx.set(ref, { ...applyDayOps(server, ops), updatedAt: new Date().toISOString() }, { merge:true });
+    });
     setSyncStatus("Kaydedildi ✓", false);
   }catch(e){
-    setSyncStatus("Kaydedilemedi — tekrar denenecek", true);
+    // İnternet yoksa (transaction çalışamaz) eski yöntem: bu telefondaki hâl yazılır,
+    // bağlantı gelince Firebase gönderir
+    try{
+      await setDoc(ref, { ...deepClone(localCopy), updatedAt: new Date().toISOString() }, { merge:true });
+      setSyncStatus("Kaydedildi ✓", false);
+    }catch(e2){
+      setSyncStatus("Kaydedilemedi — tekrar denenecek", true);
+    }
+  }finally{
+    savesInFlight--;
+    if (!savesInFlight) applyPendingDaySnapshot();
   }
 }
 
@@ -3454,12 +3557,8 @@ document.getElementById("undoBtn").addEventListener("click", () => {
 async function restoreToOtherDay(e){
   try{
     const ref = doc(db, "days", e.date);
-    const snap = await getDoc(ref);
-    const day = snap.exists() ? normalizeDay(snap.data()) : emptyDay();
-    const arr = day[e.list];
-    arr.splice(Math.min(e.index, arr.length), 0, e.record);
-    setDoc(ref, { [e.list]: arr, updatedAt: new Date().toISOString() }, { merge:true })
-      .catch(() => setSyncStatus("Geri alınamadı — bağlantını kontrol et", true));
+    mutateDayList(e.date, e.list, arr => { arr.splice(Math.min(e.index, arr.length), 0, deepClone(e.record)); })
+      .then(ok => { if (!ok) setSyncStatus("Geri alınamadı — bağlantını kontrol et", true); });
     loadDate(e.date);
     goToPage(DAY_PAGE, true);
   }catch(err){
@@ -3979,12 +4078,23 @@ async function mutateDayList(date, list, fn){
   }
   try{
     const ref = doc(db, "days", date);
-    const snap = await getDoc(ref);
-    const day = snap.exists() ? normalizeDay(snap.data()) : emptyDay();
-    const arr = day[list];
-    if (fn(arr) === false) return false;
-    await setDoc(ref, { [list]: arr, updatedAt: new Date().toISOString() }, { merge:true });
-    return true;
+    const apply = (snap) => {
+      const day = snap.exists() ? normalizeDay(snap.data()) : emptyDay();
+      const arr = day[list];
+      return fn(arr) === false ? null : arr;
+    };
+    if (navigator.onLine === false){
+      const arr = apply(await getDoc(ref));
+      if (!arr) return false;
+      await setDoc(ref, { [list]: arr, updatedAt: new Date().toISOString() }, { merge:true });
+      return true;
+    }
+    return await runTransaction(db, async (tx) => {
+      const arr = apply(await tx.get(ref));
+      if (!arr) return false;
+      tx.set(ref, { [list]: arr, updatedAt: new Date().toISOString() }, { merge:true });
+      return true;
+    });
   }catch(e){
     setSyncStatus("Kaydedilemedi — bağlantını kontrol et", true);
     return false;
