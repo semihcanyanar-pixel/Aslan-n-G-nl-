@@ -3358,13 +3358,16 @@ async function saveNow(){
   const localCopy = {};
   Object.keys(ops).forEach(k => { localCopy[k] = deepClone(dayData[k]); });
   // Bu değişiklik artık "gönderildi" sayılır: sonraki kayıt sadece yeni değişiklikleri taşır
+  // (yazma başarısız olursa eski hâl geri konur, değişiklik tekrar gönderilir)
+  const prevBase = {};
+  Object.keys(ops).forEach(k => { prevBase[k] = deepClone(baseDay[k]); });
   Object.assign(baseDay, deepClone(localCopy));
   savesInFlight++;
-  const job = saveChain.then(() => writeDayOps(date, ops, localCopy));
+  const job = saveChain.then(() => writeDayOps(date, ops, localCopy, prevBase));
   saveChain = job.catch(() => {});
   return job;
 }
-async function writeDayOps(date, ops, localCopy){
+async function writeDayOps(date, ops, localCopy, prevBase){
   const ref = doc(db, "days", date);
   try{
     if (navigator.onLine === false) throw new Error("offline");
@@ -3382,6 +3385,10 @@ async function writeDayOps(date, ops, localCopy){
       setSyncStatus("Kaydedildi ✓", false);
     }catch(e2){
       setSyncStatus("Kaydedilemedi — tekrar denenecek", true);
+      if (date === currentDate){
+        Object.keys(prevBase).forEach(k => { baseDay[k] = prevBase[k]; });
+        if (!saveTimer) saveTimer = setTimeout(saveNow, 10000);
+      }
     }
   }finally{
     savesInFlight--;
@@ -3393,6 +3400,8 @@ async function writeDayOps(date, ops, localCopy){
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden" && saveTimer) saveNow();
 });
+// iOS uygulamayı bazen visibilitychange olmadan kapatır
+window.addEventListener("pagehide", () => { if (saveTimer) saveNow(); });
 function setSyncStatus(text, isError){
   const el = document.getElementById("syncStatus");
   el.textContent = text;

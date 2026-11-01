@@ -4,7 +4,7 @@
 // straight to the network so your data stays live and accurate.
 // v3: yeni uygulama simgesi — eski önbellek (eski simge ve manifest) silinir
 // v4: yeni tema (Gündüz / Gece) — kabuk yeniden önbelleğe alınır
-const CACHE_NAME = "bebek-gunlugu-shell-v13";
+const CACHE_NAME = "bebek-gunlugu-shell-v14";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -44,8 +44,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          if (response.ok){
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
           return response;
         })
         .catch(() => caches.match(event.request).then((c) => c || caches.match("./index.html")))
@@ -59,8 +61,10 @@ self.addEventListener("fetch", (event) => {
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        if (response.ok){
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
         return response;
       });
     })
