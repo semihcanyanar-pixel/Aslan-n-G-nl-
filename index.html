@@ -223,6 +223,7 @@
   .live-tag i{ width:8px; height:8px; border-radius:50%; background:var(--c); animation:live-pulse 1.6s ease-in-out infinite; }
   .live-tag.idle i{ animation:none; opacity:.55; }
   @keyframes live-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
+  .live-append{ display:block; margin:-4px auto 2px; padding:6px 8px; border:none; background:none; color:var(--primary); font-size:12.5px; font-weight:600; cursor:pointer; text-align:center; }
   .live-edit{ min-height:40px; border:none; background:none; color:var(--primary); font-size:13.5px; font-weight:600; padding:0 6px; cursor:pointer; white-space:nowrap; }
   .live-close{ width:40px; height:40px; flex:none; border-radius:50%; border:none; background:var(--surface-2); color:var(--ink-2); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; }
   .live-close .i{ width:17px; height:17px; }
@@ -373,6 +374,9 @@
   /* Mama / Ek süt / Sağılan: üçü tek satırda yan yana (birim etikette: "Mama (cc)") */
   .feed-row-extra{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; align-items:end; margin-top:2px; }
   .feed-row-extra .mini-group{ min-width:0; }
+  .breast-add{ grid-column:1 / -1; display:flex; justify-content:center; gap:22px; margin-top:2px; }
+  .breast-add button{ border:none; background:none; padding:6px 4px; font-size:12px; font-weight:500; color:var(--ink-2); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .more-del{ flex-shrink:0; width:28px; height:40px; border:none; background:none; color:var(--ink-3); font-size:20px; line-height:1; cursor:pointer; }
   .mini-group label{ display:block; margin-bottom:6px; }
   .feed-row-extra .mini-group label, .formula-amount label{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .stepper{ display:flex; align-items:center; justify-content:space-between; height:44px; background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:3px; }
@@ -1621,6 +1625,7 @@ const SLEEP_LIVE_MAX_MIN = 16 * 60; // uyku için 16 saat
    normal kayıt sayılır (unutulsa bile veri kaybolmaz). */
 let feedPanelOpen = false;                        // bu telefonda boş (henüz başlamamış) kart açık mı
 let feedPanelAmounts = { formulaCc:0, extraCc:0 }; // kayıt başlamadan karta girilen miktarlar
+let feedPanelAppend = false;                      // kart boşken "son beslenmeye ekle" seçildi mi
 let hadFeedSession = false;
 function isFreshDraft(r){
   if (!r || r.draft !== true || typeof r.draftAt !== "number") return false;
@@ -2012,6 +2017,28 @@ function minutesBetween(start, end, maxMinutes){
   return mins;
 }
 
+// Bir emzirme kaydındaki tüm meme satırları: ana Sağ / Sol satırları + sonradan
+// eklenenler (r.more = [{side, start, end}]). Ek satırlar aynı beslenmenin parçasıdır:
+// beslenme sayısını artırmaz, süreleri ilgili tarafın toplamına eklenir.
+function breastSegs(r){
+  const out = [{ side:"right", start:r.rightStart || "", end:r.rightEnd || "" },
+               { side:"left",  start:r.leftStart || "",  end:r.leftEnd || "" }];
+  if (Array.isArray(r.more)) r.more.forEach((m, i) => {
+    if (m) out.push({ side: m.side === "left" ? "left" : "right", start:m.start || "", end:m.end || "", more:i });
+  });
+  return out;
+}
+// Bir taraftaki toplam dakika (satırlar toplanır); süresi hesaplanabilen satır yoksa null
+function sideTotalMin(r, side){
+  let tot = null;
+  breastSegs(r).forEach(g => {
+    if (g.side !== side) return;
+    const m = minutesBetween(g.start, g.end, 180);
+    if (m != null) tot = (tot || 0) + m;
+  });
+  return tot;
+}
+
 function meanOf(arr){ return arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : null; }
 
 // Haftalık bakış ve yapay zeka değerlendirmesinin ORTAK hesabı (ikisi hep aynı
@@ -2028,8 +2055,8 @@ function computeWeekStats(byDate, endDateStr){
     const feedings = savedFeedings(d);
     const meals = feedings.filter(f => !isPumpRec(f));
     const breast = feedings.filter(isBreastRec);
-    const rightMins = breast.map(f => minutesBetween(f.rightStart, f.rightEnd, 180)).filter(m => m != null);
-    const leftMins = breast.map(f => minutesBetween(f.leftStart, f.leftEnd, 180)).filter(m => m != null);
+    const rightMins = breast.map(f => sideTotalMin(f, "right")).filter(m => m != null);
+    const leftMins = breast.map(f => sideTotalMin(f, "left")).filter(m => m != null);
     const dp = diaperStatsForDay(d);
     let sleepHrs = 0, sleepHas = false;
     ((d && d.sleeps) || []).forEach(s => {
@@ -3085,7 +3112,7 @@ function buildWeekReport(byDate, endDateStr){
       if (it.kind === "diaper") return `${saat} bez: ` + ([r.pee && "çiş", r.poop && "kaka"].filter(Boolean).join(" + ") || "işaretsiz");
       if (it.kind === "sleep"){ const mm = minutesBetween(r.sleepTime, r.wakeTime, 24*60); return `${saat} uyku` + (mm != null ? ` ${mm} dk` : " (bitişi girilmemiş)"); }
       const parts = [];
-      ["right", "left"].forEach(sd => { if (r[sd + "Start"]) { const mm = minutesBetween(r[sd + "Start"], r[sd + "End"], 180); parts.push(`${SIDE_NAME[sd].toLowerCase()} ${mm != null ? mm + " dk" : "?"}`); } });
+      breastSegs(r).forEach(g => { if (g.start) { const mm = minutesBetween(g.start, g.end, 180); parts.push(`${SIDE_NAME[g.side].toLowerCase()} ${mm != null ? mm + " dk" : "?"}`); } });
       if (Number(r.formulaCc) > 0) parts.push(`mama ${r.formulaCc} cc`);
       if (Number(r.extraCc) > 0) parts.push(`ek süt ${r.extraCc} cc`);
       if (Number(r.pumpedCc) > 0) parts.push(`sağılan ${r.pumpedCc} cc`);
@@ -3538,8 +3565,7 @@ function recordSummary(list, r){
     if (r.type === "formula") return "Mama · " + (r.time || "saatsiz") + " · " + (Number(r.formulaCc) || 0) + " cc";
     if (r.type === "pumped") return "Sağılan · " + (r.time || "saatsiz") + " · " + (Number(r.pumpedCc) || 0) + " cc";
     const parts = [];
-    const right = rangeText(r.rightStart, r.rightEnd); if (right) parts.push("Sağ " + right);
-    const left = rangeText(r.leftStart, r.leftEnd);    if (left) parts.push("Sol " + left);
+    breastSegs(r).forEach(g => { const t = rangeText(g.start, g.end); if (t) parts.push(SIDE_NAME[g.side] + " " + t); });
     if (Number(r.formulaCc) > 0) parts.push("Mama " + r.formulaCc + " cc");
     if (Number(r.extraCc) > 0) parts.push("Ek süt " + r.extraCc + " cc");
     if (Number(r.pumpedCc) > 0) parts.push("Sağılan " + r.pumpedCc + " cc");
@@ -3678,8 +3704,8 @@ function computeDayTotals(d, dateStr){
   const formula = sum("formulaCc"), extra = sum("extraCc");
   let right = 0, left = 0, sleep = 0;
   feedings.filter(isBreastRec).forEach(f => {
-    right += minutesBetween(f.rightStart, f.rightEnd, 180) || 0;
-    left += minutesBetween(f.leftStart, f.leftEnd, 180) || 0;
+    right += sideTotalMin(f, "right") || 0;
+    left += sideTotalMin(f, "left") || 0;
   });
   (d.sleeps || []).forEach(s => { sleep += minutesBetween(s.sleepTime, s.wakeTime, 24*60) || 0; });
   if (dateStr){
@@ -3830,6 +3856,15 @@ function bindTimeInputs(row, getRec, onChange = scheduleSave){
       if (!rec) return;
       if (box) box.classList.toggle("has-value", !!inp.value);
       const field = inp.dataset.field;
+      // Sonradan eklenen meme satırları: "more.<sıra>.start|end"
+      const mm = /^more\.(\d+)\.(start|end)$/.exec(field);
+      if (mm){
+        const seg = Array.isArray(rec.more) ? rec.more[Number(mm[1])] : null;
+        if (!seg || (seg[mm[2]] || "") === inp.value) return;
+        seg[mm[2]] = inp.value;
+        onChange();
+        return;
+      }
       if ((rec[field] || "") === inp.value) return;
       rec[field] = inp.value;
       // Sayaçla başlatılan kayıtta saniyeli başlangıç da tutulur; başlangıç saati elle
@@ -3893,15 +3928,32 @@ function buildEditor(list, getRec, opts = {}){
           <span class="range-dash" aria-hidden="true">–</span>
           ${timeFieldHtml(endField, r[endField], label + " bitiş saati")}
         </div>`;
+    // Sonradan eklenen satırlar (Sağ / Sol meme ekle): aynı beslenmenin parçası
+    const moreRows = (Array.isArray(r.more) ? r.more : []).map((m, i) => {
+      const nm = (m && m.side === "left" ? "Sol" : "Sağ") + " meme";
+      return `
+        <span class="breast-label">${nm}</span>
+        <div class="time-range">
+          ${timeFieldHtml(`more.${i}.start`, m && m.start, nm + " başlangıç saati")}
+          <span class="range-dash" aria-hidden="true">–</span>
+          ${timeFieldHtml(`more.${i}.end`, m && m.end, nm + " bitiş saati")}
+          <button type="button" class="more-del" data-i="${i}" aria-label="${nm} satırını sil">×</button>
+        </div>`;
+    }).join("");
     row.innerHTML = `
       <div class="breast-times">
         ${side("Sağ meme", "rightStart", "rightEnd")}
         ${side("Sol meme", "leftStart", "leftEnd")}
+        ${moreRows}
       </div>
       <div class="feed-row-extra">
         <div class="mini-group"><label>Mama (cc)</label>${stepperHtml("formulaCc", r.formulaCc, 5, "Mama")}</div>
         <div class="mini-group"><label>Ek süt (cc)</label>${stepperHtml("extraCc", r.extraCc, 5, "Ek süt")}</div>
         <div class="mini-group"><label>Sağılan (cc)</label>${stepperHtml("pumpedCc", r.pumpedCc, 5, "Sağılan")}</div>
+      </div>
+      <div class="breast-add">
+        <button type="button" data-side="right">Sağ meme ekle</button>
+        <button type="button" data-side="left">Sol meme ekle</button>
       </div>`;
   } else if (list === "diapers"){
     row.innerHTML = `
@@ -3927,6 +3979,25 @@ function buildEditor(list, getRec, opts = {}){
     row.appendChild(del);
   }
   bindTimeInputs(row, getRec, changed);
+  // Meme satırı ekle / sil: kayıt değişir, satır yeniden çizilir
+  const rebuild = () => { if (row.isConnected) row.replaceWith(buildEditor(list, getRec, opts)); };
+  row.querySelectorAll(".breast-add button").forEach(btn => btn.addEventListener("click", () => {
+    const rec = getRec();
+    if (!rec) return;
+    if (!Array.isArray(rec.more)) rec.more = [];
+    const prevEnd = breastSegs(rec).map(g => g.end).filter(Boolean).pop() || "";
+    rec.more.push({ side:btn.dataset.side, start:prevEnd, end:"" });
+    changed();
+    rebuild();
+  }));
+  row.querySelectorAll(".more-del").forEach(btn => btn.addEventListener("click", () => {
+    const rec = getRec();
+    if (!rec || !Array.isArray(rec.more)) return;
+    rec.more.splice(Number(btn.dataset.i), 1);
+    if (!rec.more.length) delete rec.more;
+    changed();
+    rebuild();
+  }));
   row.querySelectorAll(".stepper").forEach(st => {
     const field = st.dataset.field;
     const step = Number(st.dataset.step) || 5;
@@ -4158,6 +4229,7 @@ function isBlankRecord(list, r){
   if (list === "feedings" && r.type === "formula") return !r.time && !Number(r.formulaCc);
   if (list === "feedings" && r.type === "pumped") return !r.time && !Number(r.pumpedCc);
   if (list === "feedings") return !r.rightStart && !r.rightEnd && !r.leftStart && !r.leftEnd &&
+    !(Array.isArray(r.more) && r.more.some(m => m && (m.start || m.end))) &&
     !Number(r.extraCc) && !Number(r.pumpedCc) && !Number(r.formulaCc);
   if (list === "diapers") return !r.time && !r.pee && !r.poop;
   return !r.sleepTime && !r.wakeTime;
@@ -4354,6 +4426,18 @@ function feedPanelHtml(s){
       .map(x => `${SIDE_NAME[x]} ${rec[x + "End"] ? sideDoneText(sideMinutes(rec, x)) : "bitiş yok"}`);
     sub = (parts.length ? parts.join(" · ") + " · " : "") + "Kaydet'e basınca kaydedilir.";
   }
+  // Mevcut beslenmeden devam: yeni beslenme açmak yerine son emzirmeye ek satır olarak eklenir
+  let appendBtn = "";
+  if (rec && rec.mergeLast){
+    sub += " Son beslenmeye eklenecek.";
+  } else if (!rec){
+    const last = latestOf("feedings", feedStartHm, isBreastRec);
+    if (last){
+      const lastHm = feedStartHm(last.rec);
+      appendBtn = `<button type="button" class="live-append" data-act="append" aria-pressed="${feedPanelAppend}">` +
+        (feedPanelAppend ? `✓ Son beslenmeye eklenecek (${lastHm}) · vazgeç` : `Mevcut beslenmeden devam et (${lastHm})`) + `</button>`;
+    }
+  }
   const edit = rec
     ? `<button type="button" class="live-edit" data-act="edit">Elle düzelt</button>`
     : `<button type="button" class="live-edit" data-act="manual">Elle gir</button>`;
@@ -4364,6 +4448,7 @@ function feedPanelHtml(s){
   const ev = rec ? (Number(rec.extraCc) || 0) : feedPanelAmounts.extraCc;
   return `<section class="live-card k-feed" id="feedPanel" aria-label="Emzirme">
       <div class="live-head">${tag}${edit}${close}</div>
+      ${appendBtn}
       ${timer}
       <div class="live-sub">${sub}</div>
       <div class="side-grid">${sideBox("right")}${sideBox("left")}</div>
@@ -4472,11 +4557,13 @@ async function startFeedSide(side){
     const rec = { rightStart:"", rightEnd:"", leftStart:"", leftEnd:"",
                   formulaCc:feedPanelAmounts.formulaCc, extraCc:feedPanelAmounts.extraCc, pumpedCc:0,
                   draft:true, draftId:newDraftId(), draftAt:at };
+    if (feedPanelAppend) rec.mergeLast = true;
     rec[side + "Start"] = t; rec[side + "StartAt"] = at;
     const date = todayStr();
     const ok = await mutateDayList(date, "feedings", arr => { arr.push(rec); });
     if (ok){
       feedPanelAmounts = { formulaCc:0, extraCc:0 };
+      feedPanelAppend = false;
       offerUndo({ kind:"feed-start", date, id:rec.draftId, side, stoppedOther:false, label:SIDE_NAME[side] + " meme başladı" });
     }
     return;
@@ -4512,12 +4599,43 @@ async function saveFeedSession(){
   if (!s){ feedPanelOpen = false; return; }
   const t = nowTimeStr();
   let saved = null;
+  // "Mevcut beslenmeden devam": taslak yeni kayıt olmaz, son emzirmeye ek satır(lar) olarak eklenir
+  if (s.rec.mergeLast){
+    const target = latestOf("feedings", feedStartHm, isBreastRec);
+    if (target){
+      const tKey = stableStringify(target.rec);
+      const segs = breastSegs(s.rec)
+        .filter(g => g.start)
+        .map(g => ({ side:g.side, start:g.start, end:g.end || t, ms:startMsOf(s.date, g.start, g.more == null ? s.rec[g.side + "StartAt"] : null) }))
+        .sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0))
+        .map(({ side, start, end }) => ({ side, start, end }));
+      const addCc = (k) => Number(s.rec[k]) || 0;
+      if (segs.length || addCc("formulaCc") || addCc("extraCc")){
+        const ok = await mutateDayList(target.date, "feedings", arr => {
+          const r = arr.find(x => stableStringify(x) === tKey);
+          if (!r) return false;
+          if (segs.length) r.more = [...(Array.isArray(r.more) ? r.more : []), ...segs];
+          ["formulaCc", "extraCc"].forEach(k => { if (addCc(k)) r[k] = (Number(r[k]) || 0) + addCc(k); });
+        });
+        if (ok){
+          await mutateDayList(s.date, "feedings", arr => {
+            const i = arr.findIndex(x => x.draftId === s.id);
+            if (i < 0) return false;
+            arr.splice(i, 1);
+          });
+          feedPanelOpen = false;
+          showInfo("Son beslenmeye eklendi" + (segs.length ? " · " + segs.map(g => SIDE_NAME[g.side] + " " + sideDoneText(minutesBetween(g.start, g.end, FEED_LIVE_MAX_MIN) ?? 0)).join(", ") : ""));
+          return;
+        }
+      }
+    }
+  }
   await mutateDayList(s.date, "feedings", arr => {
     const i = s.id ? arr.findIndex(x => x.draftId === s.id) : arr.findIndex(x => stableStringify(x) === s.key);
     if (i < 0) return false;
     const r = arr[i];
     ["right", "left"].forEach(x => { if (r[x + "Start"] && !r[x + "End"]) r[x + "End"] = t; delete r[x + "StartAt"]; });
-    delete r.draft; delete r.draftId; delete r.draftAt;
+    delete r.draft; delete r.draftId; delete r.draftAt; delete r.mergeLast;
     if (isBlankRecord("feedings", r)) arr.splice(i, 1); else saved = { ...r };
   });
   feedPanelOpen = false;
@@ -4526,7 +4644,7 @@ async function saveFeedSession(){
 // ×: boş kart kapanır; başlamış bir taslak sorup iptal edilir ("Geri al" ile döner)
 async function cancelFeedSession(){
   const s = findLiveSessions().feed;
-  if (!s){ feedPanelOpen = false; feedPanelAmounts = { formulaCc:0, extraCc:0 }; return; }
+  if (!s){ feedPanelOpen = false; feedPanelAppend = false; feedPanelAmounts = { formulaCc:0, extraCc:0 }; return; }
   if (!s.draft) return;
   const hasData = !isBlankRecord("feedings", s.rec);
   if (hasData && !(await askConfirm(recordSummary("feedings", s.rec) + " — kaydedilmeyecek.", "Bu emzirme iptal edilsin mi?", "Evet, iptal et"))) return;
@@ -4568,7 +4686,8 @@ async function liveAction(act, side){
     else if (act === "save") await saveFeedSession();
     else if (act === "cancel") await cancelFeedSession();
     else if (act === "edit" && L.feed) openRecordOnDate(L.feed.date, "feedings", L.feed.key, L.feed.id);
-    else if (act === "manual"){ feedPanelOpen = false; openManualFeed(); }
+    else if (act === "manual"){ feedPanelOpen = false; feedPanelAppend = false; openManualFeed(); }
+    else if (act === "append" && !L.feed) feedPanelAppend = !feedPanelAppend;
     else if (act === "wake") await wakeNow();
     else if (act === "edit-sleep" && L.sleep) openRecordOnDate(L.sleep.date, "sleeps", L.sleep.key);
   } finally {
@@ -4624,10 +4743,10 @@ function renderRitim(){
   savedFeedings(d).forEach(f => {
     if (isPumpRec(f)) return; // sağılan süt bebeğin beslenmesi değil
     if (f.type === "formula"){ const t = hmToMin(f.time); if (t != null) formulaTicks.push(t); return; }
-    ["right", "left"].forEach(side => {
-      const a = hmToMin(f[side + "Start"]);
+    breastSegs(f).forEach(g => {
+      const a = hmToMin(g.start);
       if (a == null) return;
-      let b = hmToMin(f[side + "End"]);
+      let b = hmToMin(g.end);
       if (b == null) b = (isToday && nm >= a && nm - a <= FEED_LIVE_MAX_MIN) ? nm : a; // sürüyor: şimdiye kadar
       else if (b < a) b = 1440;                                                           // gece yarısını geçti
       feedSegs.push([a, b]);
@@ -4723,12 +4842,12 @@ function akisItemHtml(it){
   if (it.kind === "breast"){
     k = "k-feed"; title = "Emzirme";
     const parts = [];
-    ["right", "left"].forEach(side => {
-      const st = r[side + "Start"], en = r[side + "End"];
+    breastSegs(r).forEach(g => {
+      const st = g.start, en = g.end;
       if (!st && !en) return;
       const m = minutesBetween(st, en, 180);
-      const liveSide = isLive && live.feed.side === side;
-      parts.push(SIDE_NAME[side] + " " + (liveSide ? "sürüyor" : (m != null ? m + " dk" : (st && !en ? "bitiş yok" : "?"))));
+      const liveSide = isLive && g.more == null && live.feed.side === g.side;
+      parts.push(SIDE_NAME[g.side] + " " + (liveSide ? "sürüyor" : (m != null ? m + " dk" : (st && !en ? "bitiş yok" : "?"))));
     });
     if (Number(r.formulaCc) > 0) parts.push("mama " + r.formulaCc + " cc");
     if (Number(r.extraCc) > 0) parts.push("ek süt " + r.extraCc + " cc");
@@ -4736,7 +4855,7 @@ function akisItemHtml(it){
     const st0 = feedStartHm(r);
     if (st0 && feedEndMin(r) != null && !isLive) parts.unshift("başlangıç " + st0);
     detail = parts.join(" · ");
-    const total = (minutesBetween(r.rightStart, r.rightEnd, 180) || 0) + (minutesBetween(r.leftStart, r.leftEnd, 180) || 0);
+    const total = (sideTotalMin(r, "right") || 0) + (sideTotalMin(r, "left") || 0);
     right = isLive ? `<span class="chip">sürüyor</span>` : (total ? `<span class="akis-val">${total} dk</span>` : "");
   } else if (it.kind === "formula"){
     k = "k-formula"; title = "Mama"; detail = "Biberon";
@@ -5084,8 +5203,8 @@ function hmOfMs(ms){ const d = new Date(ms); return String(d.getHours()).padStar
 function feedEndMin(f){
   let best = null;
   const st0 = hmToMin(feedStartHm(f));
-  ["right", "left"].forEach(s => {
-    const a = hmToMin(f[s + "Start"]), e = hmToMin(f[s + "End"]);
+  breastSegs(f).forEach(g => {
+    const a = hmToMin(g.start), e = hmToMin(g.end);
     if (a == null || e == null) return;
     let end = e;
     if (end < a || (st0 != null && end < st0 && st0 - end > 720)) end += 1440;
@@ -5159,7 +5278,11 @@ function lastWakeMs(){
 function feedDetailText(f){
   if (f.type === "formula") return `${f.time} · Mama ${Number(f.formulaCc) || 0} cc`;
   const parts = [];
-  ["right", "left"].forEach(s => { if (f[s + "Start"]) parts.push(SIDE_NAME[s] + " " + (f[s + "End"] ? sideDoneText(sideMinutes(f, s)) : "bitiş yok")); });
+  breastSegs(f).forEach(g => {
+    if (!g.start) return;
+    const m = !g.end ? null : g.start === g.end ? 0 : minutesBetween(g.start, g.end, FEED_LIVE_MAX_MIN);
+    parts.push(SIDE_NAME[g.side] + " " + (g.end ? sideDoneText(m) : "bitiş yok"));
+  });
   if (Number(f.formulaCc) > 0) parts.push("mama " + f.formulaCc + " cc");
   if (Number(f.extraCc) > 0) parts.push("ek süt " + f.extraCc + " cc");
   const end = feedEndMin(f);
