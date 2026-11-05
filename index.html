@@ -1236,6 +1236,14 @@
         <p class="settings-hint" id="backupStatus"></p>
       </section>
 
+      <section class="card" data-tone="sky">
+        <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></span> Bildirimler</h2>
+        <p class="settings-hint">Son beslenmenin üzerinden 2,5 saat, son çiş ya da kakanın üzerinden 3 saat geçince bildirim gelir; uygulama kapalıyken de. Her telefonda ayrı ayrı açılır.</p>
+        <button class="add-btn" type="button" id="pushToggleBtn">Bildirimleri aç</button>
+        <button class="add-btn" type="button" id="pushTestBtn" hidden>Deneme bildirimi gönder</button>
+        <p class="settings-hint" id="pushStatus" role="status"></p>
+      </section>
+
       <section class="card" data-tone="sand">
         <h2><span class="badge k-neutral"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg></span> Hesap</h2>
         <p class="settings-hint account-email" id="accountEmail"></p>
@@ -3770,6 +3778,7 @@ function renderDayVisuals(){
   renderRitim();
   renderAkis();
   renderGlance();
+  syncPushSchedule();
 }
 
 function render(){
@@ -5484,6 +5493,130 @@ setInterval(() => {
   if (before !== after && !isEditingDayField()) renderFeedList();
   renderGlance();
 }, 1000);
+
+/* ========================================================================
+   8g) Bildirimler (Web Push) — ayrı bir Cloudflare Worker (worker/push-worker.js).
+   Uygulama "yaklaşan hatırlatmalar" listesini Worker'a gönderir; Worker zamanı
+   gelince telefona bildirim yollar (uygulama kapalıyken de). Hatırlatmalar:
+   son beslenmeden 2,5 saat, son çiş/kakadan 3 saat sonra. Plan TEK ortaktır:
+   hangi telefonda kayıt girilirse plan oradan yenilenir, bildirim her aboneye gider.
+   iPhone'da yalnızca "Ana Ekrana Ekle" ile eklenmiş uygulamada çalışır.
+   ===================================================================== */
+const PUSH_URL = "BURAYA_PUSH_WORKER_ADRESI";
+const PUSH_CONFIGURED = !PUSH_URL.startsWith("BURAYA_");
+const PUSH_ON_KEY = "bebekGunlugu.pushOn";
+const FEED_REMIND_MIN = 150, DIAPER_REMIND_MIN = 180;
+const pushToggleBtn = document.getElementById("pushToggleBtn");
+const pushTestBtn = document.getElementById("pushTestBtn");
+const pushStatusEl = document.getElementById("pushStatus");
+function pushOnHere(){ try{ return localStorage.getItem(PUSH_ON_KEY) === "1"; }catch(e){ return false; } }
+function setPushOnHere(on){ try{ if (on) localStorage.setItem(PUSH_ON_KEY, "1"); else localStorage.removeItem(PUSH_ON_KEY); }catch(e){ /* bu oturumda yine geçerli */ } }
+function pushSupported(){ return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+function pushStandalone(){ return window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches; }
+function pushUrl(path){ return PUSH_URL.replace(/\/$/, "") + path; }
+async function pushApi(path, body){
+  const user = auth.currentUser;
+  if (!user) throw new Error("login");
+  const res = await fetch(pushUrl(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + await user.getIdToken() },
+    body: JSON.stringify(body || {})
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && data.error) || String(res.status));
+  return data;
+}
+function urlB64ToBytes(s){
+  const raw = atob(s.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(s.length / 4) * 4, "="));
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+async function currentPushSub(){
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+async function enablePush(){
+  // İzin isteği dokunuştan hemen çağrılmalı (iOS şartı): bu yüzden ilk await bu
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") throw new Error("denied");
+  const reg = await navigator.serviceWorker.ready;
+  const keyRes = await fetch(pushUrl("/push/key"));
+  const { key } = await keyRes.json();
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToBytes(key) });
+  await pushApi("/push/subscribe", { subscription: sub.toJSON() });
+  setPushOnHere(true);
+  lastPushJson = "";
+  syncPushSchedule();
+}
+async function disablePush(){
+  const sub = await currentPushSub();
+  if (sub){
+    try{ await pushApi("/push/unsubscribe", { endpoint: sub.endpoint }); }catch(e){ /* sunucuya ulaşılamasa da bu telefondan kaldırılır */ }
+    await sub.unsubscribe();
+  }
+  setPushOnHere(false);
+}
+function paintPush(msg){
+  if (!pushToggleBtn) return;
+  const on = pushOnHere() && pushSupported() && Notification.permission === "granted";
+  let blocked = "";
+  if (!PUSH_CONFIGURED) blocked = "Bildirim sunucusu henüz kurulmadı.";
+  else if (!pushSupported() || !pushStandalone()) blocked = "iPhone'da bildirim için uygulamayı Safari'den “Ana Ekrana Ekle” ile ekleyip ana ekrandaki simgeden aç.";
+  else if (Notification.permission === "denied") blocked = "Bildirim izni kapalı. iPhone Ayarlar → Bildirimler → bu uygulamadan aç.";
+  pushToggleBtn.textContent = on ? "Bildirimleri kapat" : "Bildirimleri aç";
+  pushToggleBtn.disabled = !!blocked;
+  pushTestBtn.hidden = !on;
+  pushStatusEl.textContent = msg || blocked || (on ? "Bu telefonda bildirimler açık." : "");
+}
+pushToggleBtn.addEventListener("click", async () => {
+  pushToggleBtn.disabled = true;
+  let msg = "";
+  try{
+    if (pushOnHere()){ await disablePush(); msg = "Bildirimler kapatıldı."; }
+    else { await enablePush(); msg = "Bildirimler açıldı ✓ Aşağıdaki düğmeyle deneme bildirimi gönderip kontrol et."; }
+  }catch(e){
+    msg = e.message === "denied" ? "Bildirim izni verilmedi." : "Bildirim açılamadı — bağlantını kontrol edip tekrar dene.";
+  }
+  paintPush(msg);
+});
+pushTestBtn.addEventListener("click", async () => {
+  pushTestBtn.disabled = true;
+  let msg;
+  try{
+    const sub = await currentPushSub();
+    const r = await pushApi("/push/test", { endpoint: sub ? sub.endpoint : "" });
+    msg = r && r.sent ? "Deneme bildirimi gönderildi (" + nowTimeStr() + "). Birkaç saniye içinde gelmezse iPhone'un Odak / Düşük Güç modunu kontrol et." : "Bu telefonun aboneliği sunucuda yok — bildirimleri kapatıp yeniden aç.";
+  }catch(e){ msg = "Deneme gönderilemedi — bağlantını kontrol et."; }
+  pushTestBtn.disabled = false;
+  paintPush(msg);
+});
+paintPush();
+
+// Yaklaşan hatırlatmalar. Kimlik (id) kararlıdır: aynı hatırlatma bir kez gönderilir.
+function pushItems(){
+  const items = [];
+  // Süren / kaydedilmemiş emzirme varken beslenme hatırlatması yok
+  const lf = live.feed ? null : lastFeedEnd();
+  if (lf) items.push({ id:"feed-" + lf.ms, t:lf.ms + FEED_REMIND_MIN * 60000, title:"Beslenme zamanı",
+                       body:"Son beslenmenin üzerinden 2,5 saat geçti (" + hmOfMs(lf.ms) + ")." });
+  const ld = latestOf("diapers", x => x.time, x => x.pee || x.poop);
+  if (ld) items.push({ id:"diaper-" + ld.ms, t:ld.ms + DIAPER_REMIND_MIN * 60000, title:"Bez zamanı",
+                       body:"Son çiş / kakanın üzerinden 3 saat geçti (" + hmOfMs(ld.ms) + ")." });
+  return items;
+}
+// Plan, kayıt girilen / değişen her telefondan (bildirimi o telefonda açık olmasa da) yenilenir;
+// içerik değişmediyse hiçbir şey gönderilmez
+let lastPushJson = "", pushSyncTimer = null;
+function syncPushSchedule(){
+  if (!PUSH_CONFIGURED || !auth.currentUser || !dayDocFor(todayStr())) return;
+  const json = JSON.stringify(pushItems());
+  if (json === lastPushJson) return;
+  clearTimeout(pushSyncTimer);
+  pushSyncTimer = setTimeout(async () => {
+    try{ await pushApi("/push/schedule", { items: JSON.parse(json) }); lastPushJson = json; }
+    catch(e){ /* bir sonraki değişiklikte yeniden denenir */ }
+  }, 3000);
+}
 
 /* ========================================================================
    9) Service worker (uygulama kabuğunu önbelleğe alır)

@@ -4,7 +4,7 @@
 // straight to the network so your data stays live and accurate.
 // v3: yeni uygulama simgesi — eski önbellek (eski simge ve manifest) silinir
 // v4: yeni tema (Gündüz / Gece) — kabuk yeniden önbelleğe alınır
-const CACHE_NAME = "bebek-gunlugu-shell-v14";
+const CACHE_NAME = "bebek-gunlugu-shell-v15";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -29,6 +29,27 @@ self.addEventListener("activate", (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Bildirimler (Web Push): worker/push-worker.js gönderir. iOS her push'ta bildirim
+// gösterilmesini şart koşar, o yüzden her durumda showNotification çağrılır.
+self.addEventListener("push", (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { /* düz metin ya da boş */ }
+  event.waitUntil(self.registration.showNotification(d.title || "Aslan'ın Günlüğü", {
+    body: d.body || "",
+    tag: d.tag || undefined,
+    icon: "./icon-192.png?v=2"
+  }));
+});
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) if ("focus" in c) return c.focus();
+      return self.clients.openWindow("./");
+    })
+  );
 });
 
 self.addEventListener("fetch", (event) => {

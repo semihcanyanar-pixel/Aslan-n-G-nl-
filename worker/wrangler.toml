@@ -1,0 +1,17 @@
+name = "aslan-push"
+main = "push-worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[vars]
+FIREBASE_PROJECT_ID = "aslan-d1742"
+ALLOWED_EMAILS = "semihcan.yanar@hotmail.com,seyma_saka@hotmail.com"
+ALLOWED_ORIGINS = "https://semihcanyanar-pixel.github.io"
+
+# KV id: `npx wrangler kv namespace create KV` çıktısındaki id buraya yazılır.
+[[kv_namespaces]]
+binding = "KV"
+id = "BURAYA_KV_ID"
+
+[triggers]
+crons = ["* * * * *"]
