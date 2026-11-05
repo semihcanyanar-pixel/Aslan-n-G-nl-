@@ -11,7 +11,7 @@ ALLOWED_ORIGINS = "https://semihcanyanar-pixel.github.io"
 # KV id: `npx wrangler kv namespace create KV` çıktısındaki id buraya yazılır.
 [[kv_namespaces]]
 binding = "KV"
-id = "BURAYA_KV_ID"
+id = "f2cfb84d346d490fa17b86dd6df12f74"
 
 [triggers]
 crons = ["* * * * *"]
