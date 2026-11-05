@@ -1650,6 +1650,9 @@ function isFreshDraft(r){
 }
 // Kayıt türleri: emzirme (type yok), mama (type:"formula"), sağılan süt (type:"pumped")
 function isFormulaRec(r){ return !!r && r.type === "formula"; }
+// Biberonla verilen öğün: Mama (formulaCc) ya da tek başına Ek süt (milk:"extra", extraCc)
+function bottleField(r){ return r && r.milk === "extra" ? "extraCc" : "formulaCc"; }
+function bottleName(r){ return r && r.milk === "extra" ? "Ek süt" : "Mama"; }
 function isPumpRec(r){ return !!r && r.type === "pumped"; }
 function isBreastRec(r){ return !!r && r.type !== "formula" && r.type !== "pumped"; }
 // Kaydedilmiş beslenme kayıtları (taslak emzirme hariç)
@@ -3124,7 +3127,7 @@ function buildWeekReport(byDate, endDateStr){
     // Akış: o günün kayıtları saat sırasıyla (eskiden yeniye)
     gun.akis = akisEntries(d).reverse().map(it => {
       const r = it.rec, saat = it.t != null ? minToHm(it.t % 1440) : "saatsiz";
-      if (it.kind === "formula") return `${saat} mama ${Number(r.formulaCc) || 0} cc`;
+      if (it.kind === "formula") return `${saat} ${bottleName(r).toLowerCase()} ${Number(r[bottleField(r)]) || 0} cc`;
       if (it.kind === "pumped") return `${saat} süt sağıldı ${Number(r.pumpedCc) || 0} cc`;
       if (it.kind === "diaper") return `${saat} bez: ` + ([r.pee && "çiş", r.poop && "kaka"].filter(Boolean).join(" + ") || "işaretsiz");
       if (it.kind === "sleep"){ const mm = minutesBetween(r.sleepTime, r.wakeTime, 24*60); return `${saat} uyku` + (mm != null ? ` ${mm} dk` : " (bitişi girilmemiş)"); }
@@ -3579,7 +3582,7 @@ function askConfirm(detail, title = "Bu kayıt silinsin mi?", yesLabel = "Evet, 
 function rangeText(a, b){ return (a || b) ? (a || "?") + "–" + (b || "…") : ""; }
 function recordSummary(list, r){
   if (list === "feedings"){
-    if (r.type === "formula") return "Mama · " + (r.time || "saatsiz") + " · " + (Number(r.formulaCc) || 0) + " cc";
+    if (r.type === "formula") return bottleName(r) + " · " + (r.time || "saatsiz") + " · " + (Number(r[bottleField(r)]) || 0) + " cc";
     if (r.type === "pumped") return "Sağılan · " + (r.time || "saatsiz") + " · " + (Number(r.pumpedCc) || 0) + " cc";
     const parts = [];
     breastSegs(r).forEach(g => { const t = rangeText(g.start, g.end); if (t) parts.push(SIDE_NAME[g.side] + " " + t); });
@@ -3596,7 +3599,7 @@ function recordSummary(list, r){
   return "";
 }
 const DELETED_LABEL = {
-  feedings: (r) => r.type === "formula" ? "Mama kaydı silindi" : r.type === "pumped" ? "Sağılan kaydı silindi" : "Emzirme kaydı silindi",
+  feedings: (r) => r.type === "formula" ? bottleName(r) + " kaydı silindi" : r.type === "pumped" ? "Sağılan kaydı silindi" : "Emzirme kaydı silindi",
   diapers: () => "Tuvalet kaydı silindi",
   sleeps: () => "Uyku kaydı silindi",
 };
@@ -3917,12 +3920,12 @@ function buildEditor(list, getRec, opts = {}){
     row.classList.add("formula-row");
     row.innerHTML = `
       <div class="field-group">
-        <label>Mama · saat</label>
-        <div>${timeFieldHtml("time", r.time, "Mama saati")}</div>
+        <label>${bottleName(r)} · saat</label>
+        <div>${timeFieldHtml("time", r.time, bottleName(r) + " saati")}</div>
       </div>
       <div class="mini-group formula-amount">
-        <label>Mama (cc)</label>
-        ${stepperHtml("formulaCc", r.formulaCc, 5, "Mama")}
+        <label>${bottleName(r)} (cc)</label>
+        ${stepperHtml(bottleField(r), r[bottleField(r)], 5, bottleName(r))}
       </div>`;
   } else if (list === "feedings" && r.type === "pumped"){
     // Sağılan süt: saat + miktar (öğün sayısına girmez)
@@ -4244,7 +4247,7 @@ async function ensurePrevDay(dateStr){
 }
 function isBlankRecord(list, r){
   if (!r) return true;
-  if (list === "feedings" && r.type === "formula") return !r.time && !Number(r.formulaCc);
+  if (list === "feedings" && r.type === "formula") return !r.time && !Number(r[bottleField(r)]);
   if (list === "feedings" && r.type === "pumped") return !r.time && !Number(r.pumpedCc);
   if (list === "feedings") return !r.rightStart && !r.rightEnd && !r.leftStart && !r.leftEnd &&
     !(Array.isArray(r.more) && r.more.some(m => m && (m.start || m.end))) &&
@@ -4876,8 +4879,8 @@ function akisItemHtml(it){
     const total = (sideTotalMin(r, "right") || 0) + (sideTotalMin(r, "left") || 0);
     right = isLive ? `<span class="chip">sürüyor</span>` : (total ? `<span class="akis-val">${total} dk</span>` : "");
   } else if (it.kind === "formula"){
-    k = "k-formula"; title = "Mama"; detail = "Biberon";
-    right = `<span class="akis-val">${Number(r.formulaCc) || 0} cc</span>`;
+    k = "k-formula"; title = bottleName(r); detail = "Biberon";
+    right = `<span class="akis-val">${Number(r[bottleField(r)]) || 0} cc</span>`;
   } else if (it.kind === "pumped"){
     k = "k-pump"; title = "Sağılan"; detail = "Sağılan süt";
     right = `<span class="akis-val">${Number(r.pumpedCc) || 0} cc</span>`;
@@ -4965,12 +4968,12 @@ document.getElementById("sheetClose").addEventListener("click", closeSheet);
 
 function sheetTitleFor(base){ return currentDate === todayStr() ? base : base + " · " + dayChipText(currentDate); }
 function recordTitle(list, r){
-  if (list === "feedings") return r.type === "formula" ? "Mama" : r.type === "pumped" ? "Sağılan" : "Emzirme";
+  if (list === "feedings") return r.type === "formula" ? bottleName(r) : r.type === "pumped" ? "Sağılan" : "Emzirme";
   return list === "diapers" ? "Tuvalet" : "Uyku";
 }
 // Yeni kayıtta eksik bir şey var mı (0 cc mama, işaretsiz tuvalet…): varsa kaydetmeden önce söylenir
 function incompleteReason(list, r){
-  if (list === "feedings" && r.type === "formula") return Number(r.formulaCc) > 0 ? "" : "Mama miktarını gir (cc).";
+  if (list === "feedings" && r.type === "formula") return Number(r[bottleField(r)]) > 0 ? "" : bottleName(r) + " miktarını gir (cc).";
   if (list === "feedings" && r.type === "pumped") return Number(r.pumpedCc) > 0 ? "" : "Sağılan miktarını gir (cc).";
   if (list === "diapers") return (r.pee || r.poop) ? "" : "Çiş ya da Kaka'yı işaretle.";
   if (list === "sleeps") return r.sleepTime ? "" : "Uyuma saatini gir.";
@@ -5059,7 +5062,7 @@ function openNutritionSheet(){
   el.innerHTML = (isToday ? "" : pastDayNote())
     + `<div class="choice-grid">`
     + choiceBtn("k-feed", "i-breast", "Emzirme", feedSub, "feed", "wide")
-    + choiceBtn("k-formula", "i-bottle", "Mama", "biberonla", "formula")
+    + choiceBtn("k-formula", "i-bottle", "Biberon", "mama / ek süt", "bottle")
     + choiceBtn("k-pump", "i-jar", "Sağılan", "sağılan süt", "pumped")
     + `</div>`
     + (isToday ? MANUAL_BTN("Emzirme saatlerini elle gir") : "");
@@ -5069,21 +5072,38 @@ function openNutritionSheet(){
     const act = a.dataset.a;
     closeSheet();
     if (act === "feed"){ if (isToday) openFeedPanel(); else openManualFeed(); }
-    else if (act === "formula") openFormulaSheet();
+    else if (act === "bottle") openBottleSheet();
     else if (act === "pumped") openPumpSheet();
     else if (act === "manual") openManualFeed();
   });
   openSheet(sheetTitleFor("Beslenme"), el);
 }
+// Biberon: Mama ya da Ek süt seçilir
+function openBottleSheet(){
+  if (dayLoading) return;
+  const el = document.createElement("div");
+  el.innerHTML = `<div class="choice-grid">`
+    + choiceBtn("k-formula", "i-bottle", "Mama", "biberonla mama", "formula")
+    + choiceBtn("k-feed", "i-jar", "Ek süt", "biberonla ek süt", "extra")
+    + `</div>`;
+  el.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-a]");
+    if (!a) return;
+    closeSheet();
+    openFormulaSheet(a.dataset.a === "extra");
+  });
+  openSheet(sheetTitleFor("Biberon"), el);
+}
 function openManualFeed(){
   openNewRecord("feedings", { rightStart:"", rightEnd:"", leftStart:"", leftEnd:"", extraCc:0, pumpedCc:0 },
     { note:"Sayacı başlatmayı unuttuysan saatleri buradan gir. Kaydet'e basınca kaydedilir." });
 }
-function openFormulaSheet(){
+function openFormulaSheet(extra = false){
   if (dayLoading) return;
   const isToday = currentDate === todayStr();
   // Miktar 0'dan başlar; saat bugünse şimdiki saat (⊗ ile silinip değiştirilebilir)
-  openNewRecord("feedings", { type:"formula", time: isToday ? nowTimeStr() : "", formulaCc:0 },
+  openNewRecord("feedings", extra ? { type:"formula", milk:"extra", time: isToday ? nowTimeStr() : "", extraCc:0 }
+                                  : { type:"formula", time: isToday ? nowTimeStr() : "", formulaCc:0 },
     { note:(isToday ? "Saat şimdiki saat olarak geldi; gerekirse değiştir. " : "") + "Kaydet'e basmadan kapatırsan kaydedilmez." });
 }
 function openPumpSheet(){
@@ -5294,7 +5314,7 @@ function lastWakeMs(){
   return best;
 }
 function feedDetailText(f){
-  if (f.type === "formula") return `${f.time} · Mama ${Number(f.formulaCc) || 0} cc`;
+  if (f.type === "formula") return `${f.time} · ${bottleName(f)} ${Number(f[bottleField(f)]) || 0} cc`;
   const parts = [];
   breastSegs(f).forEach(g => {
     if (!g.start) return;
