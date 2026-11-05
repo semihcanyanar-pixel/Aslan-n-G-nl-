@@ -204,6 +204,8 @@
   .section-title{ margin:0; font-size:19px; }
   .section-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:18px 2px 10px; }
   .settings-hint{ font-size:12.5px; line-height:1.45; color:var(--ink-2); margin:8px 0 0; }
+  .push-pref{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:12px 0; font-size:14px; font-weight:500; color:var(--ink); }
+  .push-pref select{ min-width:120px; height:44px; border:1px solid var(--line); border-radius:12px; padding:0 10px; background:var(--surface); color:var(--ink); }
   .ai-tip-text{ font-size:14.5px; line-height:1.6; color:var(--ink); margin:0; }
   #aiAssessmentText{ white-space:pre-line; }
 
@@ -1238,7 +1240,13 @@
 
       <section class="card" data-tone="sky">
         <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></span> Bildirimler</h2>
-        <p class="settings-hint">Son beslenmenin üzerinden 2,5 saat, son çiş ya da kakanın üzerinden 3 saat geçince bildirim gelir; uygulama kapalıyken de. Her telefonda ayrı ayrı açılır.</p>
+        <p class="settings-hint">Son beslenmenin bittiği saatten ve son çiş ya da kakadan belirlediğin süre geçince bildirim gelir; uygulama kapalıyken de. Süreler iki telefonda ortaktır, bildirim ise her telefonda ayrı ayrı açılır.</p>
+        <label class="push-pref">Beslenmeden sonra
+          <select id="pushFeedSel" aria-label="Beslenmeden kaç saat sonra bildirim gelsin"></select>
+        </label>
+        <label class="push-pref">Çiş / kakadan sonra
+          <select id="pushDiaperSel" aria-label="Çiş ya da kakadan kaç saat sonra bildirim gelsin"></select>
+        </label>
         <button class="add-btn" type="button" id="pushToggleBtn">Bildirimleri aç</button>
         <button class="add-btn" type="button" id="pushTestBtn" hidden>Deneme bildirimi gönder</button>
         <p class="settings-hint" id="pushStatus" role="status"></p>
@@ -2598,6 +2606,7 @@ function startProfile(){
   unsubscribeProfile = onSnapshot(doc(db,"meta","profile"), (snap) => {
     babyProfile = snap.exists() ? snap.data() : { birthDate:null };
     document.getElementById("birthDateInput").value = babyProfile.birthDate || "";
+    paintPushPrefs();
     applySleepTracking();
     renderBrand();
     renderVaccines();
@@ -5505,7 +5514,35 @@ setInterval(() => {
 const PUSH_URL = "https://aslan-push.semihcanyanar.workers.dev";
 const PUSH_CONFIGURED = !PUSH_URL.startsWith("BURAYA_");
 const PUSH_ON_KEY = "bebekGunlugu.pushOn";
-const FEED_REMIND_MIN = 150, DIAPER_REMIND_MIN = 180;
+// Süreler (dk) iki telefonda ortak: meta/profile'da pushFeedMin / pushDiaperMin (0 = bildirim yok)
+function pushFeedMin(){ return Number.isFinite(babyProfile.pushFeedMin) ? babyProfile.pushFeedMin : 150; }
+function pushDiaperMin(){ return Number.isFinite(babyProfile.pushDiaperMin) ? babyProfile.pushDiaperMin : 180; }
+function remindText(min){
+  const h = Math.floor(min / 60), m = min % 60;
+  return (h ? h + (m ? ",5" : "") + " saat" : "") + (!h ? m + " dakika" : "");
+}
+const pushFeedSel = document.getElementById("pushFeedSel");
+const pushDiaperSel = document.getElementById("pushDiaperSel");
+[pushFeedSel, pushDiaperSel].forEach(sel => {
+  for (let min = 0; min <= 300; min += 30){
+    const o = document.createElement("option");
+    o.value = String(min);
+    o.textContent = min === 0 ? "Bildirim yok" : remindText(min).replace(" saat", " sa").replace(" dakika", " dk");
+    sel.appendChild(o);
+  }
+});
+function paintPushPrefs(){
+  if (pushFeedSel) pushFeedSel.value = String(pushFeedMin());
+  if (pushDiaperSel) pushDiaperSel.value = String(pushDiaperMin());
+}
+[["pushFeedSel", "pushFeedMin"], ["pushDiaperSel", "pushDiaperMin"]].forEach(([id, field]) => {
+  document.getElementById(id).addEventListener("change", (e) => {
+    const min = Number(e.target.value);
+    babyProfile = { ...babyProfile, [field]: min };
+    setDoc(doc(db, "meta", "profile"), { [field]: min }, { merge:true }).catch(() => {});
+    syncPushSchedule();
+  });
+});
 const pushToggleBtn = document.getElementById("pushToggleBtn");
 const pushTestBtn = document.getElementById("pushTestBtn");
 const pushStatusEl = document.getElementById("pushStatus");
@@ -5596,12 +5633,14 @@ paintPush();
 function pushItems(){
   const items = [];
   // Süren / kaydedilmemiş emzirme varken beslenme hatırlatması yok
-  const lf = live.feed ? null : lastFeedEnd();
-  if (lf) items.push({ id:"feed-" + lf.ms, t:lf.ms + FEED_REMIND_MIN * 60000, title:"Beslenme zamanı",
-                       body:"Son beslenmenin üzerinden 2,5 saat geçti (" + hmOfMs(lf.ms) + ")." });
-  const ld = latestOf("diapers", x => x.time, x => x.pee || x.poop);
-  if (ld) items.push({ id:"diaper-" + ld.ms, t:ld.ms + DIAPER_REMIND_MIN * 60000, title:"Bez zamanı",
-                       body:"Son çiş / kakanın üzerinden 3 saat geçti (" + hmOfMs(ld.ms) + ")." });
+  // Beslenme süresi, son beslenmenin BİTTİĞİ andan sayılır (lastFeedEnd: biten son tarafın bitişi, mamada saati)
+  const fm = pushFeedMin(), dm = pushDiaperMin();
+  const lf = (live.feed || !fm) ? null : lastFeedEnd();
+  if (lf) items.push({ id:"feed-" + lf.ms + "-" + fm, t:lf.ms + fm * 60000, title:"Beslenme zamanı",
+                       body:"Son beslenme " + hmOfMs(lf.ms) + "'de bitti, üzerinden " + remindText(fm) + " geçti." });
+  const ld = dm ? latestOf("diapers", x => x.time, x => x.pee || x.poop) : null;
+  if (ld) items.push({ id:"diaper-" + ld.ms + "-" + dm, t:ld.ms + dm * 60000, title:"Bez zamanı",
+                       body:"Son çiş / kaka " + hmOfMs(ld.ms) + "'de oldu, üzerinden " + remindText(dm) + " geçti." });
   return items;
 }
 // Plan, kayıt girilen / değişen her telefondan (bildirimi o telefonda açık olmasa da) yenilenir;
