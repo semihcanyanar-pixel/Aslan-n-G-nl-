@@ -1271,6 +1271,7 @@
       <p class="confirm-title" id="pwTitle">Şifreyi değiştir</p>
       <input type="password" id="curPwInput" placeholder="Mevcut şifre" autocomplete="current-password" aria-label="Mevcut şifre">
       <input type="password" id="newPwInput" placeholder="Yeni şifre (en az 6 karakter)" autocomplete="new-password" aria-label="Yeni şifre">
+      <input type="password" id="newPw2Input" placeholder="Yeni şifre (tekrar)" autocomplete="new-password" aria-label="Yeni şifre (tekrar)">
       <p class="pw-error" id="pwStatus" role="alert"></p>
       <div class="confirm-actions">
         <button type="button" class="confirm-no" id="pwCancelBtn">Vazgeç</button>
@@ -1739,6 +1740,7 @@ function setPwFormOpen(open){
     if (pwDialog.open){ if (typeof pwDialog.close === "function") pwDialog.close(); else pwDialog.removeAttribute("open"); }
     document.getElementById("curPwInput").value = "";
     document.getElementById("newPwInput").value = "";
+    document.getElementById("newPw2Input").value = "";
   }
 }
 document.getElementById("pwToggleBtn").addEventListener("click", () => setPwFormOpen(true));
@@ -1760,13 +1762,15 @@ document.getElementById("pwForgotBtn").addEventListener("click", async () => {
 document.getElementById("changePwBtn").addEventListener("click", async () => {
   const cur = document.getElementById("curPwInput");
   const next = document.getElementById("newPwInput");
+  const next2 = document.getElementById("newPw2Input");
   const status = document.getElementById("pwStatus");
   const btn = document.getElementById("changePwBtn");
   const show = (text, isError) => { status.textContent = text; status.style.color = isError ? "" : "var(--ink-2)"; };
   const user = auth.currentUser;
   if (!user || !user.email) return;
-  if (!cur.value || !next.value){ show("İki alanı da doldur.", true); return; }
+  if (!cur.value || !next.value || !next2.value){ show("Üç alanı da doldur.", true); return; }
   if (next.value.length < 6){ show("Yeni şifre en az 6 karakter olmalı.", true); return; }
+  if (next.value !== next2.value){ show("Yeni şifreler birbiriyle aynı değil.", true); return; }
   if (next.value === cur.value){ show("Yeni şifre mevcut şifreyle aynı olamaz.", true); return; }
   btn.disabled = true;
   show("Değiştiriliyor…", false);
