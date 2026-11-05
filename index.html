@@ -444,7 +444,12 @@
   .routine-tiles.single .rt-bar{ display:block; grid-area:bar; margin-top:6px; }
   .notes-card textarea{ width:100%; min-height:100px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px; color:var(--ink); resize:vertical; background:var(--surface-2); line-height:1.5; }
   .sync-status{ text-align:center; font-size:12px; color:var(--ink-2); padding:8px 0 4px; min-height:18px; }
-  .pw-form input{ display:block; width:100%; height:44px; margin-top:8px; padding:0 12px; border:1px solid var(--line); border-radius:12px; background:var(--surface-2); color:var(--ink); }
+  .pw-dialog input{ display:block; width:100%; height:44px; margin-top:10px; padding:0 12px; border:1px solid var(--line); border-radius:12px; background:var(--surface-2); color:var(--ink); }
+  .pw-dialog .confirm-title{ margin-bottom:6px; }
+  .pw-error{ min-height:18px; margin:8px 0 0; font-size:13px; line-height:1.4; color:var(--danger); }
+  .pw-save{ border:none; background:var(--strong); color:var(--strong-ink); }
+  .pw-dialog .confirm-actions{ margin-top:8px; }
+  .pw-dialog .link-btn{ display:block; margin:12px auto 0; }
   .start-page-btn{ display:flex; align-items:center; gap:7px; margin:10px auto 0; height:40px; padding:0 15px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); font-size:12.5px; font-weight:500; cursor:pointer; }
   .start-page-btn svg{ width:15px; height:15px; flex-shrink:0; opacity:.45; }
   .start-page-btn.is-start{ color:var(--primary); background:var(--primary-soft); border-color:transparent; font-weight:600; cursor:default; }
@@ -1230,15 +1235,8 @@
       <section class="card" data-tone="sand">
         <h2><span class="badge k-neutral"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg></span> Hesap</h2>
         <p class="settings-hint account-email" id="accountEmail"></p>
-        <button class="add-btn" type="button" id="pwToggleBtn" aria-expanded="false" aria-controls="pwForm">Şifreyi değiştir</button>
-        <div class="pw-form" id="pwForm" hidden>
-          <input type="password" id="curPwInput" placeholder="Mevcut şifre" autocomplete="current-password" aria-label="Mevcut şifre">
-          <input type="password" id="newPwInput" placeholder="Yeni şifre (en az 6 karakter)" autocomplete="new-password" aria-label="Yeni şifre">
-          <button class="add-btn" type="button" id="changePwBtn">Kaydet</button>
-          <button class="link-btn" type="button" id="pwForgotBtn">Şifremi unuttum</button>
-          <button class="link-btn" type="button" id="pwCancelBtn">Vazgeç</button>
-        </div>
-        <p class="settings-hint" id="pwStatus" role="status"></p>
+        <button class="add-btn" type="button" id="pwToggleBtn" aria-haspopup="dialog">Şifreyi değiştir</button>
+        <p class="settings-hint" id="pwResult" role="status"></p>
         <button class="logout-btn" type="button" id="logoutBtn">Çıkış yap</button>
       </section>
     </main>
@@ -1265,6 +1263,20 @@
         <button type="button" class="confirm-no" id="confirmNo">Hayır</button>
         <button type="button" class="confirm-yes" id="confirmYes">Evet, sil</button>
       </div>
+    </div>
+  </dialog>
+  <!-- Şifre değiştirme kutusu (Ayarlar → Hesap) -->
+  <dialog id="pwDialog" class="confirm-dialog pw-dialog" aria-labelledby="pwTitle">
+    <div class="confirm-inner">
+      <p class="confirm-title" id="pwTitle">Şifreyi değiştir</p>
+      <input type="password" id="curPwInput" placeholder="Mevcut şifre" autocomplete="current-password" aria-label="Mevcut şifre">
+      <input type="password" id="newPwInput" placeholder="Yeni şifre (en az 6 karakter)" autocomplete="new-password" aria-label="Yeni şifre">
+      <p class="pw-error" id="pwStatus" role="alert"></p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-no" id="pwCancelBtn">Vazgeç</button>
+        <button type="button" class="pw-save" id="changePwBtn">Kaydet</button>
+      </div>
+      <button class="link-btn" type="button" id="pwForgotBtn">Şifremi unuttum</button>
     </div>
   </dialog>
   <!-- Silindikten / hızlı eklendikten sonra birkaç saniye "Geri al" -->
@@ -1714,29 +1726,35 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   signOut(auth);
 });
 
-// Şifre değiştir: düğmeye dokununca alanlar açılır; Firebase önce mevcut şifreyle yeniden doğrulama ister
+// Şifre değiştir: düğmeye dokununca ayrı bir kutu açılır; Firebase önce mevcut şifreyle yeniden doğrulama ister
+const pwDialog = document.getElementById("pwDialog");
 function setPwFormOpen(open){
-  document.getElementById("pwForm").hidden = !open;
-  document.getElementById("pwToggleBtn").hidden = open;
-  document.getElementById("pwToggleBtn").setAttribute("aria-expanded", String(open));
-  if (open){ document.getElementById("pwStatus").textContent = ""; document.getElementById("curPwInput").focus(); }
-  else { document.getElementById("curPwInput").value = ""; document.getElementById("newPwInput").value = ""; }
+  if (open){
+    document.getElementById("pwStatus").textContent = "";
+    document.getElementById("pwResult").textContent = "";
+    if (typeof pwDialog.showModal === "function"){ if (!pwDialog.open) pwDialog.showModal(); }
+    else pwDialog.setAttribute("open", "");
+    document.getElementById("curPwInput").focus();
+  } else {
+    if (pwDialog.open){ if (typeof pwDialog.close === "function") pwDialog.close(); else pwDialog.removeAttribute("open"); }
+    document.getElementById("curPwInput").value = "";
+    document.getElementById("newPwInput").value = "";
+  }
 }
 document.getElementById("pwToggleBtn").addEventListener("click", () => setPwFormOpen(true));
-document.getElementById("pwCancelBtn").addEventListener("click", () => { setPwFormOpen(false); document.getElementById("pwStatus").textContent = ""; });
-// Mevcut şifre hatırlanmıyorsa: hesabın e-postasına yenileme bağlantısı gider
+document.getElementById("pwCancelBtn").addEventListener("click", () => setPwFormOpen(false));
+pwDialog.addEventListener("cancel", (e) => { e.preventDefault(); setPwFormOpen(false); });
+pwDialog.addEventListener("click", (e) => { if (e.target === pwDialog) setPwFormOpen(false); }); // karartılmış alana dokunmak
+// Şifre hatırlanmıyorsa: hesabın e-postasına yenileme bağlantısı gider
 document.getElementById("pwForgotBtn").addEventListener("click", async () => {
   const user = auth.currentUser;
-  const status = document.getElementById("pwStatus");
   if (!user || !user.email) return;
   try{
     await sendPasswordResetEmail(auth, user.email);
     setPwFormOpen(false);
-    status.style.color = "";
-    status.textContent = "Şifre yenileme bağlantısı " + user.email + " adresine gönderildi. Gelen kutuna ve spam klasörüne bak.";
+    document.getElementById("pwResult").textContent = "Şifre yenileme bağlantısı " + user.email + " adresine gönderildi. Gelen kutuna ve spam klasörüne bak.";
   }catch(e){
-    status.style.color = "var(--danger)";
-    status.textContent = e && e.code === "auth/network-request-failed" ? "İnternet bağlantısı yok gibi görünüyor." : "Bağlantı gönderilemedi" + (e && e.code ? " (" + e.code + ")" : "") + ".";
+    document.getElementById("pwStatus").textContent = e && e.code === "auth/network-request-failed" ? "İnternet bağlantısı yok gibi görünüyor." : "Bağlantı gönderilemedi" + (e && e.code ? " (" + e.code + ")" : "") + ".";
   }
 });
 document.getElementById("changePwBtn").addEventListener("click", async () => {
@@ -1744,7 +1762,7 @@ document.getElementById("changePwBtn").addEventListener("click", async () => {
   const next = document.getElementById("newPwInput");
   const status = document.getElementById("pwStatus");
   const btn = document.getElementById("changePwBtn");
-  const show = (text, isError) => { status.textContent = text; status.style.color = isError ? "var(--danger)" : ""; };
+  const show = (text, isError) => { status.textContent = text; status.style.color = isError ? "" : "var(--ink-2)"; };
   const user = auth.currentUser;
   if (!user || !user.email) return;
   if (!cur.value || !next.value){ show("İki alanı da doldur.", true); return; }
@@ -1756,7 +1774,7 @@ document.getElementById("changePwBtn").addEventListener("click", async () => {
     await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, cur.value));
     await updatePassword(user, next.value);
     setPwFormOpen(false);
-    show("Şifre değiştirildi ✓", false);
+    document.getElementById("pwResult").textContent = "Şifre değiştirildi ✓";
   }catch(e){
     const code = e && e.code;
     show(code === "auth/invalid-credential" || code === "auth/wrong-password" ? "Mevcut şifre yanlış."
@@ -1790,6 +1808,7 @@ onAuthStateChanged(auth, (user) => {
   } else {
     hideUndo();
     finishConfirm(false);
+    setPwFormOpen(false);
     closeSheet();
     authScreen.hidden = false;
     appScreen.hidden = true;
