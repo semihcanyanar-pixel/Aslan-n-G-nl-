@@ -1230,12 +1230,15 @@
       <section class="card" data-tone="sand">
         <h2><span class="badge k-neutral"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg></span> Hesap</h2>
         <p class="settings-hint account-email" id="accountEmail"></p>
-        <div class="pw-form">
+        <button class="add-btn" type="button" id="pwToggleBtn" aria-expanded="false" aria-controls="pwForm">Şifreyi değiştir</button>
+        <div class="pw-form" id="pwForm" hidden>
           <input type="password" id="curPwInput" placeholder="Mevcut şifre" autocomplete="current-password" aria-label="Mevcut şifre">
           <input type="password" id="newPwInput" placeholder="Yeni şifre (en az 6 karakter)" autocomplete="new-password" aria-label="Yeni şifre">
-          <button class="add-btn" type="button" id="changePwBtn">Şifreyi değiştir</button>
-          <p class="settings-hint" id="pwStatus" role="status"></p>
+          <button class="add-btn" type="button" id="changePwBtn">Kaydet</button>
+          <button class="link-btn" type="button" id="pwForgotBtn">Mevcut şifremi unuttum</button>
+          <button class="link-btn" type="button" id="pwCancelBtn">Vazgeç</button>
         </div>
+        <p class="settings-hint" id="pwStatus" role="status"></p>
         <button class="logout-btn" type="button" id="logoutBtn">Çıkış yap</button>
       </section>
     </main>
@@ -1711,7 +1714,31 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   signOut(auth);
 });
 
-// Şifre değiştir: Firebase önce mevcut şifreyle yeniden doğrulama ister
+// Şifre değiştir: düğmeye dokununca alanlar açılır; Firebase önce mevcut şifreyle yeniden doğrulama ister
+function setPwFormOpen(open){
+  document.getElementById("pwForm").hidden = !open;
+  document.getElementById("pwToggleBtn").hidden = open;
+  document.getElementById("pwToggleBtn").setAttribute("aria-expanded", String(open));
+  if (open){ document.getElementById("pwStatus").textContent = ""; document.getElementById("curPwInput").focus(); }
+  else { document.getElementById("curPwInput").value = ""; document.getElementById("newPwInput").value = ""; }
+}
+document.getElementById("pwToggleBtn").addEventListener("click", () => setPwFormOpen(true));
+document.getElementById("pwCancelBtn").addEventListener("click", () => { setPwFormOpen(false); document.getElementById("pwStatus").textContent = ""; });
+// Mevcut şifre hatırlanmıyorsa: hesabın e-postasına yenileme bağlantısı gider
+document.getElementById("pwForgotBtn").addEventListener("click", async () => {
+  const user = auth.currentUser;
+  const status = document.getElementById("pwStatus");
+  if (!user || !user.email) return;
+  try{
+    await sendPasswordResetEmail(auth, user.email);
+    setPwFormOpen(false);
+    status.style.color = "";
+    status.textContent = "Şifre yenileme bağlantısı " + user.email + " adresine gönderildi. Gelen kutuna ve spam klasörüne bak.";
+  }catch(e){
+    status.style.color = "var(--danger)";
+    status.textContent = e && e.code === "auth/network-request-failed" ? "İnternet bağlantısı yok gibi görünüyor." : "Bağlantı gönderilemedi" + (e && e.code ? " (" + e.code + ")" : "") + ".";
+  }
+});
 document.getElementById("changePwBtn").addEventListener("click", async () => {
   const cur = document.getElementById("curPwInput");
   const next = document.getElementById("newPwInput");
@@ -1728,7 +1755,7 @@ document.getElementById("changePwBtn").addEventListener("click", async () => {
   try{
     await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, cur.value));
     await updatePassword(user, next.value);
-    cur.value = ""; next.value = "";
+    setPwFormOpen(false);
     show("Şifre değiştirildi ✓", false);
   }catch(e){
     const code = e && e.code;
