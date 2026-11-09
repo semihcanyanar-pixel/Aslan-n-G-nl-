@@ -995,6 +995,11 @@
             <div class="weekly-bars" id="pumpedBars"></div>
             <div class="weekly-value" id="pumpedVal">–</div>
           </div>
+          <div class="weekly-row k-pump">
+            <div class="weekly-label"><i></i>Ort. sağım sayısı</div>
+            <div class="weekly-bars" id="pumpCountBars"></div>
+            <div class="weekly-value" id="pumpCountVal">–</div>
+          </div>
           <div class="weekly-row k-diaper">
             <div class="weekly-label"><i></i>Ort. çiş</div>
             <div class="weekly-bars" id="peeBars"></div>
@@ -1654,6 +1659,8 @@ function isFormulaRec(r){ return !!r && r.type === "formula"; }
 function bottleField(r){ return r && r.milk === "extra" ? "extraCc" : "formulaCc"; }
 function bottleName(r){ return r && r.milk === "extra" ? "Ek süt" : "Mama"; }
 function isPumpRec(r){ return !!r && r.type === "pumped"; }
+// Sağım sayısı: sağılan kayıtları + emzirme kaydında sağılan miktarı girilmiş olanlar
+function isPumped(r){ return isPumpRec(r) || Number(r && r.pumpedCc) > 0; }
 function isBreastRec(r){ return !!r && r.type !== "formula" && r.type !== "pumped"; }
 // Kaydedilmiş beslenme kayıtları (taslak emzirme hariç)
 function savedFeedings(d){ return ((d && d.feedings) || []).filter(f => !isFreshDraft(f)); }
@@ -2087,6 +2094,7 @@ function computeWeekStats(byDate, endDateStr){
       feedCount: meals.length, feedHas: meals.length > 0, milkHas: feedings.length > 0,
       formulaCc: feedings.reduce((s,f) => s + (Number(f.formulaCc)||0), 0),
       pumpedCc: feedings.reduce((s,f) => s + (Number(f.pumpedCc)||0), 0),
+      pumpCount: feedings.filter(isPumped).length,
       rightTotal: rightMins.reduce((a,b) => a+b, 0),
       leftTotal: leftMins.reduce((a,b) => a+b, 0),
       breastHas: rightMins.length + leftMins.length > 0,
@@ -2112,7 +2120,8 @@ function computeWeekStats(byDate, endDateStr){
       sleep: meanOf(done.filter(p => p.sleepHas).map(p => p.sleepHrs)),
       // Mama/sağılan: beslenme kaydı olan her gün sayılır; o gün hiç verilmediyse gerçek bir 0'dır
       formula: meanOf(milkDays.map(p => p.formulaCc)),
-      pumped: meanOf(milkDays.map(p => p.pumpedCc))
+      pumped: meanOf(milkDays.map(p => p.pumpedCc)),
+      pumpCount: meanOf(milkDays.map(p => p.pumpCount))
     }
   };
 }
@@ -2127,7 +2136,8 @@ function renderWeeklyStats(byDate, endDateStr){
   paintWeeklyRow("left",  P.map(p => p.breastHas ? p.leftTotal : null), st.avg.left, v => Math.round(v) + " dk");
   paintWeeklyRow("formula", P.map(p => p.milkHas ? p.formulaCc : null), st.avg.formula, v => Math.round(v) + " cc");
   paintWeeklyRow("pumped",  P.map(p => p.milkHas ? p.pumpedCc : null), st.avg.pumped, v => Math.round(v) + " cc");
-  paintWeeklyRow("pee",   P.map(p => p.diaperHas ? p.pee : null), st.avg.pee, v => v.toFixed(1));
+  paintWeeklyRow("pumpCount", P.map(p => p.milkHas ? p.pumpCount : null), st.avg.pumpCount, v => v.toFixed(1));
+  paintWeeklyRow("pee",  P.map(p => p.diaperHas ? p.pee : null), st.avg.pee, v => v.toFixed(1));
   paintWeeklyRow("poop",  P.map(p => p.diaperHas ? p.poop : null), st.avg.poop, v => v.toFixed(1));
   paintWeeklyRow("sleep", P.map(p => p.sleepHas ? p.sleepHrs : null), st.avg.sleep, v => v.toFixed(1) + " sa");
   document.getElementById("weekDayLabels").innerHTML = P.map(p => {
@@ -3121,7 +3131,7 @@ function buildWeekReport(byDate, endDateStr){
       tarih: date, gun: WEEKDAYS[new Date(y, m-1, dd).getDay()],
       durum: date === endDateStr ? "bugün — gün henüz bitmedi, eksik sayılmaz" : (raw && dayHasContent(raw) ? "tamamlandı" : "kayıt girilmemiş"),
       ogunSayisi: t.meals, emzirmeDk: { sag: t.right, sol: t.left, toplam: t.breast },
-      mamaCc: t.formula, ekSutCc: t.extra, toplamSutCc: t.intake, sagilanCc: t.pumped, cis: t.pee, kaka: t.poop
+      mamaCc: t.formula, ekSutCc: t.extra, toplamSutCc: t.intake, sagilanCc: t.pumped, sagimSayisi: t.pumpCount, cis: t.pee, kaka: t.poop
     };
     if (sleepOn) gun.uykuDk = t.sleep;
     // Akış: o günün kayıtları saat sırasıyla (eskiden yeniye)
@@ -3735,7 +3745,7 @@ function computeDayTotals(d, dateStr){
     }
     if (live.sleep && live.sleep.date === dateStr) sleep += elapsedMin(live.sleep);
   }
-  return { formula, extra, intake: formula + extra, pumped: sum("pumpedCc"),
+  return { formula, extra, intake: formula + extra, pumped: sum("pumpedCc"), pumpCount: feedings.filter(isPumped).length,
            pee: diapers.filter(x => x.pee).length, poop: diapers.filter(x => x.poop).length,
            meals: feedings.filter(f => !isPumpRec(f)).length, right, left, breast: right + left, sleep };
 }
@@ -5421,7 +5431,7 @@ function renderGlance(){
 
   // 4) Beslenme: Mama · Ek süt · Toplam yan yana, sağ üstte Sağılan
   html += `<section class="g-tile wide g-peach" aria-label="Beslenme">
-      <div class="g-head"><span class="g-name">${ic("i-bottle")}Beslenme</span><span class="g-chip">Sağılan ${tot.pumped} cc</span></div>
+      <div class="g-head"><span class="g-name">${ic("i-bottle")}Beslenme</span><span class="g-chip">Sağılan ${tot.pumped} cc${tot.pumpCount ? ` · ${tot.pumpCount} kez` : ""}</span></div>
       <div class="g-cols">
         <div class="g-col"><span>Mama</span><b>${tot.formula}<small>cc</small></b></div>
         <div class="g-col"><span>Ek süt</span><b>${tot.extra}<small>cc</small></b></div>
