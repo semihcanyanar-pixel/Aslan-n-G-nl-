@@ -5385,10 +5385,19 @@ function renderGlance(){
 
   if (!isToday){
     // Geçmiş gün: emzirme, uyku ve bez toplamları (butonsuz)
-    html += `<section class="g-tile wide g-butter" aria-label="Emzirme">
-        <div class="g-head"><span class="g-name">${ic("i-breast")}Emzirme</span><span class="g-chip">${tot.meals} öğün</span></div>
-        <div class="g-big xl">${tot.breast}<small>dk</small></div>
-        <div class="g-sub">${tot.breast ? `sağ ${tot.right} · sol ${tot.left}` : "Emzirme süresi yok"}</div>
+    // O günün son beslenmesi (emzirmede biten son tarafın bitişi, mamada saati)
+    let lastRec = null, lastMin = -1;
+    savedFeedings(T).forEach(x => {
+      if (isPumpRec(x)) return;
+      let min = isFormulaRec(x) ? hmToMin(x.time) : feedEndMin(x);
+      if (min == null) min = hmToMin(feedStartHm(x));
+      if (min != null && min > lastMin){ lastMin = min; lastRec = x; }
+    });
+    html += `<section class="g-tile wide g-butter" aria-label="Son beslenme">
+        <div class="g-head"><span class="g-name">${ic("i-breast")}Son beslenme</span><span class="g-chip">${tot.meals} öğün</span></div>
+        <div class="g-big xl">${lastRec ? minToHm(lastMin % 1440) : "—"}</div>
+        <div class="g-sub">${lastRec ? escapeHtml(feedDetailText(lastRec)) : "Bu güne beslenme kaydı yok"}</div>
+        ${tot.breast ? `<div class="g-sub">Emzirme toplamı ${tot.breast} dk · sağ ${tot.right} · sol ${tot.left}</div>` : ""}
       </section>`;
     html += `<section class="g-tile g-lav" aria-label="Uyku">
         <div class="g-head"><span class="g-name">${ic("i-moon")}Uyku</span></div>
