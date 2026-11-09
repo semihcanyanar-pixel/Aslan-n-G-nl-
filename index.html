@@ -1116,7 +1116,8 @@
         <div class="glance-title">Bir Bakışta</div>
         <div class="glance-sub" id="glanceSub">&nbsp;</div>
       </div>
-      <span class="avatar" aria-hidden="true"><img src="icon-192.png?v=2" alt=""></span>
+      <button class="icon-btn" id="glancePrevBtn" type="button" aria-label="Önceki gün"><svg class="i" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+      <button class="icon-btn" id="glanceNextBtn" type="button" aria-label="Sonraki gün"><svg class="i" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
     </header>
     <main class="glance-main" id="glanceBody"></main>
   </div>
@@ -5218,6 +5219,7 @@ function openGlance(){
   document.getElementById("settingsScreen").hidden = true;
   glanceScreen.hidden = false;
   document.documentElement.classList.add("glance-open");
+  if (currentDate !== todayStr()) loadDate(todayStr()); // her zaman bugünle açılır
   renderGlance();
   window.scrollTo(0, 0);
 }
@@ -5229,6 +5231,12 @@ function closeGlance(){
 }
 document.getElementById("glanceBtn").addEventListener("click", openGlance);
 document.getElementById("closeGlanceBtn").addEventListener("click", closeGlance);
+// Gün okları: Gün sekmesindeki gün de değişir; veri yüklenince özet kendiliğinden yenilenir
+document.getElementById("glancePrevBtn").addEventListener("click", () => { loadDate(shiftDate(currentDate, -1)); renderGlance(); });
+document.getElementById("glanceNextBtn").addEventListener("click", () => {
+  if (currentDate >= todayStr()) return;
+  loadDate(shiftDate(currentDate, 1)); renderGlance();
+});
 
 // "1 sa 25 dk" — büyük sayı, küçük birim
 function agoHtml(ms){
@@ -5364,17 +5372,41 @@ function weightGlanceInfo(){
 function renderGlance(){
   const screen = document.getElementById("glanceScreen");
   if (!screen || screen.hidden) return;
+  // Seçili gün (oklarla değişir); bugün dışındaki günlerde sadece o günün toplamları gösterilir
   const today = todayStr(), now = Date.now();
-  const T = dayDocFor(today) || emptyDay();
-  const tot = computeDayTotals(T, today);
-  document.getElementById("glanceSub").textContent = formatDayTitle(today) + (babyAgeDays() != null ? " · " + ageText() : "");
+  const D = currentDate, isToday = D === today;
+  const T = dayDocFor(D) || emptyDay();
+  const tot = computeDayTotals(T, D);
+  document.getElementById("glanceSub").textContent = formatDayTitle(D) + (isToday && babyAgeDays() != null ? " · " + ageText() : (isToday ? "" : " · " + dayChipText(D)));
+  document.getElementById("glanceNextBtn").disabled = D >= today;
   const ic = (id) => `<span class="g-ic"><svg class="i" aria-hidden="true"><use href="#${id}"/></svg></span>`;
   const chev = `<svg class="i" aria-hidden="true"><use href="#i-chev-r"/></svg>`;
   let html = "";
 
+  if (!isToday){
+    // Geçmiş gün: emzirme, uyku ve bez toplamları (butonsuz)
+    html += `<section class="g-tile wide g-butter" aria-label="Emzirme">
+        <div class="g-head"><span class="g-name">${ic("i-breast")}Emzirme</span><span class="g-chip">${tot.meals} öğün</span></div>
+        <div class="g-big xl">${tot.breast}<small>dk</small></div>
+        <div class="g-sub">${tot.breast ? `sağ ${tot.right} · sol ${tot.left}` : "Emzirme süresi yok"}</div>
+      </section>`;
+    html += `<section class="g-tile g-lav" aria-label="Uyku">
+        <div class="g-head"><span class="g-name">${ic("i-moon")}Uyku</span></div>
+        <div class="g-big">${sleepTrackingOn() ? durHtml(tot.sleep) : "—"}</div>
+        <div class="g-sub">${sleepTrackingOn() ? "Toplam uyku" : "Takip kapalı"}</div>
+      </section>`;
+    html += `<section class="g-tile g-mint" aria-label="Bez">
+        <div class="g-head"><span class="g-name">${ic("i-diaper")}Bez</span></div>
+        <div class="g-big">${tot.pee}<small>çiş</small> ${tot.poop}<small>kaka</small></div>
+        <div class="g-sub">Toplam</div>
+      </section>`;
+  }
+
   // 1) Emzirme: süren / kaydedilmemiş emzirme ya da son beslenme + sıradaki taraf
   const f = live.feed;
-  if (f){
+  if (!isToday){
+    // yukarıda gösterildi
+  } else if (f){
     const running = !!f.side;
     const parts = ["right", "left"].filter(x => f.rec[x + "Start"] && f.rec[x + "End"]).map(x => SIDE_NAME[x] + " " + sideDoneText(sideMinutes(f.rec, x)));
     html += `<section class="g-tile wide g-butter" aria-label="Emzirme">
@@ -5396,7 +5428,9 @@ function renderGlance(){
   }
 
   // 2) Uyku
-  if (!sleepTrackingOn()){
+  if (!isToday){
+    // geçmiş günde yukarıda gösterildi
+  } else if (!sleepTrackingOn()){
     html += `<section class="g-tile g-lav" aria-label="Uyku">
         <div class="g-head"><span class="g-name">${ic("i-moon")}Uyku</span></div>
         <div class="g-mid">Takip kapalı</div>
@@ -5422,7 +5456,7 @@ function renderGlance(){
 
   // 3) Bez: bugünkü çiş/kaka, son bez, tek dokunuşla Çiş / Kaka
   const ld = latestOf("diapers", x => x.time, x => x.pee || x.poop);
-  html += `<section class="g-tile g-mint" aria-label="Bez">
+  if (isToday) html += `<section class="g-tile g-mint" aria-label="Bez">
       <div class="g-head"><span class="g-name">${ic("i-diaper")}Bez</span></div>
       <div class="g-big">${tot.pee}<small>çiş</small> ${tot.poop}<small>kaka</small></div>
       <div class="g-sub">${ld ? "Son bez " + agoText(now - ld.ms) : "Bugün bez kaydı yok"}</div>
