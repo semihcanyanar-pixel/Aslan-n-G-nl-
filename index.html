@@ -2752,10 +2752,10 @@ function renderVaccines(){
    ===================================================================== */
 let devSelected = null; // null = otomatik (bulunduğu hafta / dönem); 1–12 ya da "later"
 
-function babyAgeDays(){
+function babyAgeDays(onDate = todayStr()){
   if (!babyProfile.birthDate) return null;
   // İki "YYYY-MM-DD" de UTC gece yarısı olarak ayrıştırılır; fark tam gün çıkar
-  return Math.round((new Date(todayStr()) - new Date(babyProfile.birthDate)) / 86400000);
+  return Math.round((new Date(onDate) - new Date(babyProfile.birthDate)) / 86400000);
 }
 
 // "Başlık — açıklama" biçimindeki metni ikiye ayırır
@@ -4218,14 +4218,14 @@ applyTheme(currentTheme());
 function renderBrand(){
   document.getElementById("brandSub").textContent = babyAgeDays() == null ? "Doğum tarihini Ayarlar'dan gir" : ageText();
 }
-function ageText(){
-  const days = babyAgeDays();
+function ageText(onDate = todayStr()){
+  const days = babyAgeDays(onDate);
   if (days == null) return "";
   if (days < 0) return `Doğuma ${-days} gün var`;
   const w = Math.floor(days / 7) + 1;
   if (days === 0) return "Bugün doğdu · 1. hafta";
   if (w <= DEV_GUIDE_WEEKS) return `${days} günlük · ${w}. hafta`;
-  return `${Math.floor(days / 7)} haftalık · ${monthsBetween(babyProfile.birthDate, todayStr())} aylık`;
+  return `${Math.floor(days / 7)} haftalık · ${monthsBetween(babyProfile.birthDate, onDate)} aylık`;
 }
 
 /* ========================================================================
@@ -5344,8 +5344,8 @@ function feedDetailText(f){
   const end = feedEndMin(f);
   return feedStartHm(f) + (end != null ? "–" + minToHm(end % 1440) : "") + (parts.length ? " · " + parts.join(", ") : "");
 }
-function devGlanceInfo(){
-  const days = babyAgeDays();
+function devGlanceInfo(onDate = todayStr()){
+  const days = babyAgeDays(onDate);
   if (days == null) return { big:"Doğum tarihi", sub:"Ayarlar'dan girince haftalık rehber açılır" };
   if (days < 0) return { big:"1. hafta", sub:"Doğuma " + (-days) + " gün var" };
   const cw = Math.floor(days / 7) + 1;
@@ -5356,8 +5356,9 @@ function devGlanceInfo(){
   const cur = devPeriods().filter(p => p.start <= cw && (p.end == null || p.end >= cw)).pop();
   return { big:cw + ". hafta", sub:cur ? splitLabel(cur.label).title : "Gelişim dönemleri" };
 }
-function weightGlanceInfo(){
-  const ws = growthEntries.filter(e => e.weightKg != null && e.weightKg !== "" && Number(e.weightKg) > 0);
+function weightGlanceInfo(onDate = todayStr()){
+  // Seçili güne kadar (o gün dahil) yapılmış ölçümler; sonrakiler görünmez
+  const ws = growthEntries.filter(e => e.weightKg != null && e.weightKg !== "" && Number(e.weightKg) > 0 && e.date <= onDate);
   if (!ws.length) return null;
   const last = ws[ws.length - 1], prev = ws[ws.length - 2];
   let delta = "";
@@ -5377,7 +5378,7 @@ function renderGlance(){
   const D = currentDate, isToday = D === today;
   const T = dayDocFor(D) || emptyDay();
   const tot = computeDayTotals(T, D);
-  document.getElementById("glanceSub").textContent = formatDayTitle(D) + (isToday && babyAgeDays() != null ? " · " + ageText() : (isToday ? "" : " · " + dayChipText(D)));
+  document.getElementById("glanceSub").textContent = formatDayTitle(D) + (babyAgeDays(D) != null ? " · " + ageText(D) : "");
   document.getElementById("glanceNextBtn").disabled = D >= today;
   const ic = (id) => `<span class="g-ic"><svg class="i" aria-hidden="true"><use href="#${id}"/></svg></span>`;
   const chev = `<svg class="i" aria-hidden="true"><use href="#i-chev-r"/></svg>`;
@@ -5483,13 +5484,13 @@ function renderGlance(){
     </section>`;
 
   // 5) Gelişim (haftanın rehberine götürür), 6) Güncel kilo (grafiğe götürür)
-  const dv = devGlanceInfo();
+  const dv = devGlanceInfo(D);
   html += `<button type="button" class="g-tile g-sky" data-g="dev">
       <span class="g-link">Gelişim${chev}</span>
       <span class="g-mid">${escapeHtml(dv.big)}</span>
       <span class="g-sub">${escapeHtml(dv.sub)}</span>
     </button>`;
-  const wt = weightGlanceInfo();
+  const wt = weightGlanceInfo(D);
   html += `<button type="button" class="g-tile g-pink" data-g="growth">
       <span class="g-link">Güncel kilo${chev}</span>
       <span class="g-mid">${wt ? wt.kg + " kg" : "—"}</span>
