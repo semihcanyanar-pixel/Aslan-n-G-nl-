@@ -3784,7 +3784,7 @@ function renderDaySummary(){
     tile("🍼", "Mama", t.formula, cc(t.formula), "k-formula") +
     tile("🥛", "Ek süt", t.extra, cc(t.extra), "k-feed") +
     tile("", "Toplam", t.intake, cc(t.intake), "k-primary", " total", "mama + ek süt") +
-    tile("🫙", "Sağılan", t.pumped, cc(t.pumped), "k-pump") +
+    tile("🫙", "Sağılan", t.pumped, cc(t.pumped), "k-pump", "", t.pumpCount ? t.pumpCount + " sağım" : "") +
     tile("💧", "Çiş", t.pee, String(t.pee), "k-diaper") +
     tile("💩", "Kaka", t.poop, String(t.poop), "k-poop") +
     tile("🍽️", "Öğün", t.meals, String(t.meals), "k-feed") +
