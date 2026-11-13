@@ -2078,6 +2078,39 @@ function sideTotalMin(r, side){
   return tot;
 }
 
+// Gece yarısını geçen satır: dakikalar başladığı güne (own) ve ertesi güne (next) paylanır.
+// Ara (pause) süresi iki parçaya orantılı düşülür. Gece yarısını geçmeyen satırda next = 0.
+function segSplit(r, g){
+  const net = segMin(g);
+  if (net == null) return null;
+  const m = minutesBetween(g.start, g.end, 180);
+  let s = hmToMin(g.start);
+  const f = hmToMin(feedStartHm(r));
+  if (s == null) return { own: net, next: 0 };
+  if (f != null && f - s > 720) s += 1440; // gece yarısından sonra başlayan taraf
+  const before = Math.max(0, Math.min(m, 1440 - s));
+  if (before >= m) return { own: net, next: 0 };
+  const own = Math.round(net * before / m);
+  return { own, next: net - own };
+}
+// Bir taraf için kaydın başladığı güne düşen ya da ertesi güne taşan dakika (hesaplanamıyorsa null)
+function sideSplitMin(r, side, part){
+  let tot = null;
+  breastSegs(r).forEach(g => {
+    if (g.side !== side) return;
+    const sp = segSplit(r, g);
+    if (sp) tot = (tot || 0) + sp[part];
+  });
+  return tot;
+}
+// Bir günde: o günün emzirmelerinin kendi payı + bir önceki günün gece yarısını geçen kısmı
+function dayBreastMin(d, prevD, side){
+  let tot = 0;
+  savedFeedings(d).filter(isBreastRec).forEach(f => { tot += sideSplitMin(f, side, "own") || 0; });
+  if (prevD) savedFeedings(prevD).filter(isBreastRec).forEach(f => { tot += sideSplitMin(f, side, "next") || 0; });
+  return tot;
+}
+
 function meanOf(arr){ return arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : null; }
 
 // Haftalık bakış ve yapay zeka değerlendirmesinin ORTAK hesabı (ikisi hep aynı
@@ -2108,8 +2141,8 @@ function computeWeekStats(byDate, endDateStr){
       formulaCc: feedings.reduce((s,f) => s + (Number(f.formulaCc)||0), 0),
       pumpedCc: feedings.reduce((s,f) => s + (Number(f.pumpedCc)||0), 0),
       pumpCount: feedings.filter(isPumped).length,
-      rightTotal: rightMins.reduce((a,b) => a+b, 0),
-      leftTotal: leftMins.reduce((a,b) => a+b, 0),
+      rightTotal: dayBreastMin(d || emptyDay(), byDate[shiftDate(date, -1)] && normalizeDay(byDate[shiftDate(date, -1)]), "right"),
+      leftTotal: dayBreastMin(d || emptyDay(), byDate[shiftDate(date, -1)] && normalizeDay(byDate[shiftDate(date, -1)]), "left"),
       breastHas: rightMins.length + leftMins.length > 0,
       pee: dp.pee, poop: dp.poop, diaperHas: dp.hasData,
       sleepHrs, sleepHas
@@ -3138,7 +3171,8 @@ function buildWeekReport(byDate, endDateStr){
     const date = shiftDate(endDateStr, -i);
     const raw = byDate[date];
     const d = raw ? normalizeDay(raw) : emptyDay();
-    const t = computeDayTotals(d, null);
+    const pr = byDate[shiftDate(date, -1)];
+    const t = computeDayTotals(d, null, pr ? normalizeDay(pr) : null);
     const [y, m, dd] = date.split("-").map(Number);
     const gun = {
       tarih: date, gun: WEEKDAYS[new Date(y, m-1, dd).getDay()],
@@ -3740,22 +3774,23 @@ async function restoreToOtherDay(e){
    (scheduleSave) ve diğer telefondan gelen her veride (render) yeniden hesaplanır.
    Süren uyku (ve taslak olmayan, eski usul süren emzirme) o ana kadarki süresiyle
    toplama eklenir; Kaydet'e basılmamış emzirme taslağı henüz sayılmaz. */
-function computeDayTotals(d, dateStr){
+function computeDayTotals(d, dateStr, prevD){
   const feedings = savedFeedings(d);
   const sum = (k) => feedings.reduce((s, f) => s + (Number(f[k]) || 0), 0);
   const diapers = d.diapers || [];
   const formula = sum("formulaCc"), extra = sum("extraCc");
-  let right = 0, left = 0, sleep = 0;
-  feedings.filter(isBreastRec).forEach(f => {
-    right += sideTotalMin(f, "right") || 0;
-    left += sideTotalMin(f, "left") || 0;
-  });
+  if (prevD === undefined && dateStr) prevD = dayDocFor(shiftDate(dateStr, -1));
+  // Gece yarısını geçen emzirme: dakikalar başladığı güne ve ertesi güne paylanır
+  let right = dayBreastMin(d, prevD, "right"), left = dayBreastMin(d, prevD, "left"), sleep = 0;
   (d.sleeps || []).forEach(s => { sleep += minutesBetween(s.sleepTime, s.wakeTime, 24*60) || 0; });
   if (dateStr){
     const elapsedMin = (s) => Math.max(0, Math.floor((Date.now() - s.startMs) / 60000));
-    if (live.feed && !live.feed.draft && live.feed.side && live.feed.date === dateStr){
+    if (live.feed && !live.feed.draft && live.feed.side && (live.feed.date === dateStr || live.feed.date === shiftDate(dateStr, -1))){
       const lm = Math.floor(liveSideMs(live.feed, Date.now()) / 60000);
-      if (live.feed.side === "right") right += lm; else left += lm;
+      const [ly, lmo, ld] = live.feed.date.split("-").map(Number);
+      const afterMid = Math.min(lm, Math.max(0, Math.floor((Date.now() - new Date(ly, lmo-1, ld+1).getTime()) / 60000)));
+      const part = live.feed.date === dateStr ? lm - afterMid : afterMid;
+      if (live.feed.side === "right") right += part; else left += part;
     }
     if (live.sleep && live.sleep.date === dateStr) sleep += elapsedMin(live.sleep);
   }
@@ -4277,7 +4312,7 @@ async function ensurePrevDay(dateStr){
   try{
     const snap = await getDoc(doc(db, "days", p));
     prevDayCache[p] = snap.exists() ? snap.data() : {};
-    if (currentDate === dateStr) renderRitim();
+    if (currentDate === dateStr){ renderRitim(); renderAkis(); renderDaySummary(); renderGlance(); }
   }catch(e){ delete prevDayCache[p]; }
 }
 function isBlankRecord(list, r){
@@ -4926,8 +4961,15 @@ applyDayView();
 
 const AKIS_LIMIT = 5; // "Daha az göster": en son 5 kayıt
 let akisExpanded = readListExpanded("akis");
-function akisEntries(d){
+function akisEntries(d, prevD){
   const items = [];
+  // Bir önceki günde başlayıp bu güne sarkan emzirmeler: bu günün akışında devam kaydı olarak görünür
+  if (prevD) savedFeedings(prevD).forEach(f => {
+    if (!isBreastRec(f)) return;
+    const next = (sideSplitMin(f, "right", "next") || 0) + (sideSplitMin(f, "left", "next") || 0);
+    const end = feedEndMin(f);
+    if (next > 0 && end != null && end >= 1440) items.push({ list:"feedings", idx:-1, rec:f, kind:"cont", t:end - 1440, next });
+  });
   (d.feedings || []).forEach((f, idx) => {
     if (isFreshDraft(f)) return; // Kaydet'e basılmamış emzirme kartta durur
     if (f.type === "formula"){ items.push({ list:"feedings", idx, rec:f, kind:"formula", t:hmToMin(f.time) }); return; }
@@ -4935,7 +4977,8 @@ function akisEntries(d){
     const starts = [hmToMin(f.rightStart), hmToMin(f.leftStart)].filter(v => v != null);
     // Emzirme bittiği dakikayla yazılır (süren / bitişi olmayan emzirme başlangıcıyla)
     const end = feedEndMin(f);
-    items.push({ list:"feedings", idx, rec:f, kind:"breast", t: end != null ? end : (starts.length ? Math.min(...starts) : null) });
+    // Gece yarısını geçen emzirme başladığı günün akışında 23:59'da (kendi payıyla) durur
+    items.push({ list:"feedings", idx, rec:f, kind:"breast", t: end != null ? Math.min(end, 1439) : (starts.length ? Math.min(...starts) : null) });
   });
   (d.diapers || []).forEach((x, idx) => items.push({ list:"diapers", idx, rec:x, kind:"diaper", t:hmToMin(x.time) }));
   if (sleepTrackingOn()) (d.sleeps || []).forEach((s, idx) => items.push({ list:"sleeps", idx, rec:s, kind:"sleep", t:hmToMin(s.sleepTime) }));
@@ -4946,13 +4989,20 @@ function akisItemHtml(it){
   const r = it.rec;
   const isLive = (it.list === "feedings" && live.feed && live.feed.rec === r) || (it.list === "sleeps" && live.sleep && live.sleep.rec === r);
   let k, title, detail = "", right = "";
-  if (it.kind === "breast"){
+  if (it.kind === "cont"){
+    k = "k-feed"; title = "Emzirme (devam)";
+    const parts = ["right", "left"].map(s => [s, sideSplitMin(r, s, "next")]).filter(x => x[1] > 0).map(x => SIDE_NAME[x[0]] + " " + x[1] + " dk");
+    detail = "önceki günden devam · " + parts.join(" · ");
+    right = `<span class="akis-val">${it.next} dk</span>`;
+  } else if (it.kind === "breast"){
     k = "k-feed"; title = "Emzirme";
     const parts = [];
+    const crosses = feedEndMin(r) != null && feedEndMin(r) >= 1440;
     breastSegs(r).forEach(g => {
       const st = g.start, en = g.end;
       if (!st && !en) return;
-      const m = segMin(g);
+      const sp = crosses ? segSplit(r, g) : null;
+      const m = sp ? sp.own : segMin(g);
       const liveSide = isLive && g.more == null && live.feed.side === g.side;
       parts.push(SIDE_NAME[g.side] + " " + (liveSide ? "sürüyor" : (m != null ? m + " dk" : (st && !en ? "bitiş yok" : "?"))));
     });
@@ -4961,8 +5011,10 @@ function akisItemHtml(it){
     if (Number(r.pumpedCc) > 0) parts.push("sağılan " + r.pumpedCc + " cc");
     const st0 = feedStartHm(r);
     if (st0 && feedEndMin(r) != null && !isLive) parts.unshift("başlangıç " + st0);
+    if (crosses) parts.push("gece yarısını geçti, devamı ertesi gün");
     detail = parts.join(" · ");
-    const total = (sideTotalMin(r, "right") || 0) + (sideTotalMin(r, "left") || 0);
+    const total = crosses ? (sideSplitMin(r, "right", "own") || 0) + (sideSplitMin(r, "left", "own") || 0)
+                          : (sideTotalMin(r, "right") || 0) + (sideTotalMin(r, "left") || 0);
     right = isLive ? `<span class="chip">sürüyor</span>` : (total ? `<span class="akis-val">${total} dk</span>` : "");
   } else if (it.kind === "formula"){
     k = "k-formula"; title = bottleName(r); detail = "Biberon";
@@ -4982,7 +5034,7 @@ function akisItemHtml(it){
   }
   if (isBlankRecord(it.list, r)) detail = "Boş kayıt — dokunup doldur";
   const time = it.t != null ? `<span class="akis-time">${minToHm(it.t % 1440)}</span>` : `<span class="akis-time none">saatsiz</span>`;
-  return `<button type="button" class="akis-item ${k}${isLive ? " live" : ""}" data-list="${it.list}" data-idx="${it.idx}">` +
+  return `<button type="button" class="akis-item ${k}${isLive ? " live" : ""}" data-list="${it.list}" data-idx="${it.idx}"${it.kind === "cont" ? ' data-cont="1"' : ""}>` +
       time + `<span class="akis-node" aria-hidden="true"><i></i></span>` +
       `<span class="akis-card"><span class="akis-main"><span class="akis-title">${title}</span>` +
       (detail ? `<span class="akis-detail">${escapeHtml(detail)}</span>` : "") + `</span>${right}</span>` +
@@ -4992,7 +5044,7 @@ function renderAkis(){
   const list = document.getElementById("akisList");
   if (!list) return;
   const more = document.getElementById("akisMore");
-  const items = akisEntries(dayData);
+  const items = akisEntries(dayData, dayDocFor(shiftDate(currentDate, -1)));
   if (!items.length){
     list.innerHTML = dayLoading ? "" :
       `<div class="akis-empty">${currentDate === todayStr() ? "Bugün için henüz kayıt yok." : "Bu gün için kayıt yok."}<br>Alttaki düğmelerden ekleyebilirsin.</div>`;
@@ -5010,7 +5062,7 @@ function renderAkis(){
 }
 document.getElementById("akisList").addEventListener("click", (e) => {
   const b = e.target.closest(".akis-item");
-  if (!b || dayLoading) return;
+  if (!b || dayLoading || b.dataset.cont) return; // devam kaydı başladığı günün kaydıdır; oradan düzenlenir
   const rec = dayData[b.dataset.list] && dayData[b.dataset.list][Number(b.dataset.idx)];
   if (rec) openEditSheet(b.dataset.list, rec);
 });
