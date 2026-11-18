@@ -1245,7 +1245,7 @@
         <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg></span> Veri yedeği</h2>
         <p class="settings-hint">Tüm kayıtlarını (günlükler, büyüme, aşı, gelişim aşamaları) tek bir dosyada indir. Ayda bir falan almanı öneririm.</p>
         <button class="add-btn" type="button" id="downloadBackupBtn">Yedek indir (.json)</button>
-        <button class="add-btn" type="button" id="downloadTableBtn">Günlük tablo indir (.csv)</button>
+        <button class="add-btn" type="button" id="downloadTableBtn">Günlük tablo (PDF)</button>
         <p class="settings-hint" id="backupStatus"></p>
       </section>
 
@@ -3403,7 +3403,126 @@ document.getElementById("downloadBackupBtn").addEventListener("click", async () 
   }
 });
 
-// Doğumdan bugüne her gün için: mama, ek süt, meme dakikaları ve uyku (Excel için ; ayraçlı CSV)
+// Doğumdan bugüne günlük tablo (PDF olarak kaydedilmek üzere yazdırma sayfası): her gün için
+// mama, ek süt, toplam emme ve uyku; ay ortalamaları sadece o başlıkta kaydı olan günlerden alınır.
+function buildTableReportHtml(rows, lionUrl){
+  const AY = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  const GUN = ["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+  const KEYS = ["mama", "ek", "emme", "uyku"];
+  const COL = { mama:"#EA7B30", ek:"#E14F7C", emme:"#F2A31B", uyku:"#7564EE" };
+  const SOFT = { mama:"#FDE9DA", ek:"#FCE4EC", emme:"#FDF1D9", uyku:"#ECE9FD" };
+  const INK = { mama:"#963F0B", ek:"#A0244C", emme:"#875800", uyku:"#4637B5" };
+  const LBL = { mama:"Mama", ek:"Ek süt", emme:"Toplam emme", uyku:"Uyku" };
+  const UNIT = { mama:"cc", ek:"cc", emme:"dk", uyku:"sa" };
+  const f0 = (v) => v > 0 ? Math.round(v) : "—";
+  const fh = (v) => v > 0 ? v.toFixed(1).replace(".", ",") : "—";
+  const FMT = { mama:f0, ek:f0, emme:f0, uyku:fh };
+  const avg = (rs, k) => { const a = rs.filter(r => r[k] > 0); return a.length ? { v:a.reduce((s, r) => s + r[k], 0) / a.length, n:a.length } : null; };
+  const dstr = (d) => { const [, m, dd] = d.split("-").map(Number); return dd + " " + AY[m-1]; };
+  const dayName = (d) => { const [y, m, dd] = d.split("-").map(Number); return GUN[(new Date(y, m-1, dd).getDay() + 6) % 7]; };
+  const MAX = {};
+  KEYS.forEach(k => { MAX[k] = Math.max(1, ...rows.map(r => r[k])); });
+  const months = {};
+  rows.forEach(r => { (months[r.date.slice(0, 7)] = months[r.date.slice(0, 7)] || []).push(r); });
+
+  const chart = (title, sub, series, max, step, legend) => {
+    const W = 700, H = 130, L = 30, B = 18, T = 6, n = rows.length, bw = (W - L) / n;
+    let g = "";
+    for (let v = 0; v <= max; v += step){
+      const y = T + (H - T - B) * (1 - v / max);
+      g += `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="#E2E7EF" stroke-width=".6"/><text x="${L-5}" y="${y+3}" text-anchor="end" font-size="7" fill="#8C99AB">${v}</text>`;
+    }
+    rows.forEach((r, i) => {
+      let acc = 0;
+      const x = L + i * bw + bw * .15, w = bw * .7;
+      series.forEach(k => {
+        const v = r[k];
+        if (!(v > 0)) return;
+        const h = (H - T - B) * v / max, y = T + (H - T - B) * (1 - (acc + v) / max);
+        g += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="1.2" fill="${COL[k]}"/>`;
+        acc += v;
+      });
+      const d = +r.date.slice(8);
+      if (d === 1 || d % 5 === 0) g += `<text x="${(x + w/2).toFixed(1)}" y="${H-5}" text-anchor="middle" font-size="7" fill="#8C99AB">${d}</text>`;
+      if (r.date.endsWith("-01") && i > 0) g += `<line x1="${(L + i*bw).toFixed(1)}" x2="${(L + i*bw).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="#8C99AB" stroke-dasharray="2 2" stroke-width=".6"/>`;
+    });
+    return `<div class="chart"><div class="ch"><b>${title}</b><span>${sub}</span><em>${legend}</em></div><svg viewBox="0 0 ${W} ${H}">${g}</svg></div>`;
+  };
+  const dot = (k) => `<i style="background:${COL[k]}"></i>${LBL[k]}`;
+  const maxMilk = Math.max(...rows.map(r => r.mama + r.ek));
+  const stepMilk = maxMilk > 600 ? 400 : 200, topMilk = Math.ceil(maxMilk / stepMilk) * stepMilk || stepMilk;
+  const topEmme = Math.ceil(MAX.emme / 100) * 100, topUyku = Math.max(4, Math.ceil(MAX.uyku / 4) * 4);
+  const charts =
+    chart("Günlük süt", "mama + ek süt (cc)", ["mama", "ek"], topMilk, stepMilk, dot("mama") + " " + dot("ek")) +
+    chart("Toplam emme süresi", "dakika", ["emme"], topEmme, 100, dot("emme")) +
+    chart("Uyku", "saat", ["uyku"], topUyku, 4, dot("uyku"));
+
+  let cards = "", tables = "";
+  Object.keys(months).forEach(key => {
+    const rs = months[key], [y, m] = key.split("-").map(Number);
+    const a = {};
+    KEYS.forEach(x => { a[x] = avg(rs, x); });
+    const cell = (x) => `<div class="stat" style="background:${SOFT[x]}"><div class="bar" style="background:${COL[x]}"></div><div class="sl" style="color:${INK[x]}">${LBL[x]}</div><div class="sv">${a[x] ? FMT[x](a[x].v) : "—"}<small>${UNIT[x]}</small></div><div class="sn">${a[x] ? a[x].n + " günün ortalaması" : "veri yok"}</div></div>`;
+    cards += `<section class="mo"><div class="mh"><h2>${AY[m-1]} ${y}</h2><span>${rs.length} gün kayıtlı</span></div><div class="stats">${KEYS.map(cell).join("")}</div></section>`;
+    const td = (r, x) => {
+      const v = r[x];
+      if (!(v > 0)) return `<td class="n">—</td>`;
+      return `<td class="n"><span class="db" style="width:${(v / MAX[x] * 100).toFixed(0)}%;background:${SOFT[x]}"></span><span class="tv">${FMT[x](v)}</span></td>`;
+    };
+    tables += `<section class="tb"><div class="mh"><h2>${AY[m-1]} ${y}</h2><span>günlük kayıtlar</span></div><table><thead><tr><th class="d">Tarih</th>${KEYS.map(x => `<th style="border-bottom-color:${COL[x]}">${LBL[x]} <small>${UNIT[x]}</small></th>`).join("")}</tr></thead><tbody>` +
+      rs.map(r => `<tr><td class="d"><b>${+r.date.slice(8)}</b> ${AY[m-1]} <i>${dayName(r.date)}</i></td>${KEYS.map(x => td(r, x)).join("")}</tr>`).join("") +
+      `<tr class="av"><td class="d">Ortalama</td>${KEYS.map(x => `<td class="n"><span class="tv">${a[x] ? FMT[x](a[x].v) : "—"}</span></td>`).join("")}</tr></tbody></table></section>`;
+  });
+  const last = rows[rows.length - 1].date;
+  return `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=794"><title>Aslan Günlüğü</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet"><style>
+@page{size:A4;margin:0}
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;font:11px/1.4 Onest,"Segoe UI",Arial,sans-serif;color:#0F1B2D;background:#F4F6FA}
+.bar-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 16px;background:#fff;border-bottom:1px solid #E2E7EF;font-size:13px}
+.bar-top button{font:600 14px Onest,sans-serif;border:0;border-radius:10px;padding:9px 16px;background:#0F1B2D;color:#fff}
+.bar-top span{color:#56667B;flex:1}
+@media print{.bar-top{display:none}}
+.page{width:210mm;min-height:296mm;padding:0 13mm 12mm;page-break-after:always;position:relative;background:#F4F6FA}
+.page:last-child{page-break-after:auto}
+.hero{margin:0 -13mm 14px;padding:22px 13mm 20px;background:linear-gradient(135deg,#0F1B2D,#1F2F52);color:#fff;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-30px;top:-50px;width:210px;height:210px;border-radius:50%;background:#2A3A5E}
+.hero img{width:74px;height:74px;position:relative;z-index:1}
+.hero h1{margin:0;font:700 26px Outfit,sans-serif;letter-spacing:-.3px}
+.hero p{margin:3px 0 0;color:#B8C3D6;font-size:11.5px}
+.pill{display:inline-block;margin-top:8px;background:rgba(247,195,95,.18);color:#F7C35F;border-radius:99px;padding:3px 10px;font-size:10px;font-weight:600}
+.hero>div{position:relative;z-index:1}
+.mh{display:flex;align-items:baseline;gap:8px;margin:0 0 8px}.mh h2{margin:0;font:600 15px Outfit,sans-serif}.mh span{font-size:10px;color:#8C99AB}
+.mo,.tb{margin-bottom:14px;break-inside:avoid}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{border-radius:14px;padding:11px 12px 9px;position:relative;overflow:hidden}
+.bar{position:absolute;left:0;top:0;bottom:0;width:4px}
+.sl{font-size:10px;font-weight:600}.sv{font:700 24px Outfit,sans-serif;margin:2px 0 1px}.sv small{font:500 11px Onest;margin-left:3px;color:#56667B}.sn{font-size:8.5px;color:#56667B}
+.sec{font:600 13px Outfit,sans-serif;margin:16px 0 8px}
+.chart{background:#fff;border-radius:14px;padding:10px 12px 6px;margin-bottom:8px;box-shadow:0 4px 14px rgba(15,27,45,.05);break-inside:avoid}
+.ch{display:flex;align-items:baseline;gap:7px;margin-bottom:2px}.ch b{font:600 12px Outfit,sans-serif}.ch span{font-size:9px;color:#8C99AB}.ch em{margin-left:auto;font-style:normal;font-size:9px;color:#56667B}
+.ch i{display:inline-block;width:7px;height:7px;border-radius:2px;margin:0 3px 0 6px}
+svg{width:100%;height:auto;display:block}
+.note{font-size:8.5px;color:#8C99AB;margin-top:10px;line-height:1.5}
+table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(15,27,45,.05)}
+th{font:600 9.5px Onest;text-align:right;padding:8px 10px 6px;background:#fff;border-bottom:2px solid #E2E7EF;color:#56667B}th small{font-weight:400;color:#8C99AB}
+th.d{text-align:left;width:28%}
+td{padding:0;height:19px;border-bottom:1px solid #EBEFF5;font-variant-numeric:tabular-nums;position:relative}
+td.d{padding:0 10px;text-align:left}td.d b{font-weight:600}td.d i{font-style:normal;color:#8C99AB;font-size:8.5px;margin-left:4px}
+td.n{text-align:right;padding:0 10px}.tv{position:relative}.db{position:absolute;right:0;top:3px;bottom:3px;border-radius:4px 0 0 4px}
+tr{break-inside:avoid}tr:last-child td{border-bottom:0}
+tr.av td{background:#0F1B2D;color:#fff;font-weight:700;height:22px}tr.av td.n{color:#F7C35F}
+</style></head><body>
+<div class="bar-top"><span>PDF için: Yazdır'a bas, sonra Paylaş ile kaydet.</span><button type="button" onclick="window.print()">Yazdır / PDF</button></div>
+<div class="page">
+ <div class="hero"><img src="${lionUrl}" alt=""><div><h1>Aslan Günlüğü</h1><p>Günlük beslenme ve uyku özeti</p><span class="pill">${dstr(rows[0].date)} – ${dstr(last)} ${last.slice(0, 4)} · ${rows.length} gün</span></div></div>
+ <div class="sec" style="margin-top:0">Aylık ortalamalar</div>${cards}
+ <div class="sec">Günlük grafikler</div>${charts}
+ <p class="note">Ortalamalara yalnızca o başlıkta kayıt girilmiş günler katıldı; kaydı olmayan günler (0 / boş) hesaba katılmadı. Toplam emme sağ + sol memenin toplamıdır; gece yarısını geçen emzirmeler başladığı ve bittiği güne paylanmıştır. ${dstr(last)} günü henüz bitmemiş olabilir.</p>
+</div>
+<div class="page"><div style="height:12mm"></div>${tables}</div>
+</body></html>`;
+}
 document.getElementById("downloadTableBtn").addEventListener("click", async () => {
   const popup = window.open("");
   if (popup){
@@ -3419,42 +3538,27 @@ document.getElementById("downloadTableBtn").addEventListener("click", async () =
     const byDate = {};
     snap.forEach(d => { byDate[d.id] = normalizeDay(d.data()); });
     const dates = Object.keys(byDate).filter(k => dayHasContent(byDate[k])).sort();
-    const rows = [["Tarih", "Mama (cc)", "Ek süt (cc)", "Sağ meme (dk)", "Sol meme (dk)", "Toplam meme (dk)", "Uyku (dk)", "Uyku (sa)"]];
-    dates.forEach(date => {
+    if (!dates.length) throw new Error("kayıt yok");
+    const rows = dates.map(date => {
       const t = computeDayTotals(byDate[date], null, byDate[shiftDate(date, -1)] || null);
-      rows.push([date, t.formula, t.extra, t.right, t.left, t.breast, t.sleep, String((t.sleep / 60).toFixed(1)).replace(".", ",")]);
+      return { date, mama:t.formula, ek:t.extra, emme:t.breast, uyku:t.sleep / 60 };
     });
-    const csv = "﻿" + rows.map(r => r.join(";")).join("\r\n");
-    const filename = "bebek-gunlugu-gunluk-tablo-" + todayStr() + ".csv";
-    const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (popup && !popup.closed){
-        popup.document.body.innerHTML = "";
-        const link = popup.document.createElement("a");
-        link.href = reader.result;
-        link.download = filename;
-        link.textContent = "İndirmek için dokun: " + filename;
-        link.style.font = "16px sans-serif";
-        popup.document.body.appendChild(link);
-        link.click();
-      } else {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }
-      statusEl.textContent = dates.length + " günlük tablo hazır — indirmediyse yeni açılan sekmedeki linke dokun.";
-    };
-    reader.readAsDataURL(blob);
+    const html = buildTableReportHtml(rows, new URL("lion-mascot.png", location.href).href);
+    if (popup && !popup.closed){
+      popup.document.open();
+      popup.document.write(html);
+      popup.document.close();
+      statusEl.textContent = dates.length + " günlük tablo yeni sekmede açıldı — PDF için Yazdır'a basıp Paylaş ile kaydet.";
+    } else {
+      const w = window.open(URL.createObjectURL(new Blob([html], { type:"text/html;charset=utf-8" })));
+      statusEl.textContent = w ? "Tablo yeni sekmede açıldı." : "Tarayıcı yeni sekmeyi engelledi, izin verip tekrar dene.";
+    }
   }catch(e){
     if (popup) popup.close();
     statusEl.textContent = "Tablo oluşturulamadı, tekrar dene.";
   }finally{
     btn.disabled = false;
-    btn.textContent = "Günlük tablo indir (.csv)";
+    btn.textContent = "Günlük tablo (PDF)";
   }
 });
 
