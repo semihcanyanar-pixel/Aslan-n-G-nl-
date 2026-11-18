@@ -1245,6 +1245,7 @@
         <h2><span class="badge k-primary"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg></span> Veri yedeği</h2>
         <p class="settings-hint">Tüm kayıtlarını (günlükler, büyüme, aşı, gelişim aşamaları) tek bir dosyada indir. Ayda bir falan almanı öneririm.</p>
         <button class="add-btn" type="button" id="downloadBackupBtn">Yedek indir (.json)</button>
+        <button class="add-btn" type="button" id="downloadTableBtn">Günlük tablo indir (.csv)</button>
         <p class="settings-hint" id="backupStatus"></p>
       </section>
 
@@ -3399,6 +3400,61 @@ document.getElementById("downloadBackupBtn").addEventListener("click", async () 
   }finally{
     btn.disabled = false;
     btn.textContent = "Yedek indir (.json)";
+  }
+});
+
+// Doğumdan bugüne her gün için: mama, ek süt, meme dakikaları ve uyku (Excel için ; ayraçlı CSV)
+document.getElementById("downloadTableBtn").addEventListener("click", async () => {
+  const popup = window.open("");
+  if (popup){
+    try{ popup.document.title = "Tablo hazırlanıyor"; popup.document.body.textContent = "Tablo hazırlanıyor…"; }catch(e){}
+  }
+  const btn = document.getElementById("downloadTableBtn");
+  const statusEl = document.getElementById("backupStatus");
+  btn.disabled = true;
+  btn.textContent = "Hazırlanıyor…";
+  statusEl.textContent = "";
+  try{
+    const snap = await getDocs(collection(db, "days"));
+    const byDate = {};
+    snap.forEach(d => { byDate[d.id] = normalizeDay(d.data()); });
+    const dates = Object.keys(byDate).filter(k => dayHasContent(byDate[k])).sort();
+    const rows = [["Tarih", "Mama (cc)", "Ek süt (cc)", "Sağ meme (dk)", "Sol meme (dk)", "Toplam meme (dk)", "Uyku (dk)", "Uyku (sa)"]];
+    dates.forEach(date => {
+      const t = computeDayTotals(byDate[date], null, byDate[shiftDate(date, -1)] || null);
+      rows.push([date, t.formula, t.extra, t.right, t.left, t.breast, t.sleep, String((t.sleep / 60).toFixed(1)).replace(".", ",")]);
+    });
+    const csv = "﻿" + rows.map(r => r.join(";")).join("\r\n");
+    const filename = "bebek-gunlugu-gunluk-tablo-" + todayStr() + ".csv";
+    const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (popup && !popup.closed){
+        popup.document.body.innerHTML = "";
+        const link = popup.document.createElement("a");
+        link.href = reader.result;
+        link.download = filename;
+        link.textContent = "İndirmek için dokun: " + filename;
+        link.style.font = "16px sans-serif";
+        popup.document.body.appendChild(link);
+        link.click();
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      statusEl.textContent = dates.length + " günlük tablo hazır — indirmediyse yeni açılan sekmedeki linke dokun.";
+    };
+    reader.readAsDataURL(blob);
+  }catch(e){
+    if (popup) popup.close();
+    statusEl.textContent = "Tablo oluşturulamadı, tekrar dene.";
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Günlük tablo indir (.csv)";
   }
 });
 
