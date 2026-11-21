@@ -2112,6 +2112,23 @@ function dayBreastMin(d, prevD, side){
   return tot;
 }
 
+// Gece yarısını geçen uyku (ör. 23:50 – 02:00): dakikalar uykunun başladığı güne (own) ve
+// ertesi güne (next) paylanır. Gece yarısını geçmeyen uykuda next = 0; süresi bilinmiyorsa null.
+function sleepSplit(s){
+  const m = minutesBetween(s.sleepTime, s.wakeTime, 24*60);
+  const a = hmToMin(s.sleepTime);
+  if (m == null || a == null) return null;
+  const own = Math.min(m, 1440 - a);
+  return { own, next: m - own };
+}
+// Bir günün uyku dakikası: o gündeki uykuların kendi payı + bir önceki günden sarkan kısım
+function daySleepMin(d, prevD){
+  let tot = 0;
+  ((d && d.sleeps) || []).forEach(s => { const sp = sleepSplit(s); if (sp) tot += sp.own; });
+  ((prevD && prevD.sleeps) || []).forEach(s => { const sp = sleepSplit(s); if (sp) tot += sp.next; });
+  return tot;
+}
+
 function meanOf(arr){ return arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : null; }
 
 // Haftalık bakış ve yapay zeka değerlendirmesinin ORTAK hesabı (ikisi hep aynı
@@ -2132,10 +2149,9 @@ function computeWeekStats(byDate, endDateStr){
     const leftMins = breast.map(f => sideTotalMin(f, "left")).filter(m => m != null);
     const dp = diaperStatsForDay(d);
     let sleepHrs = 0, sleepHas = false;
-    ((d && d.sleeps) || []).forEach(s => {
-      const m = minutesBetween(s.sleepTime, s.wakeTime, 24*60);
-      if (m != null){ sleepHrs += m/60; sleepHas = true; }
-    });
+    const prevRaw = byDate[shiftDate(date, -1)];
+    const sleepMin = daySleepMin(d, prevRaw && normalizeDay(prevRaw));
+    if (sleepMin > 0){ sleepHrs = sleepMin / 60; sleepHas = true; }
     perDay.push({
       date, isToday: date === endDateStr,
       feedCount: meals.length, feedHas: meals.length > 0, milkHas: feedings.length > 0,
@@ -3996,7 +4012,7 @@ function computeDayTotals(d, dateStr, prevD){
   if (prevD === undefined && dateStr) prevD = dayDocFor(shiftDate(dateStr, -1));
   // Gece yarısını geçen emzirme: dakikalar başladığı güne ve ertesi güne paylanır
   let right = dayBreastMin(d, prevD, "right"), left = dayBreastMin(d, prevD, "left"), sleep = 0;
-  (d.sleeps || []).forEach(s => { sleep += minutesBetween(s.sleepTime, s.wakeTime, 24*60) || 0; });
+  sleep = daySleepMin(d, prevD);
   if (dateStr){
     const elapsedMin = (s) => Math.max(0, Math.floor((Date.now() - s.startMs) / 60000));
     if (live.feed && !live.feed.draft && live.feed.side && (live.feed.date === dateStr || live.feed.date === shiftDate(dateStr, -1))){
@@ -4006,7 +4022,13 @@ function computeDayTotals(d, dateStr, prevD){
       const part = live.feed.date === dateStr ? lm - afterMid : afterMid;
       if (live.feed.side === "right") right += part; else left += part;
     }
-    if (live.sleep && live.sleep.date === dateStr) sleep += elapsedMin(live.sleep);
+    if (live.sleep && (live.sleep.date === dateStr || live.sleep.date === shiftDate(dateStr, -1))){
+      // Süren uyku gece yarısını geçtiyse geçen dakikalar ertesi günün toplamına yazılır
+      const em = elapsedMin(live.sleep);
+      const [sy, smo, sd] = live.sleep.date.split("-").map(Number);
+      const afterMid = Math.min(em, Math.max(0, Math.floor((Date.now() - new Date(sy, smo-1, sd+1).getTime()) / 60000)));
+      sleep += live.sleep.date === dateStr ? em - afterMid : afterMid;
+    }
   }
   return { formula, extra, intake: formula + extra, pumped: sum("pumpedCc"), pumpCount: feedings.filter(isPumped).length,
            pee: diapers.filter(x => x.pee).length, poop: diapers.filter(x => x.poop).length,
@@ -5177,6 +5199,11 @@ const AKIS_LIMIT = 5; // "Daha az göster": en son 5 kayıt
 let akisExpanded = readListExpanded("akis");
 function akisEntries(d, prevD){
   const items = [];
+  // Bir önceki günde başlayıp bu güne sarkan uykular
+  if (prevD && sleepTrackingOn()) (prevD.sleeps || []).forEach(s => {
+    const sp = sleepSplit(s);
+    if (sp && sp.next > 0) items.push({ list:"sleeps", idx:-1, rec:s, kind:"sleepcont", t:hmToMin(s.wakeTime), next:sp.next });
+  });
   // Bir önceki günde başlayıp bu güne sarkan emzirmeler: bu günün akışında devam kaydı olarak görünür
   if (prevD) savedFeedings(prevD).forEach(f => {
     if (!isBreastRec(f)) return;
@@ -5203,7 +5230,11 @@ function akisItemHtml(it){
   const r = it.rec;
   const isLive = (it.list === "feedings" && live.feed && live.feed.rec === r) || (it.list === "sleeps" && live.sleep && live.sleep.rec === r);
   let k, title, detail = "", right = "";
-  if (it.kind === "cont"){
+  if (it.kind === "sleepcont"){
+    k = "k-sleep"; title = "Uyku (devam)";
+    detail = "önceki günden devam · " + rangeText(r.sleepTime, r.wakeTime);
+    right = `<span class="akis-val">${durText(it.next)}</span>`;
+  } else if (it.kind === "cont"){
     k = "k-feed"; title = "Emzirme (devam)";
     const parts = ["right", "left"].map(s => [s, sideSplitMin(r, s, "next")]).filter(x => x[1] > 0).map(x => SIDE_NAME[x[0]] + " " + x[1] + " dk");
     detail = "önceki günden devam · " + parts.join(" · ");
@@ -5243,12 +5274,14 @@ function akisItemHtml(it){
   } else {
     k = "k-sleep"; title = isLive ? "Uyuyor" : "Uyku";
     detail = rangeText(r.sleepTime, r.wakeTime);
-    const m = minutesBetween(r.sleepTime, r.wakeTime, 24*60);
+    const sp = sleepSplit(r);
+    if (sp && sp.next > 0) detail += " · gece yarısını geçti, devamı ertesi gün";
+    const m = sp ? sp.own : null;
     right = isLive ? `<span class="chip">sürüyor</span>` : (m != null ? `<span class="akis-val">${durText(m)}</span>` : "");
   }
   if (isBlankRecord(it.list, r)) detail = "Boş kayıt — dokunup doldur";
   const time = it.t != null ? `<span class="akis-time">${minToHm(it.t % 1440)}</span>` : `<span class="akis-time none">saatsiz</span>`;
-  return `<button type="button" class="akis-item ${k}${isLive ? " live" : ""}" data-list="${it.list}" data-idx="${it.idx}"${it.kind === "cont" ? ' data-cont="1"' : ""}>` +
+  return `<button type="button" class="akis-item ${k}${isLive ? " live" : ""}" data-list="${it.list}" data-idx="${it.idx}"${it.kind === "cont" || it.kind === "sleepcont" ? ' data-cont="1"' : ""}>` +
       time + `<span class="akis-node" aria-hidden="true"><i></i></span>` +
       `<span class="akis-card"><span class="akis-main"><span class="akis-title">${title}</span>` +
       (detail ? `<span class="akis-detail">${escapeHtml(detail)}</span>` : "") + `</span>${right}</span>` +
